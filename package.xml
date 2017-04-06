@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package>
-  <name>uav_offboard</name>
+  <name>intel-aero-RTF-gr871</name>
   <version>0.0.0</version>
   <description>The uav_offboard package</description>
 
