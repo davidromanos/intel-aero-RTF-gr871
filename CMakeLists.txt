@@ -14,6 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   geometry_msgs
   gazebo_msgs
+  cv_bridge
+  image_transport
 )
 
 ## System dependencies are found with CMake's conventions
@@ -138,6 +140,7 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(offb_node src/offb_node.cpp)
 add_executable(true_position src/true_position.cpp)
+add_executable(depthgrab src/depthgrab.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -150,10 +153,12 @@ add_executable(true_position src/true_position.cpp)
 add_dependencies(offb_node ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
 add_dependencies(true_position ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
 #add_dependencies(offb_node uav_offboard_generate_messages_cpp)
+add_dependencies(depthgrab ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(offb_node ${catkin_LIBRARIES})
 target_link_libraries(true_position ${catkin_LIBRARIES})
+target_link_libraries(depthgrab ${catkin_LIBRARIES})
 
 #############
 ## Install ##
