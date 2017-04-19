@@ -2,12 +2,13 @@
 <package>
   <name>intel_aero_rtf_gr871</name>
   <version>0.0.0</version>
-  <description>The uav_offboard package</description>
+  <description>Package for gr871 UAV ROS development on Intel Aero</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag --> 
   <!-- Example:  -->
   <!-- <maintainer email="jane.doe@example.com">Jane Doe</maintainer> -->
-  <maintainer email="david@todo.todo">david</maintainer>
+  <maintainer email="thomas@tkjelectronics.dk">Thomas Jespersen</maintainer>
+  <maintainer email="droman16@student.aau.dk">David Romanos</maintainer>
 
 
   <!-- One license tag required, multiple allowed, one license per tag -->
@@ -59,6 +60,7 @@
   <run_depend>cv_bridge</run_depend>
   <run_depend>image_transport</run_depend>
   <run_depend>tf</run_depend>
+
   <build_depend>message_generation</build_depend>
   <run_depend>message_runtime</run_depend>
 
