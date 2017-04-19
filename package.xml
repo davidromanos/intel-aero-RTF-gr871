@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package>
-  <name>uav_offboard</name>
+  <name>intel_aero_rtf_gr871</name>
   <version>0.0.0</version>
   <description>The uav_offboard package</description>
 
@@ -45,13 +45,22 @@
   <build_depend>gazebo_msgs</build_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>rospy</build_depend>
-  <build_depend>std_msgs</build_depend>
+  <build_depend>tf</build_depend>
+  <build_depend>std_msgs</build_depend>  
   <run_depend>mavros_msgs</run_depend>
   <run_depend>geometry_msgs</run_depend>
   <run_depend>gazebo_msgs</run_depend>
   <run_depend>roscpp</run_depend>
   <run_depend>rospy</run_depend>
   <run_depend>std_msgs</run_depend>
+
+  <build_depend>cv_bridge</build_depend>
+  <build_depend>image_transport</build_depend>
+  <run_depend>cv_bridge</run_depend>
+  <run_depend>image_transport</run_depend>
+  <run_depend>tf</run_depend>
+  <build_depend>message_generation</build_depend>
+  <run_depend>message_runtime</run_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

@@ -1,0 +1,24 @@
+add_library(observer_z
+ observer_z/observer_z.cpp
+ observer_z/observer_z_terminate.cpp
+ observer_z/observer_z_initialize.cpp
+ observer_z/rt_nonfinite.cpp
+ observer_z/rtGetNaN.cpp
+ observer_z/rtGetInf.cpp
+)
+add_library(observer_xdot
+ observer_xdot/observer_xdot.cpp
+ observer_xdot/observer_xdot_terminate.cpp
+ observer_xdot/observer_xdot_initialize.cpp
+ observer_xdot/rt_nonfinite.cpp
+ observer_xdot/rtGetNaN.cpp
+ observer_xdot/rtGetInf.cpp
+)
+add_library(observer_ydot
+ observer_ydot/observer_ydot.cpp
+ observer_ydot/observer_ydot_terminate.cpp
+ observer_ydot/observer_ydot_initialize.cpp
+ observer_ydot/rt_nonfinite.cpp
+ observer_ydot/rtGetNaN.cpp
+ observer_ydot/rtGetInf.cpp
+)

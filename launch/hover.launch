@@ -1,0 +1,8 @@
+
+<launch>
+
+  <node name="fake_vicon" pkg="intel-aero-RTF-gr871" type="true_position" />
+  <node name="take_off" pkg="intel-aero-RTF-gr871" type="offb_node" />
+
+</launch>
+  
