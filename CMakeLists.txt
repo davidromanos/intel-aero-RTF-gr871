@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(intel-aero-RTF-gr871)
+project(intel_aero_rtf_gr871)
 
 ## Add support for C++11, supported in ROS Kinetic and newer
 # add_definitions(-std=c++11)
@@ -16,6 +16,8 @@ find_package(catkin REQUIRED COMPONENTS
   gazebo_msgs
   cv_bridge
   image_transport
+  tf
+  message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -52,11 +54,11 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
+add_message_files(
+   FILES
+   controllerLog.msg
 #   Message2.msg
-# )
+ )
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -73,10 +75,10 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   mavros_msgs#   std_msgs
-# )
+generate_messages(
+   DEPENDENCIES
+   std_msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -107,12 +109,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
-catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES uav_offboard
-#  CATKIN_DEPENDS mavros_msgs roscpp rospy std_msgs
-#  DEPENDS system_lib
-)
+catkin_package(CATKIN_DEPENDS roscpp rospy std_msgs message_runtime)
 
 ###########
 ## Build ##
@@ -120,10 +117,16 @@ catkin_package(
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-# include_directories(include)
+
 include_directories(
-  ${catkin_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS}  
+  ToDoCore
+  src/observers/observer_z
+  src/observers/observer_xdot
+  src/observers/observer_ydot
 )
+
+add_subdirectory(src/observers)
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
@@ -142,6 +145,13 @@ add_executable(offb_node src/offb_node.cpp)
 add_executable(true_position src/true_position.cpp)
 add_executable(depthgrab src/depthgrab.cpp)
 
+add_executable(controller src/controller.cpp)
+## observers/kalmanfilter_z.c
+## observers/kalmanfilter_z_terminate.c
+## observers/kalmanfilter_z_initialize.c
+## observers/rt_nonfinite.c
+## observers/rtGetNaN.c
+## observers/rtGetInf.c
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -152,6 +162,7 @@ add_executable(depthgrab src/depthgrab.cpp)
 ## same as for the library above
 add_dependencies(offb_node ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
 add_dependencies(true_position ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
+add_dependencies(controller ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS} intel_aero_RTF_gr871_generate_messages_cpp)
 #add_dependencies(offb_node uav_offboard_generate_messages_cpp)
 add_dependencies(depthgrab ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
 
@@ -160,6 +171,8 @@ target_link_libraries(offb_node ${catkin_LIBRARIES})
 target_link_libraries(true_position ${catkin_LIBRARIES})
 target_link_libraries(depthgrab ${catkin_LIBRARIES})
 
+target_link_libraries(controller ${catkin_LIBRARIES} observer_z observer_xdot observer_ydot)
+#target_link_libraries(controller ${catkin_LIBRARIES})
 #############
 ## Install ##
 #############
