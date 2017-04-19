@@ -162,7 +162,7 @@ add_executable(controller src/controller.cpp)
 ## same as for the library above
 add_dependencies(offb_node ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
 add_dependencies(true_position ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
-add_dependencies(controller ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS} intel_aero_RTF_gr871_generate_messages_cpp)
+add_dependencies(controller ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS} intel_aero_rtf_gr871_generate_messages_cpp)
 #add_dependencies(offb_node uav_offboard_generate_messages_cpp)
 add_dependencies(depthgrab ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
 

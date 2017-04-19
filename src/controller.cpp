@@ -35,7 +35,7 @@
 #include <string.h>
 #include <iostream>
 #include "rtwtypes.h"
-#include "intel_aero_RTF_gr871/controllerLog.h"
+#include "intel_aero_rtf_gr871/controllerLog.h"
 
 #include <rosbag/bag.h>
 
@@ -338,7 +338,7 @@ int main(int argc, char **argv)
     Derivative ydot(2);
     Derivative t(20);
 
-    intel_aero_RTF_gr871::controllerLog log;
+    intel_aero_rtf_gr871::controllerLog log;
 
 
     ros::init(argc, argv, "controller_node");
@@ -357,7 +357,7 @@ int main(int argc, char **argv)
     ros::Publisher attitude_pub = nh.advertise<geometry_msgs::PoseStamped>
             ("mavros/setpoint_attitude/attitude", 10);
 
-    ros::Publisher log_pub = nh.advertise<intel_aero_RTF_gr871::controllerLog>
+    ros::Publisher log_pub = nh.advertise<intel_aero_rtf_gr871::controllerLog>
             ("controller/log", 10);
 
     ros::Publisher thrust_pub = nh.advertise<std_msgs::Float64>
@@ -421,7 +421,7 @@ int main(int argc, char **argv)
 
     //rosbag::Bag bag;
     //bag.open("test.bag", rosbag::bagmode::Write);
-    //bag.write("controller/log", ros::Time::now(), intel_aero_RTF_gr871::controllerLog());
+    //bag.write("controller/log", ros::Time::now(), intel_aero_rtf_gr871::controllerLog());
 
 
     while(ros::ok()){
