@@ -146,7 +146,7 @@ add_executable(true_position src/true_position.cpp)
 add_executable(depthgrab src/depthgrab.cpp)
 
 add_executable(controller src/controller.cpp)
-add_executable(test src/test.cpp)
+add_executable(Mtest src/Mtest.cpp)
 ## observers/kalmanfilter_z.c
 ## observers/kalmanfilter_z_terminate.c
 ## observers/kalmanfilter_z_initialize.c
@@ -166,7 +166,7 @@ add_dependencies(true_position ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPOR
 add_dependencies(controller ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS} intel_aero_rtf_gr871_generate_messages_cpp)
 #add_dependencies(offb_node uav_offboard_generate_messages_cpp)
 add_dependencies(depthgrab ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
-add_dependencies(test ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
+add_dependencies(Mtest ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(offb_node ${catkin_LIBRARIES})
@@ -174,7 +174,7 @@ target_link_libraries(true_position ${catkin_LIBRARIES})
 target_link_libraries(depthgrab ${catkin_LIBRARIES})
 
 target_link_libraries(controller ${catkin_LIBRARIES} observer_z observer_xdot observer_ydot)
-target_link_libraries(test ${catkin_LIBRARIES})
+target_link_libraries(Mtest ${catkin_LIBRARIES})
 #target_link_libraries(controller ${catkin_LIBRARIES})
 #############
 ## Install ##

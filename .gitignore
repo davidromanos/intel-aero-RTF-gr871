@@ -24,3 +24,5 @@ src/observers/observer_ydot/html/
 src/observers/observer_z/html/
 
 *.user
+
+*.cpp~
