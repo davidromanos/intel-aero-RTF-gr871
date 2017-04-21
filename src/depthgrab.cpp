@@ -113,6 +113,7 @@ int displayX = -1;
 int displayY = -1;
 bool needToInit = false;
 bool addRemovePt = false;
+bool clearAllPoints = false;
 vector<cv::Point2f> points[2];
 cv::Mat prevGray;
 
@@ -149,6 +150,10 @@ void WindowMouseCallback(int event, int x, int y, int flags, void* userdata) // 
     else if  ( event == cv::EVENT_RBUTTONDOWN ) {
         displayX = -1;
         displayY = -1;
+        clearAllPoints = true;
+    }
+    else if  ( event == cv::EVENT_MBUTTONDOWN )
+    {
         needToInit = true;
     }
 }
@@ -259,6 +264,13 @@ void imageCallback(const sensor_msgs::ImageConstPtr& image) {
 
             cv::Point2f point;
 
+            if (clearAllPoints) {
+                clearAllPoints = false;
+                points[0].clear();
+                points[1].clear();
+            }
+
+
             if (addRemovePt) {
                 point = cv::Point2f((float)displayX, (float)displayY);
             }
@@ -312,6 +324,12 @@ void imageCallback(const sensor_msgs::ImageConstPtr& image) {
             needToInit = false;
             std::swap(points[1], points[0]);
             cv::swap(prevGray, gray);
+
+            if (points[1].size() > 0) {
+                cv::Point2f p = points[1][points[1].size()-1];
+                displayX = p.x;
+                displayY = p.y;
+            }
 
 
             // Prepare for display
