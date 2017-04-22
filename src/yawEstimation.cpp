@@ -18,6 +18,7 @@
 #include <string.h>
 #include <iostream>
 #include "rtwtypes.h"
+#include <math.h>
 
 using namespace std;
 
@@ -26,7 +27,46 @@ geometry_msgs::PoseStamped position;
 void state_cb(const mavros_msgs::State::ConstPtr& msg){
     current_state = *msg;
 }
+void logToFile(const char *file, const char *format, ...)
+{
+    va_list args;
+    char buffer[2048];
+    unsigned int i = 0;
+    //Appends to a file at the end of the file. The file is created if it does not exist.
+    FILE *fp = fopen (file, "a");
 
+
+
+   // start the variadic arguments + lock
+    va_start(args, format);
+
+
+
+    ros::Time now = ros::Time::now();
+
+
+    u_int32_t s = now.sec;
+    u_int32_t ns = now.nsec;
+    fprintf(fp, "%u,%u,", s, ns/1000000);
+
+    // print the data
+    vsprintf(buffer, format, args);
+    for (i = 0; i < strlen(buffer); ++i)
+    {
+
+        fprintf(fp, "%c", buffer[i]);
+        if (buffer[i] == '\n')
+        {
+            fprintf(fp, "\t");
+        }
+    }
+    // unlock + clean
+    fprintf(fp, "\n");
+    va_end(args);
+
+    fclose(fp);
+
+}
 
 tf::Quaternion q1;
 
@@ -66,13 +106,18 @@ int main(int argc, char **argv)
     int i = 0;
     double yawSetpoint = 0;
     vector<double> setpoints;
-    setpoints.push_back(0.1);
-    setpoints.push_back(0.2);
-    setpoints.push_back(0.3);
-    setpoints.push_back(0.5);
-    setpoints.push_back(1.0);
-    setpoints.push_back(2.0);
-    setpoints.push_back(3.0);
+    setpoints.push_back(M_PI*0.1);
+    setpoints.push_back(M_PI*0.2);
+    setpoints.push_back(M_PI*0.3);
+    setpoints.push_back(M_PI*0.4);
+    setpoints.push_back(M_PI*0.5);
+    setpoints.push_back(M_PI*0.6);
+    setpoints.push_back(M_PI*0.7);
+    setpoints.push_back(M_PI*0.8);
+    setpoints.push_back(M_PI*0.9);
+    setpoints.push_back(M_PI*0.9);
+
+
 
     // wait for FCU connection
     while(ros::ok() && current_state.connected){
@@ -147,7 +192,14 @@ int main(int argc, char **argv)
         }
         k++;
 
+        q1.setW(position.pose.orientation.w);
+        q1.setX(position.pose.orientation.x);
+        q1.setY(position.pose.orientation.y);
+        q1.setZ(position.pose.orientation.z);
 
+        tf::Matrix3x3 m(q1);
+        double roll, pitch, yaw;
+        m.getRPY(roll, pitch, yaw);
 
         q1.setRPY(0,0,yawSetpoint);
 
@@ -160,7 +212,7 @@ int main(int argc, char **argv)
 
 
         local_pos_pub.publish(pose);
-
+        logToFile("/home/chris/Dropbox/P8 (CA2)/Controller/logs/yawlog.txt","%f,%f",yawSetpoint,yaw);
         last_request1 = ros::Time::now();
         ros::spinOnce();
         rate.sleep();
