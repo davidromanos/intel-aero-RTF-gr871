@@ -106,7 +106,7 @@ int main(int argc, char **argv)
     int i = 0;
     double yawSetpoint = 0;
     vector<double> setpoints;
-    setpoints.push_back(M_PI*0.1);
+    /*setpoints.push_back(M_PI*0.1);
     setpoints.push_back(M_PI*0.2);
     setpoints.push_back(M_PI*0.3);
     setpoints.push_back(M_PI*0.4);
@@ -114,8 +114,13 @@ int main(int argc, char **argv)
     setpoints.push_back(M_PI*0.6);
     setpoints.push_back(M_PI*0.7);
     setpoints.push_back(M_PI*0.8);
-    setpoints.push_back(M_PI*0.9);
-    setpoints.push_back(M_PI*0.9);
+    setpoints.push_back(M_PI*0.9);*/
+    setpoints.push_back(0.6*0.2);
+    setpoints.push_back(0.6*0.4);
+    setpoints.push_back(0.6*0.6);
+    setpoints.push_back(0.6*0.8);
+    setpoints.push_back(0.6);
+
 
 
 
@@ -174,23 +179,35 @@ int main(int argc, char **argv)
             }
         }
 
-        if(k%200 < 100)
+        if(current_state.mode == "OFFBOARD" && current_state.armed)
         {
-            yawSetpoint = setpoints[i];
-        }        
-        else
-        {
-            yawSetpoint = 0.0;
+            if(k%400 < 100)
+            {
+                yawSetpoint = setpoints[i];
+            }
+            else if(k%400 < 200)
+            {
+                yawSetpoint = 0.0;
+            }
+            else if(k%400 < 300)
+            {
+                yawSetpoint = -1*setpoints[i];
+            }
+            else
+            {
+                yawSetpoint = 0.0;
+            }
+            if(k%400 == 0)
+            {
+                i++;
+            }
+            if(i>setpoints.size()-1)
+            {
+                i=0;
+            }
+            k++;
+
         }
-        if(k%100 == 0)
-        {
-            i++;
-        }
-        if(i>setpoints.size()-1)
-        {
-            i=0;
-        }
-        k++;
 
         q1.setW(position.pose.orientation.w);
         q1.setX(position.pose.orientation.x);
