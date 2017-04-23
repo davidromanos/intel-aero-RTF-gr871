@@ -123,10 +123,12 @@ include_directories(
   src/observers/observer_z
   src/observers/observer_xdot
   src/observers/observer_ydot
+  include
 )
 
 add_subdirectory(src/observers)
-
+set(HEADER_FILES include/utils.h)
+add_library(utils src/utils.cpp ${HEADER_FILES})
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
 #   src/${PROJECT_NAME}/uav_offboard.cpp
@@ -150,7 +152,7 @@ add_executable(test_imagepub src/test_imagepub.cpp)
 add_executable(test_imagesub src/test_imagesub.cpp)
 
 add_executable(controller src/controller.cpp)
-add_executable(yawEstimation src/yawEstimation.cpp)
+add_executable(yawEstimation src/yawEstimation.cpp ${HEADER_FILES})
 ## observers/kalmanfilter_z.c
 ## observers/kalmanfilter_z_terminate.c
 ## observers/kalmanfilter_z_initialize.c
@@ -191,7 +193,7 @@ target_link_libraries(true_position ${catkin_LIBRARIES})
 target_link_libraries(depthgrab ${catkin_LIBRARIES})
 target_link_libraries(test_imagepub ${catkin_LIBRARIES})
 target_link_libraries(test_imagesub ${catkin_LIBRARIES})
-target_link_libraries(yawEstimation ${catkin_LIBRARIES})
+target_link_libraries(yawEstimation ${catkin_LIBRARIES} utils)
 
 target_link_libraries(controller ${catkin_LIBRARIES} observer_z observer_xdot observer_ydot)
 #target_link_libraries(controller ${catkin_LIBRARIES})
