@@ -147,9 +147,8 @@ add_library(utils src/utils.cpp ${HEADER_FILES})
 add_executable(offb_node src/offb_node.cpp)
 add_executable(true_position src/true_position.cpp)
 
-add_executable(depthgrab src/depthgrab.cpp)
-add_executable(test_imagepub src/test_imagepub.cpp)
-add_executable(test_imagesub src/test_imagesub.cpp)
+
+
 
 add_executable(controller src/controller.cpp)
 add_executable(yawEstimation src/yawEstimation.cpp ${HEADER_FILES})
@@ -176,9 +175,7 @@ add_executable(yawEstimation src/yawEstimation.cpp ${HEADER_FILES})
 add_dependencies(offb_node ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
 add_dependencies(true_position ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
 
-add_dependencies(depthgrab ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
-add_dependencies(test_imagepub ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
-add_dependencies(test_imagesub ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
+
 add_dependencies(yawEstimation ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
 
 add_dependencies(controller ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS} intel_aero_rtf_gr871_generate_messages_cpp)
@@ -190,9 +187,7 @@ add_dependencies(controller ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED
 target_link_libraries(offb_node ${catkin_LIBRARIES})
 target_link_libraries(true_position ${catkin_LIBRARIES})
 
-target_link_libraries(depthgrab ${catkin_LIBRARIES})
-target_link_libraries(test_imagepub ${catkin_LIBRARIES})
-target_link_libraries(test_imagesub ${catkin_LIBRARIES})
+
 target_link_libraries(yawEstimation ${catkin_LIBRARIES} utils)
 
 target_link_libraries(controller ${catkin_LIBRARIES} observer_z observer_xdot observer_ydot)
