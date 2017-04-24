@@ -7,6 +7,7 @@
 #include <geometry_msgs/PoseStamped.h>
 
 #include <mavros_msgs/CommandBool.h>
+#include <mavros_msgs/CommandHome.h>
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/State.h>
 #include <tf/transform_datatypes.h>
@@ -40,9 +41,6 @@ void pos_cb(const geometry_msgs::PoseStamped::ConstPtr& msg){
 int main(int argc, char **argv)
 {    
 
-
-
-
     ros::init(argc, argv, "controller_node");
     ros::NodeHandle nh;
 
@@ -56,6 +54,9 @@ int main(int argc, char **argv)
 
 
 
+
+    ros::ServiceClient setHome_client = nh.serviceClient<mavros_msgs::CommandHome>
+            ("mavros/cmd/arming");
     ros::ServiceClient arming_client = nh.serviceClient<mavros_msgs::CommandBool>
             ("mavros/cmd/arming");
     ros::ServiceClient set_mode_client = nh.serviceClient<mavros_msgs::SetMode>
@@ -92,7 +93,7 @@ int main(int argc, char **argv)
 
     pose.pose.position.x = 0;
     pose.pose.position.y = 0;
-    pose.pose.position.z = 2;
+    pose.pose.position.z = 1;
     pose.pose.orientation.w = 0;
     pose.pose.orientation.z = 1;
     pose.pose.orientation.y = 0;
@@ -112,13 +113,17 @@ int main(int argc, char **argv)
     mavros_msgs::CommandBool arm_cmd;
     arm_cmd.request.value = true;
 
+    mavros_msgs::CommandHome home_cmd;
+    home_cmd.request.current_gps = true;
+
     ros::Time last_request = ros::Time::now();
     ros::Time last_request1 = ros::Time::now();
 
 
 
+
     while(ros::ok()){
-        if( current_state.mode != "OFFBOARD" &&
+        /*if( current_state.mode != "OFFBOARD" &&
             (ros::Time::now() - last_request > ros::Duration(2.0))){
             if( set_mode_client.call(offb_set_mode) &&
                 offb_set_mode.response.success){
@@ -134,9 +139,9 @@ int main(int argc, char **argv)
                 }
                 last_request = ros::Time::now();
             }
-        }
+        }*/
 
-        if(current_state.mode == "OFFBOARD" && current_state.armed)
+        if(current_state.mode == "OFFBOARD" && current_state.armed && position.pose.position.z > 0.8 && position.pose.position.z < 1.2)
         {
             if(k%400 < 100)
             {
@@ -163,7 +168,11 @@ int main(int argc, char **argv)
                 i=0;
             }
             k++;
-
+        }
+        else
+        {
+            k = 0;
+            i = 0;
         }
 
         q1.setW(position.pose.orientation.w);
