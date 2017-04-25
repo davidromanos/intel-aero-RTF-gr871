@@ -29,7 +29,6 @@ void state_cb(const mavros_msgs::State::ConstPtr& msg){
     current_state = *msg;
 }
 
-
 tf::Quaternion q1;
 
 void pos_cb(const geometry_msgs::PoseStamped::ConstPtr& msg){
@@ -51,8 +50,6 @@ int main(int argc, char **argv)
 
     ros::Publisher local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>
             ("mavros/setpoint_position/local", 10);
-
-
 
 
     ros::ServiceClient setHome_client = nh.serviceClient<mavros_msgs::CommandHome>
@@ -91,8 +88,8 @@ int main(int argc, char **argv)
 
     geometry_msgs::PoseStamped pose;
 
-    pose.pose.position.x = 0;
-    pose.pose.position.y = 0;
+    pose.pose.position.x = 2;
+    pose.pose.position.y = 2;
     pose.pose.position.z = 1;
     pose.pose.orientation.w = 0;
     pose.pose.orientation.z = 1;
@@ -173,6 +170,9 @@ int main(int argc, char **argv)
         {
             k = 0;
             i = 0;
+            pose.pose.position.x = position.pose.position.x;
+            pose.pose.position.y = position.pose.position.y;
+            pose.pose.position.z = position.pose.position.z;
         }
 
         q1.setW(position.pose.orientation.w);
