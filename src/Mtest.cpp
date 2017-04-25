@@ -243,11 +243,22 @@ Measurement MeasurementSet::getMeasurement(){
 
 /* ############################## Defines Maps class ##############################  */
 
+unsigned int globalLandmarkCounter; // can be used to check if number of landmarks does not grow without bound
+unsigned int globalMapNodeCounter; // can be used to check if number of MapNodes does not grow without bound
+
 struct landmark
 {
   unsigned int c; 		/* landmark identifier */
   Vector3f lhat;
   Matrix3f lCov;
+  landmark() //Constructor
+  {
+      globalLandmarkCounter++;
+  }
+  ~landmark(){//Destructor
+      globalLandmarkCounter--;
+  }
+
 };
 
 struct mapNode
@@ -257,6 +268,14 @@ struct mapNode
   mapNode *right;              /* pointer for the right node */
   landmark *l;              /* pointer for a landmark; is used when *left == NULL or *right == NULL */
   unsigned int referenced;  /* how many nodes/paticles points to this node? if zero the node should be deleted! */
+
+  mapNode() //Constructor
+  {
+      globalMapNodeCounter++;
+  }
+  ~mapNode(){//Destructor
+      globalMapNodeCounter--;
+  }
 };
 
 
@@ -566,20 +585,126 @@ void MapTree::printAllLandmarkPositions(){
 
 
 
+/* ############################## Defines Path class ##############################  */
+struct Node_Path {
+    Vector6f S;
+    unsigned int k;
+    Node_Path *nextNode;
+    unsigned int referenced;
+};
 
+class Path
+{
+public:
+    /* variables */
+    Node_Path *PathRoot;
+    unsigned int PathLength;
 
+    /* functions */
+    Path(Vector6f S, unsigned int k);
+    Path(const Path &PathToCopy); // copy constructer
+    ~Path();
+    void deletePath();
+    void addPose(Vector6f S, unsigned int k);
+    unsigned int countLengthOfPath();
+    Vector6f* getPose(unsigned int k);
 
+private:
+    void deletePath(Node_Path *PathNode);
+};
 
+Path::Path(Vector6f S, unsigned int k){
+    Node_Path* firstPathNode = new Node_Path;
+    firstPathNode->S = S;
+    firstPathNode->k = k;
+    firstPathNode->nextNode = NULL;
 
+    PathRoot = new Node_Path;
+    PathRoot->nextNode = firstPathNode;
+    firstPathNode->referenced = 1;
 
+    PathLength = 1;
+}
 
+Path::Path(const Path &PathToCopy){
+    PathRoot = new Node_Path;
+    PathRoot->nextNode = PathToCopy.PathRoot->nextNode;
+    PathToCopy.PathRoot->nextNode->referenced++;
 
+    PathLength = 1;
+}
 
+Path::~Path(){
+    deletePath();
+}
 
+void Path::deletePath(){
+    if(PathRoot->nextNode != NULL){
+        deletePath(PathRoot->nextNode);
+    }
+    PathRoot=NULL;
+}
 
+void Path::deletePath(Node_Path *PathNode){
+    if(PathNode->referenced > 1){
+        PathNode->referenced--;
+    }
+    else if (PathNode->nextNode != NULL){
+        deletePath(PathNode->nextNode);
+        delete PathNode;
+    }
+    PathLength--;
+}
 
+void Path::addPose(Vector6f S, unsigned int k){
 
+    Node_Path* tmpPathNode = new Node_Path;
+    tmpPathNode->S = S;
+    tmpPathNode->k = k;
+    tmpPathNode->referenced = 0;
+    tmpPathNode->nextNode = PathRoot->nextNode;
 
+    PathRoot->nextNode = tmpPathNode;
+    tmpPathNode->referenced++;
+
+    PathLength++;
+}
+unsigned int Path::countLengthOfPath(){
+
+    if (PathRoot==NULL){
+        PathLength = 0;
+        return PathLength;
+    }
+    else{
+        unsigned int i = 1;
+        Node_Path* tmp_pointer = PathRoot->nextNode;
+        while(tmp_pointer->nextNode != NULL){
+            tmp_pointer = tmp_pointer->nextNode;
+            i++;
+        }
+        PathLength = i;
+        return PathLength;
+    }
+}
+
+Vector6f* Path::getPose(unsigned int k){
+    cout << "D10" << endl;
+    if (PathRoot==NULL){
+        cout << "D11" << endl;
+        return NULL;
+    }
+    else{
+        cout << "D12" << endl;
+
+        Node_Path* tmp_pointer = PathRoot->nextNode;
+
+        while(tmp_pointer->k != k){
+            cout << tmp_pointer->referenced << ",";
+            tmp_pointer = tmp_pointer->nextNode;
+        }
+        return &(tmp_pointer->S);
+    }
+}
 
 
 
@@ -590,6 +715,39 @@ int main(int argc, char **argv)
 	ros::init(argc, argv, "Mtest");
     ros::NodeHandle nh;
 
+    // malte playing with Paths
+    Path* P = new Path(Vector6f::Constant(1),1);
+    cout << "D1" << endl;
+
+    for(unsigned int i = 1; i < 100;i++){
+        P->addPose(Vector6f::Constant(i),i);
+    }
+    cout << "D2" << endl;
+
+    Path* P2 = new Path(*P); //makes copy of P on the heap
+    Path* P3 = new Path(*P); //makes copy of P on the heap
+
+    for(unsigned int i = 100; i < 200;i++){
+        P2->addPose(Vector6f::Constant(i),i);
+    }
+
+    for(unsigned int i = 200; i < 300;i++){
+        P3->addPose(Vector6f::Constant(i),i);
+    }
+
+    cout << "references: " << P->PathRoot->nextNode->referenced << endl;
+    Vector6f* S = P->getPose(30);
+    cout << endl << endl << *S << endl;
+    delete P;
+    S = P2->getPose(30);
+    cout << endl << endl << *S << endl;
+
+    S = P3->getPose(30);
+    cout << endl << endl << *S << endl;
+
+    delete P2;
+    S = P3->getPose(30);
+    cout << endl << endl << *S << endl;
 
     // malte testing measurement classes
 /*    Vector3f zGOT;
@@ -634,6 +792,7 @@ int main(int argc, char **argv)
 */
 
     // malte testing tree map classes
+/*
     MapTree* T = new MapTree;
 
     unsigned N_landmarks = 2*2*2;
@@ -646,9 +805,6 @@ int main(int argc, char **argv)
         cout << i << endl;
         T->insertLandmark(newLandmark);
     }
-
-    //MapTree* T2 = new MapTree;
-    //T2 = T; //makes copy of T
 
     MapTree* T2 = new MapTree(*T); //makes copy of T on the heap
     MapTree* T3 = new MapTree(*T);
@@ -685,17 +841,24 @@ int main(int argc, char **argv)
     cout << "Landmarks in T5:" << endl;
     T5->printAllLandmarkPositions();
 
+    cout << "globalLandmarkCounter: " << globalLandmarkCounter << endl;
+    cout << "globalMapNodeCounter: " << globalMapNodeCounter << endl;
 
     delete T4;
     delete T5;
     delete T;
 
     delete T2;
+
+    cout << "globalLandmarkCounter: " << globalLandmarkCounter << endl;
+    cout << "globalMapNodeCounter: " << globalMapNodeCounter << endl;
     delete T3;
 
+    cout << "globalLandmarkCounter: " << globalLandmarkCounter << endl;
+    cout << "globalMapNodeCounter: " << globalMapNodeCounter << endl;
+*/
+
     cout << endl << "program ended"<< endl;
-
-
   	return 0;
 }
 
