@@ -35,9 +35,9 @@
 #include <string.h>
 #include <iostream>
 #include "rtwtypes.h"
-#include "intel_aero_rtf_gr871/controllerLog.h"
 
-#include <rosbag/bag.h>
+
+
 
 mavros_msgs::State current_state;
 geometry_msgs::PoseStamped position;
@@ -126,6 +126,7 @@ class Matrix{
     std::vector<std::vector<double> > data;
     Matrix(uint8_T cols,uint8_T rows);
     void setEntry(double value,uint8_T col,uint8_T row);
+    double getEntry(uint8_T col,uint8_T row);
     void printMatrix();
     std::vector<double> multiplyVector(std::vector<double> input);
     uint8_T cols,rows;
@@ -146,6 +147,18 @@ void Matrix::setEntry(double value,uint8_T col, uint8_T row)
     else
     {
         ROS_ERROR("Assigning values to a non existing entry Matrix::setEntry()");
+    }
+}
+double Matrix::getEntry(uint8_T col, uint8_T row)
+{
+    if(col<this->cols && row < this->rows)
+    {
+        return data[col][row];
+    }
+    else
+    {
+        ROS_ERROR("Assigning values to a non existing entry Matrix::setEntry()");
+        return -1;
     }
 }
 void Matrix::printMatrix()
@@ -239,53 +252,89 @@ class stateFeedbackController{
     public:
         void update(double setpoint[],double *meas);
         std::vector<double> output;
-        Matrix feedbackGain;
-        Matrix feedforwardGain;
-        stateFeedbackController(double updateRate,uint8_T nrStates,uint8_T nrInputs,uint8_T nrActuators); //constructor
+        Matrix K0;
+        Matrix Kx;
+        Matrix Ky;
+        stateFeedbackController(double updateRate); //constructor
     private:
         double updateRate;
-        Integrator integrator;
-        std::vector<double> states;
-        std::vector<double> input;
-        double error;
+        std::vector<double> Xstates;
+        std::vector<double> Ystates;
+        std::vector<double> error;
 };
-stateFeedbackController::stateFeedbackController(double updateRate,uint8_T nrStates,uint8_T nrInputs,uint8_T nrActuators) :
+stateFeedbackController::stateFeedbackController(double updateRate) :
     // Member initializer list //
-    feedbackGain(nrActuators,nrStates),
-    feedforwardGain(nrActuators,nrInputs),
-    integrator(0,0.05)
-
+    K0(2,2),
+    Kx(1,5),
+    Ky(1,5)
 {   // Contructor decleration //
     this->updateRate = updateRate;
-    output.assign(nrActuators,0);
-    this->error = 0;
-    states.assign(nrStates,0);
-    input.assign(nrInputs,0);
+    output.assign(2,0);
+
+    Xstates.assign(5,0);
+    Ystates.assign(5,0);
+
+    error.assign(2,0);
 }
 
 void stateFeedbackController::update(double setpoint[],double *meas)
 {
-    error = setpoint[0] - meas[0];
-    std::cout << "e:  " << setpoint[0];
-    integrator.Update(error);
-    uint i = 0;
-    for(i = 0;i<states.size();i++)
-    {
-        states[i] = meas[i];
-    }
-    for(i = 0;i<input.size();i++)
-    {
-        input[i] = setpoint[i];
-    }
-    input[0] = integrator.state;
-    output = vectorAdd(feedbackGain.multiplyVector(states),feedforwardGain.multiplyVector(input));
+    error[0] = meas[0] - setpoint[0];
+    error[1] = meas[1] - setpoint[1];
+    if(error[0] > 1) error[0] = 1;
+    if(error[0] < -1) error[0] = -1;
+    if(error[1] > 1) error[1] = 1;
+    if(error[1] < -1) error[1] = -1;
+
+    Xstates[0] = meas[2];
+    Xstates[1] = meas[3];
+    Xstates[2] = meas[4];
+    Xstates[3] = meas[5];
+    Xstates[4] = meas[6];
+    Ystates[0] = meas[7];
+    Ystates[1] = meas[8];
+    Ystates[2] = meas[9];
+    Ystates[3] = meas[10];
+    Ystates[4] = meas[11];
+
+
+    /*Matrix rot(2,2);
+    rot.setEntry(cos(meas[12]),0,0);
+    rot.setEntry(sin(meas[12]),0,1);
+    rot.setEntry(-sin(meas[12]),1,0);
+    rot.setEntry(cos(meas[12]),1,1);*/
+    Matrix tmpK0(2,2);
+    std::cout << tmpK0.getEntry(0,0) << "\n";
+    tmpK0.setEntry(K0.getEntry(0,0)*cos(meas[12]),0,0);
+    tmpK0.setEntry(K0.getEntry(0,0)*sin(meas[12]),0,1);
+    tmpK0.setEntry(K0.getEntry(1,1)*-1*sin(meas[12]),1,0);
+    tmpK0.setEntry(K0.getEntry(1,1)*cos(meas[12]),1,1);
+
+
+    /*tmpK0.setEntry(K0.getEntry(0,0)*rot.getEntry(0,0)+K0.getEntry(0,1)*rot.getEntry(1,0),0,0);
+    tmpK0.setEntry(K0.getEntry(0,0)*rot.getEntry(0,1)+K0.getEntry(0,1)*rot.getEntry(1,1),0,1);
+    tmpK0.setEntry(K0.getEntry(1,0)*rot.getEntry(0,0)+K0.getEntry(1,1)*rot.getEntry(1,0),1,0);
+    tmpK0.setEntry(K0.getEntry(1,0)*rot.getEntry(1,0)+K0.getEntry(1,1)*rot.getEntry(1,1),1,1);*/
+
+    output = vectorAdd(Kx.multiplyVector(Xstates),Ky.multiplyVector(Ystates));
+    output = vectorAdd(tmpK0.multiplyVector(error),output);
     if(output[0] > 0.6) output[0] = 0.6;
     if(output[0] < -0.6) output[0] = -0.6;
+}
 
-    std::vector<double> tmp = feedforwardGain.multiplyVector(input);
-    //std::cout << "forward: " << tmp[0] << "\n";
-    tmp = feedbackGain.multiplyVector(states);
-    //std::cout << "back: " << tmp[0] << "\n";
+double yawReference(double x,double y)
+{
+    double output = 0;
+    double norm = sqrt(x*x + y*y);
+    if(y>=0)
+    {
+        output = acos(x/norm);
+    }
+    else
+    {
+        output = -1*acos(x/norm);
+    }
+    return output;
 }
 
 
@@ -305,40 +354,38 @@ int main(int argc, char **argv)
 {    
     Zcontroller zcontroller(0.05);
 
-    /////////////////  xdot CONTROLLER ///////////////
-    stateFeedbackController xdotController(0.05,5,1,1);
+    /////////////////  xy CONTROLLER ///////////////
+    stateFeedbackController xyController(0.05);
 
-    xdotController.feedbackGain.setEntry(-1*0.4110,0,0);
-    xdotController.feedbackGain.setEntry(-1*0.1641,0,1);
-    xdotController.feedbackGain.setEntry(-1*-0.0641,0,2);
-    xdotController.feedbackGain.setEntry(-1*-0.0541,0,3);
-    xdotController.feedbackGain.setEntry(-1*-0.0162,0,4);
-    xdotController.feedforwardGain.setEntry(0.4110,0,0);
+    xyController.K0.setEntry(-1*0.0305,0,0);
+    xyController.K0.setEntry(0,0,1);
+    xyController.K0.setEntry(0,1,0);
+    xyController.K0.setEntry(-1*-0.0218,1,1);
 
-    ////////////////////////////////////////////////
+    xyController.Kx.setEntry(-1*0.1328,0,0);
+    xyController.Kx.setEntry(-1*0.0656,0,1);
+    xyController.Kx.setEntry(-1*-0.0318,0,2);
+    xyController.Kx.setEntry(-1*-0.0161,0,3);
+    xyController.Kx.setEntry(-1*-0.0075,0,4);
 
-    /////////////////  ydot CONTROLLER ///////////////
-    stateFeedbackController ydotController(0.05,5,1,1);
+    xyController.Ky.setEntry(-1*-0.1009,0,0);
+    xyController.Ky.setEntry(-1*0.0413,0,1);
+    xyController.Ky.setEntry(-1*-0.0108,0,2);
+    xyController.Ky.setEntry(-1*0.0018,0,3);
+    xyController.Ky.setEntry(-1*0.0031,0,4);
 
-    // the controller gains has more precision in matlab.
 
-    ydotController.feedbackGain.setEntry(-1*-0.1369,0,0);
-    ydotController.feedbackGain.setEntry(-1*0.0537,0,1);
-    ydotController.feedbackGain.setEntry(-1*-0.0137,0,2);
-    ydotController.feedbackGain.setEntry(-1*0.0018,0,3);
-    ydotController.feedbackGain.setEntry(-1*0.0041,0,4);
-    ydotController.feedforwardGain.setEntry(0.1369,0,0);
 
     ////////////////////////////////////////////////
 
-    double estimatedXdotStates[5] = {0.0,0.0,0.0,0.0,0.0};
-    double estimatedYdotStates[5] = {0.0,0.0,0.0,0.0,0.0};
+    double estimatedStates[16];
+
 
     Derivative xdot(2);
     Derivative ydot(2);
-    Derivative t(20);
 
-    intel_aero_rtf_gr871::controllerLog log;
+
+
 
 
     ros::init(argc, argv, "controller_node");
@@ -357,8 +404,7 @@ int main(int argc, char **argv)
     ros::Publisher attitude_pub = nh.advertise<geometry_msgs::PoseStamped>
             ("mavros/setpoint_attitude/attitude", 10);
 
-    ros::Publisher log_pub = nh.advertise<intel_aero_rtf_gr871::controllerLog>
-            ("controller/log", 10);
+
 
     ros::Publisher thrust_pub = nh.advertise<std_msgs::Float64>
             ("mavros/setpoint_attitude/att_throttle", 10);
@@ -387,8 +433,8 @@ int main(int argc, char **argv)
         rate.sleep();
     }
 
-    double xsetpoint[1] = {0.0};
-    double ysetpoint[1] = {0.0};
+    double setpoints[2] = {2,2};
+
     geometry_msgs::PoseStamped pose;
 
     pose.pose.position.x = 0;
@@ -419,17 +465,13 @@ int main(int argc, char **argv)
     ros::Time last_request = ros::Time::now();
     ros::Time last_request1 = ros::Time::now();
 
-    //rosbag::Bag bag;
-    //bag.open("test.bag", rosbag::bagmode::Write);
-    //bag.write("controller/log", ros::Time::now(), intel_aero_rtf_gr871::controllerLog());
-
 
     while(ros::ok()){
         if( current_state.mode != "OFFBOARD" &&
             (ros::Time::now() - last_request > ros::Duration(2.0))){
             if( set_mode_client.call(offb_set_mode) &&
                 offb_set_mode.response.success){
-                ROS_INFO("Offboard enableddd");
+                ROS_INFO("Offboard enabled");
             }
             last_request = ros::Time::now();
         } else {
@@ -460,36 +502,29 @@ int main(int argc, char **argv)
         xdotmeas[0] = std::cos(yaw)*twist.linear.x - std::sin(yaw)*twist.linear.y;
         xdotmeas[1] = pitch;
 
-        t.Update((double)(k));
-
-        observer_xdot(xdotmeas,xdotController.output[0],estimatedXdotStates);
-        xdotController.update(xsetpoint,&estimatedXdotStates[1]);
+        xyController.update(setpoints,estimatedStates);
 
 
         speed = sqrt(xdot.state*xdot.state + ydot.state*ydot.state);
-        k++;
+
 
         double ydotmeas[2];
         //ydotmeas[0] = std::sin(yaw)*xdot.state + std::cos(yaw)*ydot.state;
         ydotmeas[0] = std::sin(yaw)*twist.linear.x + std::cos(yaw)*twist.linear.y;
         ydotmeas[1] = roll;
 
-
-        observer_ydot(ydotmeas,ydotController.output[0],estimatedYdotStates);
-        ydotController.update(ysetpoint,&estimatedYdotStates[1]);
-
         if(k%300 < 100)
         {
-            xsetpoint[0] = 0.2;
+
 
         }
         else if(k%300 < 200)
         {
-             xsetpoint[0] = 0.0;
+
         }
         else
         {
-            xsetpoint[0] = -0.2;
+
         }
         if(k%10 == 0)
         {
@@ -497,9 +532,11 @@ int main(int argc, char **argv)
             ydot.Update(position.pose.position.y);
         }
 
-        xsetpoint[0] = 0.0;
-        ysetpoint[0] = 0.2;
-        q1.setRPY(ydotController.output[0],xdotController.output[0],0);
+
+        //q1.setRPY(xyController.output[0],xyController.output[1],yawReference(setpoints[0],setpoints[1]));
+        q1.setRPY(0,0,yawReference(setpoints[0],setpoints[1]));
+        std::cout << yawReference(setpoints[0],setpoints[1]) << "  yaw:"  << yaw << "\n";
+        //q1.setRPY(ydotController.output[0],xdotController.output[0],0);
         //q1.setEuler(0.0,0.1,0.1);
 
         //q1.setRPY(0.0,0.0,0.0);
@@ -507,51 +544,19 @@ int main(int argc, char **argv)
         pose.pose.orientation.y = q1.getY();
         pose.pose.orientation.z = q1.getZ();
         pose.pose.orientation.w = q1.getW();
-        /*pose.pose.orientation.x = 0;
-        pose.pose.orientation.y = 0;
-        pose.pose.orientation.z = 1;
-        pose.pose.orientation.w = 0;*/
-        //std::cout << test << " " << test1 << " " << test2 << " " <<  q1.getX() << " " <<  q1.getY() << " " <<  q1.getZ() << " " <<  q1.getW() << "\n";
 
-        //std::cout <<" refPitch: "<< refPitch[0] <<" refRoll: "<< refRoll[0] << "xdot: " << xdotStates[0] << "ydot: " << ydotStates[0] << "\n";
-        //std::cout << "speed: " << speed << "  xdot: " << xdotmeas[0] << "  ydot:  " << ydotmeas[0] << "xdotout " << xdotController.output[0] << "  ydotout " << ydotController.output[0] << "\n";
-        //std::cout << "xdot: " << xdot.state << "  ydot: " << ydot.state << "\n";
-
-        std::cout << "  xdot:  " << xdotmeas[0] << "  ydot:  " << ydotmeas[0] << "  ydotout " << ydotController.output[0] << "  estYdot " << estimatedYdotStates[1] << "\n";
-        //std::cout << "  x:  " << pose.pose.orientation.x << "  y " << pose.pose.orientation.y << "  z " << pose.pose.orientation.z<< "  w " << pose.pose.orientation.w << "\n";
-        //std::cout << "  x:  " << q1.x() << "  y " << pose.pose.orientation.y << "  z " << pose.pose.orientation.z<< "  w " << pose.pose.orientation.w << "\n";
         thrustInput.data = zcontroller.update(2,position.pose.position.z);
 
         local_pos_pub.publish(pose);
         //attitude_pub.publish(pose);
         //thrust_pub.publish(thrustInput);
-        //rate_pub.publish(yawRateInput);
-        //std::cout << ros::Time::now() - last_request1;
-        //ROS_INFO("  %f %f %f %f %f",thrustInput.data,zIntegrator.state,estimatedZStates[0],estimatedZStates[1],estimatedZStates[2]);
-        log.timestamp = ros::Time::now();
-        log.pitch = pitch;
-        log.roll = roll;
-        log.yaw = yaw;
-        log.x = position.pose.position.x;
-        log.y = position.pose.position.y;
-        log.z = position.pose.position.z;
-        log.thrust = thrustInput.data;
-        log.xdotest = estimatedXdotStates[1];
-        log.ydotest = estimatedYdotStates[1];
-        log.refpitch = xdotController.output[0];
-        log.refroll = ydotController.output[0];
-        log.velx = twist.linear.x;
-        log.vely = twist.linear.y;
-        log_pub.publish(log);
+
         last_request1 = ros::Time::now();
         ros::spinOnce();
         rate.sleep();
     }
-    /* Terminate the application.
-       You do not need to do this more than one time. */
-    observer_z_terminate();
-    observer_xdot_terminate();
-    observer_ydot_terminate();
+
+
 
     return 0;
 }
