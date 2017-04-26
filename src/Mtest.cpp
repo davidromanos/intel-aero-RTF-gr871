@@ -18,6 +18,7 @@ using namespace Eigen;
 
 typedef Matrix<float, 6, 1> Vector6f;
 typedef Matrix<float, 6, 6> Matrix6f;
+typedef Matrix<float, 10, 1> VectorUFastSLAMf;
 typedef Matrix<float, 6, Dynamic> Matrix6kf;
 
 
@@ -30,15 +31,17 @@ public:
 
     /* variables */
     unsigned int c; 	/* measurement identifier - 0 for pose measurement, 1 for GOT and 2...N for landmark identifier */
-    Vector3f z;	/* actual measurement - can take different sizes! */
+    VectorXf z;	/* actual measurement - can take different sizes! */
     ros::Time timestamp;
 
     /* functions */
    // Measurement();
    // ~Measurement();
-    MatrixXf calculateHl();		/* calculates derivative of measurement model with respect to landmark variable - l */
-    MatrixXf calculateHs(Vector6f pose,Vector3f l);		/* calculates derivative of measurement model with respect to pose variable - s */
-    VectorXf inverseMeasurementModel(Vector6f pose);
+    virtual MatrixXf calculateHl(Vector6f pose,Vector3f l) = 0;		/* calculates derivative of measurement model with respect to landmark variable - l */
+    virtual MatrixXf calculateHs(Vector6f pose,Vector3f l) = 0;		/* calculates derivative of measurement model with respect to pose variable - s */
+    virtual VectorXf inverseMeasurementModel(Vector6f pose) = 0;
+    virtual VectorXf MeasurementModel(Vector6f s,Vector3f l) = 0;
+    virtual MatrixXf getzCov() = 0;
 private:
 };
 
@@ -46,12 +49,14 @@ private:
 class GOTMeasurement : public Measurement
 {
     public:
-    static Matrix3f zCov; 	/* measurement covariance - can take different sizes! static such that only one copy is saved in memory - also why it is placed in the subclass*/
+    static MatrixXf zCov; 	/* measurement covariance - can take different sizes! static such that only one copy is saved in memory - also why it is placed in the subclass*/
 
     GOTMeasurement(unsigned int i, Vector3f GOT_meas);
+    MatrixXf calculateHs(Vector6f pose,Vector3f l);
+    MatrixXf calculateHl(Vector6f pose,Vector3f l);
     VectorXf inverseMeasurementModel(Vector6f pose);
-    MatrixXf calculateHs();
-    Matrix3f calculateHl();
+    VectorXf MeasurementModel(Vector6f s,Vector3f l);
+    MatrixXf getzCov();
 
 private:
 };
@@ -59,32 +64,41 @@ private:
 GOTMeasurement::GOTMeasurement(unsigned int i, Vector3f GOT_meas)
 {
     c = i;
-    z << GOT_meas;
+    z = GOT_meas;
     timestamp = ros::Time::now();
+}
+
+VectorXf GOTMeasurement::MeasurementModel(Vector6f s,Vector3f l){
+    Vector3f z = s.topRows<3>() - l;
+    return z;
 }
 
 VectorXf GOTMeasurement::inverseMeasurementModel(Vector6f pose)
 {
     Vector6f s = pose; // temp variable to make it look like equations
-    VectorXf l = s.topRows<3>() - z;
+    Vector3f l = s.topRows<3>() - z;
     return l;
 }
 
-MatrixXf GOTMeasurement::calculateHs()
+MatrixXf GOTMeasurement::calculateHs(Vector6f pose,Vector3f l)
 {    
     MatrixXf Hs(3, 6);
     Hs << Matrix3f::Identity(3,3), Matrix3f::Zero(3,3);
     return Hs;
 }
 
-Matrix3f GOTMeasurement::calculateHl()
+MatrixXf GOTMeasurement::calculateHl(Vector6f pose,Vector3f l)
 {
     //s = pose; // temp variable to make it look like equations
     Matrix3f Hl = Matrix3f::Identity();
     return Hl;
 };
 
-Matrix3f GOTMeasurement::zCov = 0.1*Matrix3f::Identity(); // static variable - has to be declared outside class!
+MatrixXf GOTMeasurement::getzCov(){
+    return zCov;
+}
+
+MatrixXf GOTMeasurement::zCov = 0.1*Matrix3f::Identity(); // static variable - has to be declared outside class!
 
 
 /* ############################## Defines ImgMeasurement class ##############################  */
@@ -93,10 +107,12 @@ class ImgMeasurement : public Measurement
     public:
     static Matrix3f zCov; 	/* measurement covariance - can take different sizes! static such that only one copy is saved in memory - also why it is placed in the subclass*/
 
-    ImgMeasurement(unsigned int i, Vector3f img_meas);
+    ImgMeasurement(unsigned int i, Vector3f img_me);
     VectorXf inverseMeasurementModel(Vector6f pose);
-    MatrixXf calculateHs();
-    Matrix3f calculateHl();
+    MatrixXf calculateHs(Vector6f pose,Vector3f l);
+    MatrixXf calculateHl(Vector6f pose,Vector3f l);
+    VectorXf MeasurementModel(Vector6f s,Vector3f l);
+    MatrixXf getzCov();
 
 private:
 };
@@ -104,42 +120,50 @@ private:
 ImgMeasurement::ImgMeasurement(unsigned int i, Vector3f img_meas)
 {
     c = i;
-    z << img_meas;
+    z = img_meas;
     timestamp = ros::Time::now();
+}
+
+VectorXf ImgMeasurement::MeasurementModel(Vector6f s,Vector3f l){
+    Vector3f z = s.topRows<3>() - l;
+    return z;
 }
 
 VectorXf ImgMeasurement::inverseMeasurementModel(Vector6f pose)
 {
     Vector6f s = pose; // temp variable to make it look like equations
-    VectorXf l = s.topRows<3>() - z;
+    Vector3f l = s.topRows<3>() - z;
     return l;
 }
 
-MatrixXf ImgMeasurement::calculateHs()
+MatrixXf ImgMeasurement::calculateHs(Vector6f pose,Vector3f l)
 {
     MatrixXf Hs(3, 6);
     Hs << Matrix3f::Identity(3,3), Matrix3f::Zero(3,3);
     return Hs;
 }
 
-Matrix3f ImgMeasurement::calculateHl()
+MatrixXf ImgMeasurement::calculateHl(Vector6f pose,Vector3f l)
 {
     //s = pose; // temp variable to make it look like equations
     Matrix3f Hl = Matrix3f::Identity();
     return Hl;
 };
 
+MatrixXf ImgMeasurement::getzCov(){
+    return zCov;
+}
+
 Matrix3f ImgMeasurement::zCov = 5*Matrix3f::Identity(); // static variable - has to be declared outside class!
-
-
 
 
 
 
 /* ############################## Defines measurement set class ##############################  */
 struct Node_MeasurementSet {
-    Measurement meas;
+    Measurement* meas;
     Node_MeasurementSet *nextNode;
+    int measIdentifier;
 };
 
 class MeasurementSet
@@ -150,24 +174,32 @@ public:
     int nMeas;
 
     /* functions */
-    MeasurementSet(Measurement &meas);
+    MeasurementSet();
+    MeasurementSet(Measurement *meas);
     ~MeasurementSet();
     void deleteMeasurementSet();
-    void addMeasurement(Measurement &meas);
+    void addMeasurement(Measurement *meas);
     int countNumberOfMeasurements();
     int getNumberOfMeasurements();
-    Measurement getMeasurement();
+    Measurement* getMeasurement(int i);
 
 private:
     void deleteMeasurementSet(Node_MeasurementSet *MeasNode);
 };
 
-MeasurementSet::MeasurementSet(Measurement &meas){
+MeasurementSet::MeasurementSet(){
+    firstMeasNode = NULL;
+    nMeas = 0;
+    //cout << "n0: " << nMeas << endl;
+}
 
+MeasurementSet::MeasurementSet(Measurement *meas){
     firstMeasNode = new Node_MeasurementSet;
     firstMeasNode->meas = meas;
     firstMeasNode->nextNode = NULL;
     nMeas = 1;
+    firstMeasNode->measIdentifier = nMeas;
+    cout << "n1: " << nMeas << endl;
 }
 
 MeasurementSet::~MeasurementSet(){
@@ -175,11 +207,13 @@ MeasurementSet::~MeasurementSet(){
 }
 
 void MeasurementSet::deleteMeasurementSet(){
-    if(firstMeasNode->nextNode != NULL){
-        deleteMeasurementSet(firstMeasNode->nextNode);
+    if(firstMeasNode != NULL){
+        if(firstMeasNode->nextNode != NULL){
+            deleteMeasurementSet(firstMeasNode->nextNode);
+        }
+        delete firstMeasNode;
+        nMeas--;
     }
-    delete firstMeasNode;
-    nMeas--;
 }
 
 void MeasurementSet::deleteMeasurementSet(Node_MeasurementSet *MeasNode){
@@ -190,18 +224,25 @@ void MeasurementSet::deleteMeasurementSet(Node_MeasurementSet *MeasNode){
     nMeas--;
 }
 
-void MeasurementSet::addMeasurement(Measurement &meas){
-
-    Node_MeasurementSet* tmp_pointer = firstMeasNode;
-
-    while(tmp_pointer->nextNode != NULL){
-        tmp_pointer = tmp_pointer->nextNode;
+void MeasurementSet::addMeasurement(Measurement *meas){
+    if (firstMeasNode == NULL){
+        firstMeasNode = new Node_MeasurementSet;
+        firstMeasNode->meas = meas;
+        firstMeasNode->nextNode = NULL;
+        nMeas = 1;
+        firstMeasNode->measIdentifier = nMeas;
     }
-
-    tmp_pointer->nextNode = new Node_MeasurementSet;
-    tmp_pointer->nextNode->meas = meas;
-    tmp_pointer->nextNode->nextNode = NULL;
-    nMeas++;
+    else{
+        Node_MeasurementSet* tmp_pointer = firstMeasNode;
+        while(tmp_pointer->nextNode != NULL){
+            tmp_pointer = tmp_pointer->nextNode;
+        }
+        tmp_pointer->nextNode = new Node_MeasurementSet;
+        tmp_pointer->nextNode->meas = meas;
+        tmp_pointer->nextNode->nextNode = NULL;
+        nMeas++;
+        tmp_pointer->nextNode->measIdentifier = nMeas;
+    }
 }
 
 int MeasurementSet::countNumberOfMeasurements(){
@@ -227,14 +268,14 @@ int MeasurementSet::getNumberOfMeasurements(){
     return nMeas;
 }
 
-Measurement MeasurementSet::getMeasurement(){
-    Measurement tmp_meas = firstMeasNode->meas;
+Measurement* MeasurementSet::getMeasurement(int i){
     Node_MeasurementSet* tmp_measNodePointer = firstMeasNode;
-    firstMeasNode = firstMeasNode->nextNode;
 
-    delete tmp_measNodePointer;
-    nMeas--;
-    return tmp_meas;
+    while (tmp_measNodePointer->measIdentifier != i){
+        tmp_measNodePointer = tmp_measNodePointer->nextNode;
+    }
+
+    return tmp_measNodePointer->meas;
 }
 
 
@@ -310,16 +351,26 @@ class MapTree
 
 MapTree::MapTree(const MapTree &MapToCopy)
 {
+    cout << "D100" << endl;
     mapTreeIdentifier = mapTreeIdentifierCounter;
+    cout << "D101" << endl;
+
     mapTreeIdentifierCounter++;
+    cout << "D102" << endl;
     root = MapToCopy.root;
-
+    cout << "D103" << endl;
     // we add new reference for a mapNode and have to increment its reference counter
-    MapToCopy.root->referenced++;
-
+    if (MapToCopy.root != NULL){
+        cout << "D110" << endl;
+        MapToCopy.root->referenced++;
+    }
+    cout << "D104" << endl;
     N_Landmarks = MapToCopy.N_Landmarks;
+    cout << "D105" << endl;
     N_layers = MapToCopy.N_layers;
+    cout << "D106" << endl;
     N_nodes = MapToCopy.N_nodes;
+    cout << "D107" << endl;
 }
 
 MapTree::MapTree()
@@ -334,9 +385,14 @@ MapTree::MapTree()
 
 MapTree::~MapTree()
 {  
-    cout << "deleting MapTree: " << mapTreeIdentifier << " References to root: " << root->referenced << " Debugging: ";
-    removeReferenceToSubTree(root);
-    cout << endl;
+    cout << "d42" << endl;
+    if (root != NULL){
+        cout << "d43" << endl;
+        cout << "deleting MapTree: " << mapTreeIdentifier << " References to root: " << root->referenced << " Debugging: ";
+        removeReferenceToSubTree(root);
+        cout << endl;
+    }
+    cout << "d44" << endl;
 }
 
 void MapTree::removeReferenceToSubTree(mapNode* nodeToStartFrom){
@@ -344,27 +400,27 @@ void MapTree::removeReferenceToSubTree(mapNode* nodeToStartFrom){
         nodeToStartFrom->referenced--;
     }
     if(nodeToStartFrom->referenced < 1){ // we have to delete the node! since the nodeToStartFrom
-        cout << "D50 ";
+        //cout << "D50 ";
         //if( (nodeToStartFrom->left != NULL) && (nodeToStartFrom->left->referenced <= 1)){
         if(nodeToStartFrom->left != NULL){
-            cout << "D51 ";
+            //cout << "D51 ";
             removeReferenceToSubTree(nodeToStartFrom->left);
         }
         //if( (nodeToStartFrom->right != NULL) && (nodeToStartFrom->right->referenced <= 1)){
         if(nodeToStartFrom->right != NULL){
-            cout << "D52 ";
+            //cout << "D52 ";
             removeReferenceToSubTree(nodeToStartFrom->right);
         }
         if (nodeToStartFrom->key_value == 0){ // we are at a leaf node and have to delete the landmark
-            cout << "D53 ";
+            //cout << "D53 ";
             delete nodeToStartFrom->l;
         }
-        cout << "D55 ";
+        //cout << "D55 ";
         delete nodeToStartFrom;
         nodeToStartFrom = NULL;
     }
     else{ // we should not delete the node!
-        cout << "D54 ";
+        //cout << "D54 ";
     }
 }
 
@@ -378,7 +434,7 @@ void MapTree::insertLandmark(landmark* newLandmark){
         root->referenced = 1;
         N_layers = 0;
         N_nodes = 0;
-        cout << "D1: N" << N_nodes << " keyvalue: " << root->key_value << endl;
+        //cout << "D1: N" << N_nodes << " keyvalue: " << root->key_value << endl;
     }
     else{
         float c_tmp = (float)newLandmark->c;
@@ -396,7 +452,7 @@ void MapTree::insertLandmark(landmark* newLandmark){
             if(newLandmark->c > tmpMapNodePointer->key_value){ // we go to the right
                 if(tmpMapNodePointer->right != NULL){
                     tmpMapNodePointer=tmpMapNodePointer->right;
-                    cout << "D:R" << endl;
+                    //cout << "D:R" << endl;
                 }
                 else{ //tmpMapNodePointer->right != NULL does not point to anything we have to creat a new node!
                     tmpMapNodePointer->right = new mapNode;
@@ -406,7 +462,7 @@ void MapTree::insertLandmark(landmark* newLandmark){
                     tmpMapNodePointer->right->l = NULL;
                     tmpMapNodePointer->right->referenced = 1;
                     N_nodes++;
-                    cout << "D2: N" << N_nodes << " keyvalue: " << tmpMapNodePointer->right->key_value <<endl;
+                    //cout << "D2: N" << N_nodes << " keyvalue: " << tmpMapNodePointer->right->key_value <<endl;
 
                     tmpMapNodePointer=tmpMapNodePointer->right;
                 }
@@ -414,7 +470,7 @@ void MapTree::insertLandmark(landmark* newLandmark){
             else if(newLandmark->c <= tmpMapNodePointer->key_value){
                 if(tmpMapNodePointer->left != NULL){
                     tmpMapNodePointer=tmpMapNodePointer->left;
-                    cout << "D:L" << endl;
+                    //cout << "D:L" << endl;
                 }
                 else{ //tmpMapNodePointer->right != NULL does not point to anything we have to creat a new node!
                     tmpMapNodePointer->left = new mapNode;
@@ -424,7 +480,7 @@ void MapTree::insertLandmark(landmark* newLandmark){
                     tmpMapNodePointer->left->l = NULL;
                     tmpMapNodePointer->left->referenced = 1;
                     N_nodes++;
-                    cout << "D3: N" << N_nodes << " keyvalue: " << tmpMapNodePointer->left->key_value << endl;
+                    //cout << "D3: N" << N_nodes << " keyvalue: " << tmpMapNodePointer->left->key_value << endl;
 
                     tmpMapNodePointer=tmpMapNodePointer->left;
                 }
@@ -446,11 +502,11 @@ void MapTree::insertLandmark(landmark* newLandmark){
 
         if(newLandmark->c > tmpMapNodePointer->key_value){ // we go to the right
             tmpMapNodePointer->right = pointerForNewLeafNode;
-            cout << "D5: Created new leaf to the right!" << endl;
+            //cout << "D5: Created new leaf to the right!" << endl;
         }
         else if(newLandmark->c <= tmpMapNodePointer->key_value){ // we go to the left
             tmpMapNodePointer->left = pointerForNewLeafNode;
-            cout << "D5: Created new leaf to the left!" << endl;
+            //cout << "D5: Created new leaf to the left!" << endl;
         }
         else{cout << "Error in insertion of landmark in map" << endl;}
     }
@@ -468,13 +524,13 @@ void MapTree::creatNewLayers(int Needed_N_layers){
          newRootNode->l = NULL;
          newRootNode->referenced = 1;
          N_nodes++;
-         cout << "D4: N" << N_nodes << " keyvalue: " << newRootNode->key_value << endl;
+         //cout << "D4: N" << N_nodes << " keyvalue: " << newRootNode->key_value << endl;
 
          root = newRootNode;
          i++;
      }
 
-     cout << "Added layer. N_layers:" << Needed_N_layers << endl;
+     //cout << "Added layer. N_layers:" << Needed_N_layers << endl;
      N_layers = Needed_N_layers;
 }
 
@@ -487,7 +543,6 @@ int MapTree::countNLayers(){
     }
     return i;
 }
-
 
 landmark* MapTree::extractLandmarkNodePointer(unsigned int Landmark_identifier){
     mapNode* tmpNodePointer = root;
@@ -504,19 +559,19 @@ landmark* MapTree::extractLandmarkNodePointer(unsigned int Landmark_identifier){
 }
 
 void MapTree::correctLandmark(landmark* newLandmarkData){
-    cout << "D20 ";
+    //cout << "D20 ";
     mapNode* tmpMapNode = makeNewPath(newLandmarkData, root);
 
     removeReferenceToSubTree(root);
 
     root = tmpMapNode;
-    cout << "D29 ";
+    //cout << "D29 ";
 }
 
 mapNode* MapTree::makeNewPath(landmark* newLandmarkData, mapNode* startNode){
-    cout << "D21 ";
+    //cout << "D21 ";
     if(startNode->key_value > 0){
-        cout << "D22 ";
+        //cout << "D22 ";
 
         // we need to make a new MapNode
         mapNode* pointerForNewMapNode = new mapNode;
@@ -524,7 +579,7 @@ mapNode* MapTree::makeNewPath(landmark* newLandmarkData, mapNode* startNode){
         pointerForNewMapNode->referenced = 1;
 
         if (newLandmarkData->c > startNode->key_value){ // we go right
-            cout << "D23 ";
+            //cout << "D23 ";
             pointerForNewMapNode->left = startNode->left; // and do not change the left pointer
             pointerForNewMapNode->left->referenced++;
             pointerForNewMapNode->key_value = startNode->key_value; // the new node has the same key_value as the old
@@ -533,7 +588,7 @@ mapNode* MapTree::makeNewPath(landmark* newLandmarkData, mapNode* startNode){
             //removeReferenceToSubTree(startNode); // we have to delete the SubTree if there is no more references for it!
         }
         else if(newLandmarkData->c <= startNode->key_value){ // we go left
-            cout << "D24 ";
+            //cout << "D24 ";
             pointerForNewMapNode->right = startNode->right; // and do not change the right pointer
             pointerForNewMapNode->right->referenced++;
             pointerForNewMapNode->key_value = startNode->key_value; // the new node has the same key_value as the old
@@ -544,11 +599,11 @@ mapNode* MapTree::makeNewPath(landmark* newLandmarkData, mapNode* startNode){
         else{
             cout << "error in makeNewPath";
         }
-        cout << "D25 ";
+        //cout << "D25 ";
         return pointerForNewMapNode;
     }
     else{ // we have reached the bottom of the tree and should make a new mapNode to hold the pointer for the updated landmark data
-        cout << "D26 ";
+        //cout << "D26 ";
         mapNode* pointerForNewLeafNode = new mapNode;
         pointerForNewLeafNode->key_value = 0;
         pointerForNewLeafNode->left = NULL;
@@ -557,10 +612,10 @@ mapNode* MapTree::makeNewPath(landmark* newLandmarkData, mapNode* startNode){
         pointerForNewLeafNode->referenced = 1;
 
         //removeReferenceToSubTree(startNode); // we have to delete the SubTree if there is no more references for it!
-        cout << "D27 ";
+        //cout << "D27 ";
         return pointerForNewLeafNode;
     }
-    cout << "D28 ";
+    //cout << "D28 ";
 }
 
 void MapTree::printAllLandmarkPositions(){
@@ -607,6 +662,7 @@ public:
     void deletePath();
     void addPose(Vector6f S, unsigned int k);
     unsigned int countLengthOfPath();
+    Vector6f* getPose();
     Vector6f* getPose(unsigned int k);
 
 private:
@@ -669,6 +725,7 @@ void Path::addPose(Vector6f S, unsigned int k){
 
     PathLength++;
 }
+
 unsigned int Path::countLengthOfPath(){
 
     if (PathRoot==NULL){
@@ -687,24 +744,222 @@ unsigned int Path::countLengthOfPath(){
     }
 }
 
+Vector6f* Path::getPose(){
+    // return lates pose!
+    return &(PathRoot->nextNode->S);
+}
+
 Vector6f* Path::getPose(unsigned int k){
-    cout << "D10" << endl;
+    // returns specific pose!
+    //cout << "D10" << endl;
     if (PathRoot==NULL){
-        cout << "D11" << endl;
+        //cout << "D11" << endl;
         return NULL;
     }
     else{
-        cout << "D12" << endl;
+        //cout << "D12" << endl;
 
         Node_Path* tmp_pointer = PathRoot->nextNode;
 
         while(tmp_pointer->k != k){
-            cout << tmp_pointer->referenced << ",";
+            cout << tmp_pointer->k << ","; // for debugging
             tmp_pointer = tmp_pointer->nextNode;
         }
         return &(tmp_pointer->S);
     }
 }
+
+
+
+
+/* ############################## Defines particle class ##############################  */
+
+class Particle
+{
+public:
+    /* variables */
+    Path* s;
+    MapTree* map;
+
+    /* functions */
+    Particle(Vector6f s0 = Vector6f::Zero(), unsigned int k = 0); 		// Initialize a standard particle with "zero-pose" or custom pose
+    Particle(const Particle &ParticleToCopy);       // Copy constructer used in case where we need to make a copy of a Particle
+    ~Particle();
+    void updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New,VectorUFastSLAMf* u, unsigned int k);
+    float getWeigth();
+
+private:
+    /* variables */
+    float w;
+    static Matrix6f sCov; // motion model covariance - does not change?
+
+    /* functions */
+    Vector6f drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUFastSLAMf* u,MeasurementSet* z_Ex);
+    Vector6f motionModel(Vector6f sold,VectorUFastSLAMf* u);
+    void handleExMeas(MeasurementSet* z_Ex, Vector6f s_proposale);
+    void handleNewMeas(MeasurementSet* z_New, Vector6f s_proposale);
+    void updateLandmarkEstimates(Vector6f s_proposale, MeasurementSet* z_Ex, MeasurementSet* z_New);
+    Vector6f drawSampleRandomPose(Vector6f sMean_proposale, Matrix6f sCov_proposale);
+    //void calculateImportanceWeight(node *map);
+};
+
+Particle::Particle(Vector6f s0, unsigned int k)   // default Constructor definition
+{
+    cout << "d20" << endl;
+    s = new Path(s0,k); // makes new path!
+    map = new MapTree; // makes new mapTree
+}
+
+Particle::Particle(const Particle &ParticleToCopy)   // Copy Constructor
+{
+    cout << "d30" << endl;
+    s = new Path(*(ParticleToCopy.s)); //makes copy of s on the heap
+    cout << "d31" << endl;
+    map = new MapTree(*(ParticleToCopy.map));
+    cout << "d32" << endl;
+}
+
+Particle::~Particle()
+{
+    cout << "d40" << endl;
+    delete s; // call destructor of s
+    cout << "d41" << endl;
+    delete map; // call destructor of map
+    cout << "d42" << endl;
+}
+
+
+void Particle::updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New,VectorUFastSLAMf* u, unsigned int k)
+{
+    Vector6f s_proposale = drawSampleFromProposaleDistribution(s->getPose(),u,z_Ex);
+    s->addPose(s_proposale,k); // we are done estimating our pose and add it to the path!
+
+    updateLandmarkEstimates(s_proposale,z_Ex,z_New);
+
+    //w = calculateImportanceWeight();
+}
+
+void Particle::updateLandmarkEstimates(Vector6f s_proposale, MeasurementSet* z_Ex, MeasurementSet* z_New){
+    //cout << "D20" << endl;
+    handleExMeas(z_Ex,s_proposale);
+    //cout << "D21" << endl;
+    handleNewMeas(z_New,s_proposale);
+    cout << "N_landmarks: " << map->N_Landmarks << endl;
+}
+
+void Particle::handleExMeas(MeasurementSet* z_Ex, Vector6f s_proposale){
+    if (z_Ex != NULL){
+        for( int i = 1; i <= z_Ex->nMeas; i = i + 1 ) {
+            Measurement* z_tmp = z_Ex->getMeasurement(i);
+
+            landmark* li_old = map->extractLandmarkNodePointer(z_tmp->c);
+
+            VectorXf z_hat = z_tmp->MeasurementModel(s_proposale,li_old->lhat); // (3.33)
+
+            MatrixXf Hl;
+            Hl = z_tmp->calculateHl(s_proposale,li_old->lhat);  // (3.34)
+
+            MatrixXf Zk;
+            Zk = z_tmp->getzCov() + Hl*li_old->lCov*Hl.transpose(); // (3.35)
+
+            MatrixXf Kk;
+            Kk = li_old->lCov*Hl.transpose()*Zk.inverse(); // (3.36) - Kalman gain
+
+            landmark* li_update = new landmark;
+            li_update->lhat = li_old->lhat + Kk*(z_tmp->z - z_hat); // (3.37)
+
+            MatrixXf tmpMatrix;
+            tmpMatrix = Kk*Hl;
+            li_update->lCov = (MatrixXf::Identity(tmpMatrix.rows(),tmpMatrix.cols())-tmpMatrix)*li_old->lCov;// (3.38)
+
+            map->correctLandmark(li_update);
+            //cout << "D600" << endl;
+        }
+    }
+}
+
+
+void Particle::handleNewMeas(MeasurementSet* z_New, Vector6f s_proposale){
+    if (z_New != NULL){
+        for( int i = 1; i <= z_New->nMeas; i = i + 1 ) {
+            Measurement* z_tmp = z_New->getMeasurement(i);
+
+            landmark* li = new landmark;
+            li->c = z_tmp->c;
+            li->lhat = z_tmp->inverseMeasurementModel(s_proposale);
+
+            MatrixXf Hl;
+            Hl = z_tmp->calculateHl(s_proposale,li->lhat);
+
+            MatrixXf zCov_tmp = z_tmp->getzCov();
+
+            li->lCov = (Hl.transpose()*zCov_tmp.inverse()*Hl).inverse();
+
+            map->insertLandmark(li);
+        }
+    }
+}
+
+Vector6f Particle::drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUFastSLAMf* u,MeasurementSet* z_Ex)
+{
+    //cout << "D10" << endl;
+    Vector6f s_bar = motionModel(*s_old,u);
+
+    Matrix6f sCov_proposale= sCov; // eq (3.28)
+    Vector6f sMean_proposale = s_bar; // eq (3.29)
+
+    //cout << "D11" << endl;
+    if (z_Ex != NULL){
+        for( int i = 1; i <= z_Ex->nMeas; i = i + 1 ) {
+            //cout << "D12: " << i << endl;
+            Measurement* z_tmp = z_Ex->getMeasurement(i);
+            landmark* li_old = map->extractLandmarkNodePointer(z_tmp->c);
+
+            MatrixXf Hli;
+            Hli = z_tmp->calculateHl(s_bar,li_old->lhat); //resizes automatically due to the "=" operator
+
+            MatrixXf Hsi;
+            Hsi = z_tmp->calculateHs(s_bar,li_old->lhat); //resizes automatically due to the "=" operator
+
+            MatrixXf Zki;
+            MatrixXf zCov_tmp = z_tmp->getzCov();
+            Zki = zCov_tmp + Hli*(li_old->lCov)*Hli.transpose();
+
+            VectorXf zhat;
+            zhat = z_tmp->MeasurementModel(s_bar,li_old->lhat);
+
+            sCov_proposale = (Hsi.transpose()*Zki.inverse()*Hsi + sCov_proposale.inverse()).inverse();  // eq (3.30)
+            sMean_proposale = sMean_proposale + sCov_proposale*Hsi.transpose()*Zki.inverse()*(zhat - z_tmp->z); // eq (3.31)
+        }
+    }
+    //cout << "D13" << endl;
+    Vector6f s_proposale = drawSampleRandomPose(sMean_proposale, sCov_proposale);
+    //cout << "D14" << endl;
+    return s_proposale;
+}
+
+Vector6f Particle::drawSampleRandomPose(Vector6f sMean_proposale, Matrix6f sCov_proposale){
+    return sMean_proposale + 0.000001*Vector6f::Random();
+}
+
+Vector6f Particle::motionModel(Vector6f sold,VectorUFastSLAMf* u){
+    Vector6f s_k = sold; // s(k) = f(s(k-1),u(k)) put in correct motion model!
+    return s_k;
+}
+
+/*
+void Particle::calculateImportanceWeight(){
+    return;
+}
+*/
+
+float Particle::getWeigth()
+{
+    return w;
+}
+
+Matrix6f Particle::sCov = 1*Matrix6f::Identity(); // static variable - has to be declared outside class!
+
 
 
 
@@ -715,14 +970,76 @@ int main(int argc, char **argv)
 	ros::init(argc, argv, "Mtest");
     ros::NodeHandle nh;
 
+    // malte playing with particles
+    Particle* P1 = new Particle;
+    Particle* P2 = new Particle(*P1);
+
+    MeasurementSet* z_Ex = new MeasurementSet;
+    MeasurementSet* z_New = new MeasurementSet;
+
+    for(unsigned int i = 1; i<=10; i++){
+        Vector3f V_tmp = Vector3f::Constant(i)+0.001*Vector3f::Random();
+        GOTMeasurement* z_tmp = new GOTMeasurement(i,V_tmp); //generate random numbers...
+        z_New->addMeasurement(z_tmp);
+    }
+
+    cout << "Number of measurements in z_New: " << z_New->countNumberOfMeasurements() << endl;
+
+    VectorUFastSLAMf u = VectorUFastSLAMf::Zero();
+
+    unsigned int k=1;
+    P1->updateParticle(z_Ex,z_New,&u,k);
+    P2->updateParticle(z_Ex,z_New,&u,k);
+
+    unsigned int j = 0;
+    while (j<=100){
+        cout << "j: " << j << endl;
+        delete z_New;
+        z_New = new MeasurementSet;
+        delete z_Ex;
+        z_Ex = new MeasurementSet;
+
+        for(unsigned int i = 1+j; i<=10+j; i++){
+            Vector3f V_tmp = Vector3f::Constant(i)+0.001*Vector3f::Random();
+            GOTMeasurement* z_tmp = new GOTMeasurement(i,V_tmp); //generate random numbers...
+            z_Ex->addMeasurement(z_tmp);
+
+            V_tmp = Vector3f::Constant(i+10)+0.001*Vector3f::Random();
+            z_tmp = new GOTMeasurement(i+10,V_tmp); //generate random numbers...
+            z_New->addMeasurement(z_tmp);
+        }
+        k++;
+        P1->updateParticle(z_Ex,z_New,&u,k);
+        P2->updateParticle(z_Ex,z_New,&u,k);
+        j = j+10;
+
+        cout << "globalLandmarkCounter: " << globalLandmarkCounter << endl;
+        cout << "globalMapNodeCounter: " << globalMapNodeCounter << endl;
+    }
+
+    cout << "path length P1: " << P1-> s->PathLength << " Current s:" << endl << *(P1->s->getPose()) << endl;
+    cout << "path length P2: " << P2-> s->PathLength << " Current s:" << endl << *(P2->s->getPose()) << endl;
+
+    delete P1;
+
+    Particle* P3 = new Particle(*P2);
+    Particle* P4 = new Particle(*P2);
+
+    delete P2;
+    delete P3;
+    delete P4;
+
+    cout << "globalLandmarkCounter: " << globalLandmarkCounter << endl;
+    cout << "globalMapNodeCounter: " << globalMapNodeCounter << endl;
+
+
     // malte playing with Paths
+/*
     Path* P = new Path(Vector6f::Constant(1),1);
-    cout << "D1" << endl;
 
     for(unsigned int i = 1; i < 100;i++){
         P->addPose(Vector6f::Constant(i),i);
     }
-    cout << "D2" << endl;
 
     Path* P2 = new Path(*P); //makes copy of P on the heap
     Path* P3 = new Path(*P); //makes copy of P on the heap
@@ -742,12 +1059,16 @@ int main(int argc, char **argv)
     S = P2->getPose(30);
     cout << endl << endl << *S << endl;
 
-    S = P3->getPose(30);
+    S = P3->getPose(20);
     cout << endl << endl << *S << endl;
 
     delete P2;
-    S = P3->getPose(30);
+    S = P3->getPose(10);
     cout << endl << endl << *S << endl;
+
+    S = P3->getPose();
+    cout << "current pose P3: " << *S << endl;
+*/
 
     // malte testing measurement classes
 /*    Vector3f zGOT;
