@@ -5,10 +5,15 @@
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/State.h>
 
-
+// Boost is needed for Gaussian random number generation
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/normal_distribution.hpp>
+#include <boost/random/variate_generator.hpp>
 
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/LU>
+#include <eigen3/Eigen/Eigenvalues>
+#include <eigen3/Eigen/Dense>
 #include <math.h>
 
 using namespace std;
@@ -939,7 +944,23 @@ Vector6f Particle::drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUF
 }
 
 Vector6f Particle::drawSampleRandomPose(Vector6f sMean_proposale, Matrix6f sCov_proposale){
-    return sMean_proposale + 0.000001*Vector6f::Random();
+    boost::mt19937 rng; // Creating a new random number generator every time could be optimized
+    rng.seed(static_cast<unsigned int>(time(0)));
+    boost::normal_distribution<> nd(0.0, 1.0);
+    boost::variate_generator<boost::mt19937&, boost::normal_distribution<> > randN(rng, nd); // see http://lost-found-wandering.blogspot.dk/2011/05/sampling-from-multivariate-normal-in-c.html
+
+    SelfAdjointEigenSolver<MatrixXf> eigenSolver(sCov_proposale);
+
+    Vector6f normal;
+    normal << randN(), randN(), randN(), randN(), randN(), randN(); // generate 6 random numbers in the vector - these are distributed with mean 0 and sigma 1
+
+    MatrixXf U = eigenSolver.eigenvectors();
+    MatrixXf Lambda = eigenSolver.eigenvalues();
+    MatrixXf Sigma = Lambda.cwiseSqrt().asDiagonal();
+    Vector6f sample = sMean_proposale + U * Sigma * normal;
+
+    return sample;
+    //return sMean_proposale + 0.000001*Vector6f::Random();
 }
 
 Vector6f Particle::motionModel(Vector6f sold,VectorUFastSLAMf* u){
