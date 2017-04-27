@@ -15,16 +15,77 @@
 #include <eigen3/Eigen/Eigenvalues>
 #include <eigen3/Eigen/Dense>
 #include <math.h>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <cstdlib>
 
 using namespace std;
 using namespace Eigen;
 
-
+#define deg2rad(x)  (x*M_PI)/180.f
+#define rad2deg(x)  (x*180.f)/M_PI
 
 typedef Matrix<float, 6, 1> Vector6f;
 typedef Matrix<float, 6, 6> Matrix6f;
 typedef Matrix<float, 10, 1> VectorUFastSLAMf;
 typedef Matrix<float, 6, Dynamic> Matrix6kf;
+
+/*template<typename M>
+M load_csv_to_matrix (const std::string & path) {
+    ifstream indata;
+    indata.open(path);
+    string line;
+    vector<double> values;
+    uint rows = 0;
+    while (getline(indata, line)) {
+        stringstream lineStream(line);
+        string cell;
+        while (getline(lineStream, cell, ',')) {
+            values.insert(values.end(), stod(cell));
+        }
+        ++rows;
+    }
+    return Map<const Matrix<typename M::Scalar, M::RowsAtCompileTime, M::ColsAtCompileTime, RowMajor>>(values.data(), rows, values.size()/rows);
+}*/
+
+MatrixXd load_csv_to_matrix (const std::string & path) {
+    ifstream indata;
+    indata.open(path);
+    string line;
+    vector<double> values;
+    uint rows = 0;
+    while (getline(indata, line)) {
+        stringstream lineStream(line);
+        string cell;
+        while (getline(lineStream, cell, ',')) {
+            values.insert(values.end(), stod(cell));
+        }
+        ++rows;
+    }
+    return Map<const Matrix<MatrixXd::Scalar, MatrixXd::RowsAtCompileTime, MatrixXd::ColsAtCompileTime, RowMajor>>(values.data(), rows, values.size()/rows);
+}
+
+vector<vector<double> > load_csv (const string &path) {
+    ifstream indata;
+    indata.open(path.c_str());
+    string line;
+    vector<vector<double> > rowVectors;
+    vector<double> values;
+    uint rows = 0;
+    while (getline(indata, line)) {
+        stringstream lineStream(line);
+        string cell;
+        while (getline(lineStream, cell, ',')) {
+            values.insert(values.end(), stod(cell));
+        }
+        rowVectors.insert(rowVectors.end(), values);
+        values.clear();
+        ++rows;
+    }
+    return rowVectors;
+}
+
 
 
 /* ############################## Defines measurement class ##############################  */
@@ -42,10 +103,10 @@ public:
     /* functions */
    // Measurement();
    // ~Measurement();
-    virtual MatrixXf calculateHl(Vector6f pose,Vector3f l) = 0;		/* calculates derivative of measurement model with respect to landmark variable - l */
-    virtual MatrixXf calculateHs(Vector6f pose,Vector3f l) = 0;		/* calculates derivative of measurement model with respect to pose variable - s */
+    virtual MatrixXf calculateHl(Vector6f pose, Vector3f l) = 0;		/* calculates derivative of measurement model with respect to landmark variable - l */
+    virtual MatrixXf calculateHs(Vector6f pose, Vector3f l) = 0;		/* calculates derivative of measurement model with respect to pose variable - s */
     virtual VectorXf inverseMeasurementModel(Vector6f pose) = 0;
-    virtual VectorXf MeasurementModel(Vector6f s,Vector3f l) = 0;
+    virtual VectorXf MeasurementModel(Vector6f pose, Vector3f l) = 0;
     virtual MatrixXf getzCov() = 0;
 private:
 };
@@ -57,10 +118,10 @@ class GOTMeasurement : public Measurement
     static MatrixXf zCov; 	/* measurement covariance - can take different sizes! static such that only one copy is saved in memory - also why it is placed in the subclass*/
 
     GOTMeasurement(unsigned int i, Vector3f GOT_meas);
-    MatrixXf calculateHs(Vector6f pose,Vector3f l);
-    MatrixXf calculateHl(Vector6f pose,Vector3f l);
+    MatrixXf calculateHs(Vector6f pose, Vector3f l);
+    MatrixXf calculateHl(Vector6f pose, Vector3f l);
     VectorXf inverseMeasurementModel(Vector6f pose);
-    VectorXf MeasurementModel(Vector6f s,Vector3f l);
+    VectorXf MeasurementModel(Vector6f pose, Vector3f l);
     MatrixXf getzCov();
 
 private:
@@ -73,8 +134,9 @@ GOTMeasurement::GOTMeasurement(unsigned int i, Vector3f GOT_meas)
     timestamp = ros::Time::now();
 }
 
-VectorXf GOTMeasurement::MeasurementModel(Vector6f s,Vector3f l){
-    Vector3f z = s.topRows<3>() - l;
+VectorXf GOTMeasurement::MeasurementModel(Vector6f pose, Vector3f l)
+{
+    Vector3f z = pose.topRows<3>() - l;
     return z;
 }
 
@@ -85,14 +147,14 @@ VectorXf GOTMeasurement::inverseMeasurementModel(Vector6f pose)
     return l;
 }
 
-MatrixXf GOTMeasurement::calculateHs(Vector6f pose,Vector3f l)
+MatrixXf GOTMeasurement::calculateHs(Vector6f pose, Vector3f l)
 {    
     MatrixXf Hs(3, 6);
     Hs << Matrix3f::Identity(3,3), Matrix3f::Zero(3,3);
     return Hs;
 }
 
-MatrixXf GOTMeasurement::calculateHl(Vector6f pose,Vector3f l)
+MatrixXf GOTMeasurement::calculateHl(Vector6f pose, Vector3f l)
 {
     //s = pose; // temp variable to make it look like equations
     Matrix3f Hl = Matrix3f::Identity();
@@ -110,16 +172,21 @@ MatrixXf GOTMeasurement::zCov = 0.1*Matrix3f::Identity(); // static variable - h
 class ImgMeasurement : public Measurement
 {
     public:
-    static Matrix3f zCov; 	/* measurement covariance - can take different sizes! static such that only one copy is saved in memory - also why it is placed in the subclass*/
+    static Matrix3f zCov; 	/* measurement covariance - can take different sizes! static such that only one copy is saved in memory - also why it is placed in the subclass*/    
 
     ImgMeasurement(unsigned int i, Vector3f img_me);
     VectorXf inverseMeasurementModel(Vector6f pose);
-    MatrixXf calculateHs(Vector6f pose,Vector3f l);
-    MatrixXf calculateHl(Vector6f pose,Vector3f l);
-    VectorXf MeasurementModel(Vector6f s,Vector3f l);
+    MatrixXf calculateHs(Vector6f pose, Vector3f l);
+    MatrixXf calculateHl(Vector6f pose, Vector3f l);
+    VectorXf MeasurementModel(Vector6f pose, Vector3f l);
     MatrixXf getzCov();
 
 private:
+    /* Camera coefficients */
+    static constexpr float ax = 617.85888671875;
+    static constexpr float ay = 623.442626953125;
+    static constexpr float x0 = 321.3709716796875;
+    static constexpr float y0 = 253.7631072998047;
 };
 
 ImgMeasurement::ImgMeasurement(unsigned int i, Vector3f img_meas)
@@ -129,29 +196,130 @@ ImgMeasurement::ImgMeasurement(unsigned int i, Vector3f img_meas)
     timestamp = ros::Time::now();
 }
 
-VectorXf ImgMeasurement::MeasurementModel(Vector6f s,Vector3f l){
-    Vector3f z = s.topRows<3>() - l;
+VectorXf ImgMeasurement::MeasurementModel(Vector6f pose, Vector3f l)
+{
+    Vector3f z;
+
+    float c_psi = cos(pose(5));
+    float s_psi = sin(pose(5));
+    float c_theta = cos(pose(4));
+    float s_theta = sin(pose(4));
+    float c_phi = cos(pose(3));
+    float s_phi = sin(pose(3));
+
+    // Calculate world coordinate of landmark in the camera frame - Notice we use Roll-Pitch-Yaw angle convention
+    float c_xl = (-c_psi*s_theta*s_phi + s_psi*c_phi)*(l(0) - pose(0)) + (-s_psi*s_theta*s_phi-c_psi*c_phi)*(l(1) - pose(1)) - (c_theta*s_phi)*(l(2) - pose(2));
+    float c_yl = (-c_psi*s_theta*c_phi-s_psi*s_phi)*(l(0) - pose(0)) + (-s_psi*s_theta*c_phi+c_psi*s_phi)*(l(1) - pose(1)) - (c_theta*s_phi)*(l(2) - pose(2));
+    float c_zl = (c_psi*c_theta)*(l(0) - pose(0)) + (s_psi*c_theta)*(l(1) - pose(1)) - s_theta*(l(2) - pose(2));
+
+    // Project world coordinate onto image plane
+    float xi = (ax*c_xl + x0*c_zl) / c_zl;
+    float yi = (ay*c_yl + y0*c_zl) / c_zl;
+    float zc = c_zl;
+
+    // Form the measurement vector
+    z << xi,
+         yi,
+         zc;
+
     return z;
 }
 
 VectorXf ImgMeasurement::inverseMeasurementModel(Vector6f pose)
 {
-    Vector6f s = pose; // temp variable to make it look like equations
-    Vector3f l = s.topRows<3>() - z;
-    return l;
+    float c_psi = cos(pose(5));
+    float s_psi = sin(pose(5));
+    float c_theta = cos(pose(4));
+    float s_theta = sin(pose(4));
+    float c_phi = cos(pose(3));
+    float s_phi = sin(pose(3));
+
+    Matrix3f R; // Rotation matrix corresponding to: BC_R' * EB_R'
+    R << (-c_psi*s_theta*s_phi + s_psi*c_phi), (-s_psi*s_theta*s_phi-c_psi*c_phi), -(c_theta*s_phi),
+            (-c_psi*s_theta*c_phi-s_psi*s_phi),  (-s_psi*s_theta*c_phi+c_psi*s_phi), -(c_theta*c_phi),
+            (c_psi*c_theta),                     (s_psi*c_theta),                    -(s_theta);
+
+    float c_zl = z(2);
+    float c_xl = (z(0)*c_zl - x0*c_zl) / ax;
+    float c_yl = (z(1)*c_zl - y0*c_zl) / ay;
+
+    Vector3f CamLandmark;
+    CamLandmark << c_xl, c_yl, c_zl;
+
+    Vector3f pose_xyz;
+    pose_xyz << pose(0), pose(1), pose(2);
+
+    Vector3f TempLandmark = CamLandmark + R*pose_xyz;
+
+    Vector3f WorldLandmark = R.transpose() * TempLandmark; // rot.transpose() corresponds to EB_R * BC_R
+
+    return WorldLandmark;
 }
 
-MatrixXf ImgMeasurement::calculateHs(Vector6f pose,Vector3f l)
+MatrixXf ImgMeasurement::calculateHs(Vector6f pose, Vector3f l)
 {
+    float c_psi = cos(pose(5));
+    float s_psi = sin(pose(5));
+    float c_theta = cos(pose(4));
+    float s_theta = sin(pose(4));
+    float c_phi = cos(pose(3));
+    float s_phi = sin(pose(3));
+
     MatrixXf Hs(3, 6);
-    Hs << Matrix3f::Identity(3,3), Matrix3f::Zero(3,3);
+
+    float den = powf((c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1))),2);
+
+    Hs(0,0) = (ax*(c_phi*s_psi - c_psi*s_theta*s_phi))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1))) + (ax*c_theta*c_psi*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1)) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0)) + c_theta*s_phi*(pose(2) - l(2))))/den;
+    Hs(0,1) = (ax*c_theta*s_psi*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1)) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0)) + c_theta*s_phi*(pose(2) - l(2))))/den - (ax*(c_phi*c_psi + s_theta*s_phi*s_psi))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1)));
+    Hs(0,2) = - (ax*s_theta*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1)) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0)) + c_theta*s_phi*(pose(2) - l(2))))/den - (ax*c_theta*s_phi)/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1)));
+    Hs(0,3) = -(ax*((s_phi*s_psi + c_phi*c_psi*s_theta)*(pose(0) - l(0)) - (c_psi*s_phi - c_phi*s_theta*s_psi)*(pose(1) - l(1)) + c_theta*c_phi*(pose(2) - l(2))))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1)));
+    Hs(0,4) = - (ax*(c_theta*c_psi*s_phi*(pose(0) - l(0)) - s_theta*s_phi*(pose(2) - l(2)) + c_theta*s_phi*s_psi*(pose(1) - l(1))))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1))) - (ax*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1)) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0)) + c_theta*s_phi*(pose(2) - l(2)))*(c_theta*(pose(2) - l(2)) + c_psi*s_theta*(pose(0) - l(0)) + s_theta*s_psi*(pose(1) - l(1))))/den;
+    Hs(0,5) = (ax*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(0) - l(0)) + (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(1) - l(1))))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1))) + (ax*(c_theta*c_psi*(pose(1) - l(1)) - c_theta*s_psi*(pose(0) - l(0)))*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1)) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0)) + c_theta*s_phi*(pose(2) - l(2))))/den;
+    Hs(1,0) = (ay*c_theta*c_psi*((s_phi*s_psi + c_phi*c_psi*s_theta)*(pose(0) - l(0)) - (c_psi*s_phi - c_phi*s_theta*s_psi)*(pose(1) - l(1)) + c_theta*c_phi*(pose(2) - l(2))))/den - (ay*(s_phi*s_psi + c_phi*c_psi*s_theta))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1)));
+    Hs(1,1) = (ay*(c_psi*s_phi - c_phi*s_theta*s_psi))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1))) + (ay*c_theta*s_psi*((s_phi*s_psi + c_phi*c_psi*s_theta)*(pose(0) - l(0)) - (c_psi*s_phi - c_phi*s_theta*s_psi)*(pose(1) - l(1)) + c_theta*c_phi*(pose(2) - l(2))))/den;
+    Hs(1,2) = - (ay*s_theta*((s_phi*s_psi + c_phi*c_psi*s_theta)*(pose(0) - l(0)) - (c_psi*s_phi - c_phi*s_theta*s_psi)*(pose(1) - l(1)) + c_theta*c_phi*(pose(2) - l(2))))/den - (ay*c_theta*c_phi)/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1)));
+    Hs(1,3) = (ay*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1)) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0)) + c_theta*s_phi*(pose(2) - l(2))))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1)));
+    Hs(1,4) = - (ay*(c_theta*c_phi*c_psi*(pose(0) - l(0)) - c_phi*s_theta*(pose(2) - l(2)) + c_theta*c_phi*s_psi*(pose(1) - l(1))))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1))) - (ay*((s_phi*s_psi + c_phi*c_psi*s_theta)*(pose(0) - l(0)) - (c_psi*s_phi - c_phi*s_theta*s_psi)*(pose(1) - l(1)) + c_theta*c_phi*(pose(2) - l(2)))*(c_theta*(pose(2) - l(2)) + c_psi*s_theta*(pose(0) - l(0)) + s_theta*s_psi*(pose(1) - l(1))))/den;
+    Hs(1,5) = (ay*(c_theta*c_psi*(pose(1) - l(1)) - c_theta*s_psi*(pose(0) - l(0)))*((s_phi*s_psi + c_phi*c_psi*s_theta)*(pose(0) - l(0)) - (c_psi*s_phi - c_phi*s_theta*s_psi)*(pose(1) - l(1)) + c_theta*c_phi*(pose(2) - l(2))))/den - (ay*((c_psi*s_phi - c_phi*s_theta*s_psi)*(pose(0) - l(0)) + (s_phi*s_psi + c_phi*c_psi*s_theta)*(pose(1) - l(1))))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1)));
+    Hs(2,0) = -c_theta*c_psi;
+    Hs(2,1) = -c_theta*s_psi;
+    Hs(2,2) = s_theta;
+    Hs(2,3) = 0;
+    Hs(2,4) = c_theta*(pose(2) - l(2)) + c_psi*s_theta*(pose(0) - l(0)) + s_theta*s_psi*(pose(1) - l(1));
+    Hs(2,5) = c_theta*s_psi*(pose(0) - l(0)) - c_theta*c_psi*(pose(1) - l(1));
+
     return Hs;
 }
 
-MatrixXf ImgMeasurement::calculateHl(Vector6f pose,Vector3f l)
+MatrixXf ImgMeasurement::calculateHl(Vector6f pose, Vector3f l)
 {
-    //s = pose; // temp variable to make it look like equations
-    Matrix3f Hl = Matrix3f::Identity();
+    float c_psi = cos(pose(5));
+    float s_psi = sin(pose(5));
+    float c_theta = cos(pose(4));
+    float s_theta = sin(pose(4));
+    float c_phi = cos(pose(3));
+    float s_phi = sin(pose(3));
+
+    Matrix3f R; // Rotation matrix corresponding to: BC_R' * EB_R'
+    R << (-c_psi*s_theta*s_phi + s_psi*c_phi), (-s_psi*s_theta*s_phi-c_psi*c_phi), -(c_theta*s_phi),
+            (-c_psi*s_theta*c_phi-s_psi*s_phi),  (-s_psi*s_theta*c_phi+c_psi*s_phi), -(c_theta*c_phi),
+            (c_psi*c_theta),                     (s_psi*c_theta),                    -(s_theta);
+
+    Matrix3f Hl;
+
+    float den1 = powf((R(2,0)*(pose(0) - l(0)) + R(2,1)*(pose(1) - l(1)) + R(2,2)*(pose(2) - l(2))),2);
+    float den2 = (R(2,0)*(pose(0) - l(0)) + R(2,1)*(pose(1) - l(1)) + R(2,2)*(pose(2) - l(2)));
+
+    Hl(0,0) = (R(2,0)*ax*(R(0,0)*(pose(0) - l(0)) + R(0,1)*(pose(1) - l(1)) + R(0,2)*(pose(2) - l(2))))/den1 - (R(0,0)*ax)/den2;
+    Hl(1,0) = (R(2,0)*ay*(R(1,0)*(pose(0) - l(0)) + R(1,1)*(pose(1) - l(1)) + R(1,2)*(pose(2) - l(2))))/den1 - (R(1,0)*ay)/den2;
+    Hl(2,0) = R(2,0);
+    Hl(0,1) = (R(2,1)*ax*(R(0,0)*(pose(0) - l(0)) + R(0,1)*(pose(1) - l(1)) + R(0,2)*(pose(2) - l(2))))/den1 - (R(0,1)*ax)/den2;
+    Hl(1,1) = (R(2,1)*ay*(R(1,0)*(pose(0) - l(0)) + R(1,1)*(pose(1) - l(1)) + R(1,2)*(pose(2) - l(2))))/den1 - (R(1,1)*ay)/den2;
+    Hl(2,1) = R(2,1);
+    Hl(0,2) = (R(2,2)*ax*(R(0,0)*(pose(0) - l(0)) + R(0,1)*(pose(1) - l(1)) + R(0,2)*(pose(2) - l(2))))/den1 - (R(0,2)*ax)/den2;
+    Hl(1,2) = (R(2,2)*ay*(R(1,0)*(pose(0) - l(0)) + R(1,1)*(pose(1) - l(1)) + R(1,2)*(pose(2) - l(2))))/den1 - (R(1,2)*ay)/den2;
+    Hl(2,2) = R(2,2);
+
     return Hl;
 };
 
@@ -1199,6 +1367,8 @@ int main(int argc, char **argv)
     cout << "globalLandmarkCounter: " << globalLandmarkCounter << endl;
     cout << "globalMapNodeCounter: " << globalMapNodeCounter << endl;
 */
+    MatrixXd testa = load_csv_to_matrix("text.csv");
+    cout << testa << endl;
 
     cout << endl << "program ended"<< endl;
   	return 0;
