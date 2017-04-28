@@ -119,10 +119,7 @@ catkin_package(CATKIN_DEPENDS roscpp rospy std_msgs message_runtime)
 ## Your package locations should be listed before other locations
 
 include_directories(
-  ${catkin_INCLUDE_DIRS}  
-  src/observers/observer_z
-  src/observers/observer_xdot
-  src/observers/observer_ydot
+  ${catkin_INCLUDE_DIRS}    
   src/observers/ekf
   include
 )
@@ -191,7 +188,7 @@ target_link_libraries(true_position ${catkin_LIBRARIES})
 
 target_link_libraries(yawEstimation ${catkin_LIBRARIES} utils)
 
-target_link_libraries(controller ${catkin_LIBRARIES} observer_z observer_xdot observer_ydot ekf utils)
+target_link_libraries(controller ${catkin_LIBRARIES} ekf utils)
 #target_link_libraries(controller ${catkin_LIBRARIES})
 
 

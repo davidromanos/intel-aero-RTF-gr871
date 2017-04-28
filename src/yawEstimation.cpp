@@ -140,15 +140,15 @@ int main(int argc, char **argv)
 
         if(current_state.mode == "OFFBOARD")
         {
-            if(k%400 < 100)
+            if(k%600 < 150)
             {
                 yawSetpoint = setpoints[i];
             }
-            else if(k%400 < 200)
+            else if(k%600 < 300)
             {
                 yawSetpoint = 0.0;
             }
-            else if(k%400 < 300)
+            else if(k%600 < 450)
             {
                 yawSetpoint = -1*setpoints[i];
             }
@@ -156,9 +156,10 @@ int main(int argc, char **argv)
             {
                 yawSetpoint = 0.0;
             }
-            if(k%400 == 0)
+            if(k%600 == 0)
             {
                 i++;
+                std::cout << "Progress: " <<100*i/setpoints.size() << "%\n";
             }
             if(i>setpoints.size()-1)
             {
