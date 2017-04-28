@@ -30,6 +30,7 @@ typedef Matrix<float, 6, 1> Vector6f;
 typedef Matrix<float, 6, 6> Matrix6f;
 typedef Matrix<float, 6, 1> VectorUFastSLAMf; // velocities in the order: [x_dot, y_dot, z_dot, roll_dot, pitch_dot, yaw_dot]
 typedef Matrix<float, 6, Dynamic> Matrix6kf;
+float pi = 3.14159265359;
 
 /*template<typename M>
 M load_csv_to_matrix (const std::string & path) {
@@ -524,26 +525,17 @@ class MapTree
 
 MapTree::MapTree(const MapTree &MapToCopy)
 {
-    cout << "D100" << endl;
     mapTreeIdentifier = mapTreeIdentifierCounter;
-    cout << "D101" << endl;
 
     mapTreeIdentifierCounter++;
-    cout << "D102" << endl;
     root = MapToCopy.root;
-    cout << "D103" << endl;
     // we add new reference for a mapNode and have to increment its reference counter
     if (MapToCopy.root != NULL){
-        cout << "D110" << endl;
         MapToCopy.root->referenced++;
     }
-    cout << "D104" << endl;
     N_Landmarks = MapToCopy.N_Landmarks;
-    cout << "D105" << endl;
     N_layers = MapToCopy.N_layers;
-    cout << "D106" << endl;
     N_nodes = MapToCopy.N_nodes;
-    cout << "D107" << endl;
 }
 
 MapTree::MapTree()
@@ -558,14 +550,11 @@ MapTree::MapTree()
 
 MapTree::~MapTree()
 {  
-    cout << "d42" << endl;
     if (root != NULL){
-        cout << "d43" << endl;
-        cout << "deleting MapTree: " << mapTreeIdentifier << " References to root: " << root->referenced << " Debugging: ";
+        //cout << "deleting MapTree: " << mapTreeIdentifier << " References to root: " << root->referenced << " Debugging: ";
         removeReferenceToSubTree(root);
         cout << endl;
     }
-    cout << "d44" << endl;
 }
 
 void MapTree::removeReferenceToSubTree(mapNode* nodeToStartFrom){
@@ -732,27 +721,20 @@ landmark* MapTree::extractLandmarkNodePointer(unsigned int Landmark_identifier){
 }
 
 void MapTree::correctLandmark(landmark* newLandmarkData){
-    //cout << "D20 ";
     mapNode* tmpMapNode = makeNewPath(newLandmarkData, root);
-
     removeReferenceToSubTree(root);
-
     root = tmpMapNode;
-    //cout << "D29 ";
 }
 
 mapNode* MapTree::makeNewPath(landmark* newLandmarkData, mapNode* startNode){
-    //cout << "D21 ";
+    //cout << "D210 - keyvalue: " << startNode->key_value << endl;
     if(startNode->key_value > 0){
-        //cout << "D22 ";
-
         // we need to make a new MapNode
         mapNode* pointerForNewMapNode = new mapNode;
         pointerForNewMapNode->l = NULL;
         pointerForNewMapNode->referenced = 1;
 
         if (newLandmarkData->c > startNode->key_value){ // we go right
-            //cout << "D23 ";
             pointerForNewMapNode->left = startNode->left; // and do not change the left pointer
             pointerForNewMapNode->left->referenced++;
             pointerForNewMapNode->key_value = startNode->key_value; // the new node has the same key_value as the old
@@ -761,18 +743,16 @@ mapNode* MapTree::makeNewPath(landmark* newLandmarkData, mapNode* startNode){
             //removeReferenceToSubTree(startNode); // we have to delete the SubTree if there is no more references for it!
         }
         else if(newLandmarkData->c <= startNode->key_value){ // we go left
-            //cout << "D24 ";
             pointerForNewMapNode->right = startNode->right; // and do not change the right pointer
-            pointerForNewMapNode->right->referenced++;
+            if(pointerForNewMapNode->right != NULL){
+                pointerForNewMapNode->right->referenced++;
+            }
             pointerForNewMapNode->key_value = startNode->key_value; // the new node has the same key_value as the old
             pointerForNewMapNode->left = makeNewPath(newLandmarkData,startNode->left);
-
-            //removeReferenceToSubTree(startNode); // we have to delete the SubTree if there is no more references for it!
         }
         else{
             cout << "error in makeNewPath";
         }
-        //cout << "D25 ";
         return pointerForNewMapNode;
     }
     else{ // we have reached the bottom of the tree and should make a new mapNode to hold the pointer for the updated landmark data
@@ -794,20 +774,18 @@ mapNode* MapTree::makeNewPath(landmark* newLandmarkData, mapNode* startNode){
 void MapTree::printAllLandmarkPositions(){
     //cout << endl << "D30 ";
 
-    MatrixXf tmpMatrix(3,N_Landmarks);
     for(unsigned int i = 1;i<=N_Landmarks;i++){
         //cout << "D31 ";
         if (extractLandmarkNodePointer(i) != NULL){
             //cout << "D32 ";
-            tmpMatrix.col(i-1) = extractLandmarkNodePointer(i)->lhat;
+             cout << "l_" << i <<": "<< extractLandmarkNodePointer(i)->lhat.transpose() << endl;
         }
         else{
-            tmpMatrix.col(i-1) = Vector3f::Zero();
+            //tmpMatrix.col(i-1) = Vector3f::Zero();
             cout<<"Error: NULL pointer!";
         }
     }
     //cout << "D33 ";
-    cout << endl << tmpMatrix << endl;
 }
 
 
@@ -953,9 +931,14 @@ public:
     /* variables */
     Path* s;
     MapTree* map;
+    float w;
+
+    static boost::mt19937 rng; // Creating a new random number generator every time could be optimized
+    //rng.seed(static_cast<unsigned int>(time(0)));
+
 
     /* functions */
-    Particle(Vector6f s0 = Vector6f::Zero(), unsigned int k = 0); 		// Initialize a standard particle with "zero-pose" or custom pose
+    Particle(Vector6f s0 = Vector6f::Constant(0), unsigned int k = 0); 		// Initialize a standard particle with "zero-pose" or custom pose
     Particle(const Particle &ParticleToCopy);       // Copy constructer used in case where we need to make a copy of a Particle
     ~Particle();
     void updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New, VectorUFastSLAMf* u, unsigned int k, float Ts);
@@ -963,7 +946,6 @@ public:
 
 private:
     /* variables */
-    float w;
     static Matrix6f sCov; // motion model covariance - does not change?
 
     /* functions */
@@ -973,32 +955,27 @@ private:
     void handleNewMeas(MeasurementSet* z_New, Vector6f s_proposale);
     void updateLandmarkEstimates(Vector6f s_proposale, MeasurementSet* z_Ex, MeasurementSet* z_New);
     Vector6f drawSampleRandomPose(Vector6f sMean_proposale, Matrix6f sCov_proposale);
-    //void calculateImportanceWeight(node *map);
+    void calculateImportanceWeight(MeasurementSet* z_Ex, Vector6f s_proposale);
 };
 
 Particle::Particle(Vector6f s0, unsigned int k)   // default Constructor definition
 {
-    cout << "d20" << endl;
     s = new Path(s0,k); // makes new path!
     map = new MapTree; // makes new mapTree
+    w = 1;
 }
 
 Particle::Particle(const Particle &ParticleToCopy)   // Copy Constructor
 {
-    cout << "d30" << endl;
     s = new Path(*(ParticleToCopy.s)); //makes copy of s on the heap
-    cout << "d31" << endl;
     map = new MapTree(*(ParticleToCopy.map));
-    cout << "d32" << endl;
+    w = ParticleToCopy.w;
 }
 
 Particle::~Particle()
-{
-    cout << "d40" << endl;
+{    
     delete s; // call destructor of s
-    cout << "d41" << endl;
     delete map; // call destructor of map
-    cout << "d42" << endl;
 }
 
 
@@ -1009,36 +986,34 @@ void Particle::updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New,VectorU
 
     updateLandmarkEstimates(s_proposale,z_Ex,z_New);
 
-    //w = calculateImportanceWeight();
+    if (z_Ex != NULL && z_Ex->nMeas != 0 ){
+        calculateImportanceWeight(z_Ex,s_proposale);
+    }
 }
 
 void Particle::updateLandmarkEstimates(Vector6f s_proposale, MeasurementSet* z_Ex, MeasurementSet* z_New){
-    //cout << "D20" << endl;
     handleExMeas(z_Ex,s_proposale);
-    //cout << "D21" << endl;
     handleNewMeas(z_New,s_proposale);
-    cout << "N_landmarks: " << map->N_Landmarks << endl;
+    //cout << "N_landmarks in map after update: " << map->N_Landmarks << endl;
 }
 
 void Particle::handleExMeas(MeasurementSet* z_Ex, Vector6f s_proposale){
-    if (z_Ex != NULL){
-        for( int i = 1; i <= z_Ex->nMeas; i = i + 1 ) {
+    if (z_Ex != NULL && z_Ex->nMeas != 0 ){
+        //cout << "nMeas in z_Ex: " << z_Ex->nMeas << endl;
+
+        for( int i = 1; i < z_Ex->nMeas; i = i + 1 ) {
             Measurement* z_tmp = z_Ex->getMeasurement(i);
-
             landmark* li_old = map->extractLandmarkNodePointer(z_tmp->c);
-
             VectorXf z_hat = z_tmp->MeasurementModel(s_proposale,li_old->lhat); // (3.33)
-
             MatrixXf Hl;
             Hl = z_tmp->calculateHl(s_proposale,li_old->lhat);  // (3.34)
-
             MatrixXf Zk;
             Zk = z_tmp->getzCov() + Hl*li_old->lCov*Hl.transpose(); // (3.35)
-
             MatrixXf Kk;
             Kk = li_old->lCov*Hl.transpose()*Zk.inverse(); // (3.36) - Kalman gain
 
             landmark* li_update = new landmark;
+            li_update->c = z_tmp->c;
             li_update->lhat = li_old->lhat + Kk*(z_tmp->z - z_hat); // (3.37)
 
             MatrixXf tmpMatrix;
@@ -1046,14 +1021,13 @@ void Particle::handleExMeas(MeasurementSet* z_Ex, Vector6f s_proposale){
             li_update->lCov = (MatrixXf::Identity(tmpMatrix.rows(),tmpMatrix.cols())-tmpMatrix)*li_old->lCov;// (3.38)
 
             map->correctLandmark(li_update);
-            //cout << "D600" << endl;
         }
     }
 }
 
 
 void Particle::handleNewMeas(MeasurementSet* z_New, Vector6f s_proposale){
-    if (z_New != NULL){
+    if (z_New != NULL && z_New->nMeas != 0 ){
         for( int i = 1; i <= z_New->nMeas; i = i + 1 ) {
             Measurement* z_tmp = z_New->getMeasurement(i);
 
@@ -1080,12 +1054,11 @@ Vector6f Particle::drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUF
 
     Matrix6f sCov_proposale= sCov; // eq (3.28)
     Vector6f sMean_proposale = s_bar; // eq (3.29)
-
-    //cout << "D11" << endl;
     if (z_Ex != NULL){
         for( int i = 1; i <= z_Ex->nMeas; i = i + 1 ) {
-            //cout << "D12: " << i << endl;
+
             Measurement* z_tmp = z_Ex->getMeasurement(i);
+
             landmark* li_old = map->extractLandmarkNodePointer(z_tmp->c);
 
             MatrixXf Hli;
@@ -1096,6 +1069,7 @@ Vector6f Particle::drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUF
 
             MatrixXf Zki;
             MatrixXf zCov_tmp = z_tmp->getzCov();
+
             Zki = zCov_tmp + Hli*(li_old->lCov)*Hli.transpose();
 
             VectorXf zhat;
@@ -1105,15 +1079,18 @@ Vector6f Particle::drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUF
             sMean_proposale = sMean_proposale + sCov_proposale*Hsi.transpose()*Zki.inverse()*(zhat - z_tmp->z); // eq (3.31)
         }
     }
-    //cout << "D13" << endl;
+
+    cout << endl << "sMean_proposale" << endl << sMean_proposale << endl;
+    cout << endl << "sCov_proposale" << endl << sCov_proposale << endl;
+
     Vector6f s_proposale = drawSampleRandomPose(sMean_proposale, sCov_proposale);
-    //cout << "D14" << endl;
+
+    cout << endl << "s_proposale" << endl << s_proposale << endl;
+
     return s_proposale;
 }
 
 Vector6f Particle::drawSampleRandomPose(Vector6f sMean_proposale, Matrix6f sCov_proposale){
-    boost::mt19937 rng; // Creating a new random number generator every time could be optimized
-    rng.seed(static_cast<unsigned int>(time(0)));
     boost::normal_distribution<> nd(0.0, 1.0);
     boost::variate_generator<boost::mt19937&, boost::normal_distribution<> > randN(rng, nd); // see http://lost-found-wandering.blogspot.dk/2011/05/sampling-from-multivariate-normal-in-c.html
 
@@ -1141,19 +1118,64 @@ Vector6f Particle::motionModel(Vector6f sold, VectorUFastSLAMf* u, float Ts) // 
     return s_k;
 }
 
-/*
-void Particle::calculateImportanceWeight(){
-    return;
+
+void Particle::calculateImportanceWeight(MeasurementSet* z_Ex, Vector6f s_proposale){
+    MatrixXf wCov_i;
+    float wi;
+    float w_tmp;
+
+    if (z_Ex != NULL){
+        for( int i = 1; i <= z_Ex->nMeas; i = i + 1 ) {
+            Measurement* z_tmp = z_Ex->getMeasurement(i);
+            landmark* li_old = map->extractLandmarkNodePointer(z_tmp->c);
+
+            MatrixXf Hli;
+            Hli = z_tmp->calculateHl(s_proposale,li_old->lhat); //resizes automatically due to the "=" operator
+            //cout << "Hli" << endl << Hli << endl;
+
+            MatrixXf Hsi;
+            Hsi = z_tmp->calculateHs(s_proposale,li_old->lhat); //resizes automatically due to the "=" operator
+            //cout << "Hsi" << endl << Hsi << endl;
+
+            VectorXf zhat;
+            zhat = z_tmp->MeasurementModel(s_proposale,li_old->lhat);
+            //cout << "zhat" << endl << zhat << endl;
+
+            VectorXf z_diff;
+            z_diff = z_tmp->z - zhat;
+            //cout << "z_diff" << endl << z_diff << endl;
+
+            wCov_i = Hsi*sCov*Hsi.transpose() + Hli*li_old->lCov*Hli.transpose() + z_tmp->getzCov(); // (3.45)
+
+            //cout << "wCov_i" << endl << wCov_i << endl << endl;
+            w_tmp = 1/(sqrt( (float)(2*pi*wCov_i).determinant() ))*exp( (float)(z_diff.transpose()*wCov_i.inverse()*z_diff)  );// (3.46)
+
+            //cout << "calculated weigth tmp: " << w_tmp << endl;
+
+            if (i==1){
+                wi = w_tmp;
+            }
+            else{
+                wi = wi*w_tmp;
+            }
+        }
+        //cout << "wCov" << endl << wCov_i << endl << endl;
+        //cout << "calculated weigth: " << wi << endl;
+        w = wi; // (non-normalized) importance weight
+    }
+    else{ cout << "Error in calculation of importance weight! You should not have reached this point!" << endl; }
 }
-*/
+
 
 float Particle::getWeigth()
 {
     return w;
 }
 
-Matrix6f Particle::sCov = 1*Matrix6f::Identity(); // static variable - has to be declared outside class!
+Matrix6f Particle::sCov = 0.1*Matrix6f::Identity(); // static variable - has to be declared outside class!
 
+boost::mt19937 Particle::rng; // Creating a new random number generator every time could be optimized
+//rng.seed(static_cast<unsigned int>(time(0)));
 
 
 
@@ -1164,64 +1186,173 @@ int main(int argc, char **argv)
 	ros::init(argc, argv, "Mtest");
     ros::NodeHandle nh;
 
+    cout << ros::Time::now() << endl;
+
     // malte playing with particles
-    Particle* P1 = new Particle;
-    Particle* P2 = new Particle(*P1);
 
-    MeasurementSet* z_Ex = new MeasurementSet;
-    MeasurementSet* z_New = new MeasurementSet;
 
-    for(unsigned int i = 1; i<=10; i++){
-        Vector3f V_tmp = Vector3f::Constant(i)+0.001*Vector3f::Random();
-        GOTMeasurement* z_tmp = new GOTMeasurement(i,V_tmp); //generate random numbers...
-        z_New->addMeasurement(z_tmp);
+    int Nparticles = 2;
+    Particle* Parray[Nparticles];
+
+    for(int i = 1; i<=Nparticles;i++){
+        Parray[i] = new Particle;
     }
-
-    cout << "Number of measurements in z_New: " << z_New->countNumberOfMeasurements() << endl;
 
     VectorUFastSLAMf u = VectorUFastSLAMf::Zero();
 
     unsigned int k=1;
-    P1->updateParticle(z_Ex,z_New,&u,k);
-    P2->updateParticle(z_Ex,z_New,&u,k);
+    unsigned int j=0;
+    int Nlandmarks = 100;
+    int Nk = 20;
 
-    unsigned int j = 0;
-    while (j<=100){
-        cout << "j: " << j << endl;
+    MeasurementSet* z_Ex = new MeasurementSet;
+    MeasurementSet* z_New = new MeasurementSet;
+    GOTMeasurement* z_tmp;
+    Vector3f V_tmp;
+    bool toggle = true;
+
+    while (k<=Nk){
+        cout << "#################################### k=" << k << " ####################################" << endl;
         delete z_New;
         z_New = new MeasurementSet;
         delete z_Ex;
         z_Ex = new MeasurementSet;
 
-        for(unsigned int i = 1+j; i<=10+j; i++){
-            Vector3f V_tmp = Vector3f::Constant(i)+0.001*Vector3f::Random();
-            GOTMeasurement* z_tmp = new GOTMeasurement(i,V_tmp); //generate random numbers...
-            z_Ex->addMeasurement(z_tmp);
+        if(j+10<Nlandmarks){
+            if(toggle){
+                for(unsigned int i = 1; i<=10; i++){
+                    V_tmp = Vector3f::Constant(i)+0.00000001*Vector3f::Random();
+                    z_tmp = new GOTMeasurement(i,V_tmp); //generate random numbers...
+                    z_New->addMeasurement(z_tmp);
 
-            V_tmp = Vector3f::Constant(i+10)+0.001*Vector3f::Random();
-            z_tmp = new GOTMeasurement(i+10,V_tmp); //generate random numbers...
-            z_New->addMeasurement(z_tmp);
+                    //cout << "V_tmp" << endl << V_tmp << endl;
+                }
+                toggle = false;
+            }
+            else{
+                for(unsigned int i = 1+j; i<=10+j; i++){
+                    V_tmp = Vector3f::Constant(i);//+0.00000001*Vector3f::Random();
+                    z_tmp = new GOTMeasurement(i,V_tmp); //generate random numbers...
+                    z_Ex->addMeasurement(z_tmp);
+
+                    //cout << "V_tmp" << endl << V_tmp << endl;
+
+                    V_tmp = Vector3f::Constant(i+10);//+0.00000001*Vector3f::Random();
+                    z_tmp = new GOTMeasurement(i+10,V_tmp); //generate random numbers...
+                    z_New->addMeasurement(z_tmp);
+
+                    //cout << "V_tmp" << endl << V_tmp << endl;
+                }
+                j = j + 10;
+            }
         }
-        k++;
-        P1->updateParticle(z_Ex,z_New,&u,k);
-        P2->updateParticle(z_Ex,z_New,&u,k);
-        j = j+10;
+        else{
+            unsigned int rand1 = (int)(((float)rand()/(float)RAND_MAX)*(float)100);
+            unsigned int rand2 = (int)(((float)rand()/(float)RAND_MAX)*(float)100);
 
+            if(rand1>Nlandmarks){rand1=Nlandmarks;}
+            if(rand2>Nlandmarks){rand2=Nlandmarks;}
+            if(rand2<rand1){
+                unsigned int tmp = rand2;
+                rand2=rand1;
+                rand1=tmp;
+            }
+
+            //cout << "random numbers: "<< rand1 << ", " << rand2 << endl;
+
+            for(unsigned int i = rand1; i<=rand2; i++){
+                V_tmp = Vector3f::Constant(i);//+0.00000001*Vector3f::Random();
+
+
+                //cout << "V_tmp" << endl << V_tmp << endl;
+
+                z_tmp = new GOTMeasurement(i,V_tmp); //generate random numbers...
+                z_Ex->addMeasurement(z_tmp);
+            }
+        }
+
+
+        for(int i = 1; i<=Nparticles;i++){
+            cout << endl << "updating particle: " << i << endl;
+            Parray[i]->updateParticle(z_Ex,z_New,&u,k);
+        }
+
+        float wTotal=0;
+        for(int i = 1; i<=Nparticles;i++){
+            wTotal = wTotal + Parray[i]->w;
+        }
+
+        for(int i = 1; i<=Nparticles;i++){
+            Parray[i]->w = Parray[i]->w/wTotal;
+        }
+
+/*
+        cout << "P1 weight: " << Parray[1]->getWeigth() << endl;
+        cout << " Current s norm:" << endl << (*(Parray[1]->s->getPose())).norm() << endl << endl;
+
+        cout << "P2 weight: " << Parray[2]->getWeigth() << endl;
+        cout << " Current s norm:" << endl << (*(Parray[2]->s->getPose())).norm() << endl << endl;
+
+        cout << "P3 weight: " << Parray[3]->getWeigth() << endl;
+        cout << " Current s norm:" << endl << (*(Parray[3]->s->getPose())).norm() << endl << endl;
+
+        cout << "P4 weight: " << Parray[4]->getWeigth() << endl;
+        cout << " Current s norm:" << endl << (*(Parray[4]->s->getPose())).norm() << endl << endl;
+
+        cout << "P5 weight: " << Parray[5]->getWeigth() << endl;
+        cout << " Current s norm:" << endl << (*(Parray[5]->s->getPose())).norm() << endl << endl;
+*/
         cout << "globalLandmarkCounter: " << globalLandmarkCounter << endl;
         cout << "globalMapNodeCounter: " << globalMapNodeCounter << endl;
+
+        Particle* tmpPointer;
+        float wtmp = 0;
+
+        // primitiv resampling
+        //cout << "D1" << endl;
+        for(int i = 1; i<=Nparticles;i++){
+            if(i==1){
+                wtmp = Parray[i]->w;
+                tmpPointer = Parray[i];
+            }
+            else if(Parray[i]->w > wtmp){
+                wtmp = Parray[i]->w;
+                tmpPointer = Parray[i];
+            }
+        }
+
+        cout << "Best P weight: " << tmpPointer->getWeigth() << endl;
+        cout << " Current s norm:" << endl << (*(tmpPointer->s->getPose())).norm() << endl << endl;
+
+        tmpPointer->map->printAllLandmarkPositions();
+
+        //cout << "D2" << endl;
+        Particle* Parray_tmp[Nparticles];
+        for(int i = 1; i<=Nparticles;i++){
+            Parray_tmp[i] = Parray[i];
+        }
+
+        //cout << "D3" << endl;
+        for(int i = 1; i<=Nparticles;i++){
+            //cout << "D3: " << i << endl;
+            Parray[i] = new Particle(*tmpPointer);
+        }
+
+        //cout << "D4" << endl;
+        for(int i = 1; i<=Nparticles;i++){
+            delete Parray_tmp[i];
+        }
+
+        //cout << "D5" << endl;
+        k++;
     }
 
-    cout << "path length P1: " << P1-> s->PathLength << " Current s:" << endl << *(P1->s->getPose()) << endl;
-    cout << "path length P2: " << P2-> s->PathLength << " Current s:" << endl << *(P2->s->getPose()) << endl;
+    delete z_New;
+    delete z_Ex;
 
-    delete P1;
-
-    Particle* P3 = new Particle(*P2);
-    Particle* P4 = new Particle(*P2);
-
-    delete P2;
-    delete P3;
-    delete P4;
+    for(int i = 1; i<=Nparticles;i++){
+        delete Parray[i];
+    }
 
     cout << "globalLandmarkCounter: " << globalLandmarkCounter << endl;
     cout << "globalMapNodeCounter: " << globalMapNodeCounter << endl;
@@ -1372,8 +1503,8 @@ int main(int argc, char **argv)
     cout << "globalLandmarkCounter: " << globalLandmarkCounter << endl;
     cout << "globalMapNodeCounter: " << globalMapNodeCounter << endl;
 */
-    MatrixXd testa = load_csv_to_matrix("text.csv");
-    cout << testa << endl;
+    //MatrixXd testa = load_csv_to_matrix("text.csv");
+    //cout << testa << endl;
 
     cout << endl << "program ended"<< endl;
   	return 0;
