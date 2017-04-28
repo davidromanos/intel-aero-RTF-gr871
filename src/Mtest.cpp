@@ -28,7 +28,7 @@ using namespace Eigen;
 
 typedef Matrix<float, 6, 1> Vector6f;
 typedef Matrix<float, 6, 6> Matrix6f;
-typedef Matrix<float, 10, 1> VectorUFastSLAMf;
+typedef Matrix<float, 6, 1> VectorUFastSLAMf; // velocities in the order: [x_dot, y_dot, z_dot, roll_dot, pitch_dot, yaw_dot]
 typedef Matrix<float, 6, Dynamic> Matrix6kf;
 
 /*template<typename M>
@@ -958,7 +958,7 @@ public:
     Particle(Vector6f s0 = Vector6f::Zero(), unsigned int k = 0); 		// Initialize a standard particle with "zero-pose" or custom pose
     Particle(const Particle &ParticleToCopy);       // Copy constructer used in case where we need to make a copy of a Particle
     ~Particle();
-    void updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New,VectorUFastSLAMf* u, unsigned int k);
+    void updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New, VectorUFastSLAMf* u, unsigned int k, float Ts);
     float getWeigth();
 
 private:
@@ -967,8 +967,8 @@ private:
     static Matrix6f sCov; // motion model covariance - does not change?
 
     /* functions */
-    Vector6f drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUFastSLAMf* u,MeasurementSet* z_Ex);
-    Vector6f motionModel(Vector6f sold,VectorUFastSLAMf* u);
+    Vector6f drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUFastSLAMf* u, MeasurementSet* z_Ex, float Ts);
+    Vector6f motionModel(Vector6f sold, VectorUFastSLAMf* u, float Ts);
     void handleExMeas(MeasurementSet* z_Ex, Vector6f s_proposale);
     void handleNewMeas(MeasurementSet* z_New, Vector6f s_proposale);
     void updateLandmarkEstimates(Vector6f s_proposale, MeasurementSet* z_Ex, MeasurementSet* z_New);
@@ -1002,9 +1002,9 @@ Particle::~Particle()
 }
 
 
-void Particle::updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New,VectorUFastSLAMf* u, unsigned int k)
+void Particle::updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New,VectorUFastSLAMf* u, unsigned int k, float Ts)
 {
-    Vector6f s_proposale = drawSampleFromProposaleDistribution(s->getPose(),u,z_Ex);
+    Vector6f s_proposale = drawSampleFromProposaleDistribution(s->getPose(),u,z_Ex,Ts);
     s->addPose(s_proposale,k); // we are done estimating our pose and add it to the path!
 
     updateLandmarkEstimates(s_proposale,z_Ex,z_New);
@@ -1073,10 +1073,10 @@ void Particle::handleNewMeas(MeasurementSet* z_New, Vector6f s_proposale){
     }
 }
 
-Vector6f Particle::drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUFastSLAMf* u,MeasurementSet* z_Ex)
+Vector6f Particle::drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUFastSLAMf* u,MeasurementSet* z_Ex, float Ts)
 {
     //cout << "D10" << endl;
-    Vector6f s_bar = motionModel(*s_old,u);
+    Vector6f s_bar = motionModel(*s_old,u,Ts);
 
     Matrix6f sCov_proposale= sCov; // eq (3.28)
     Vector6f sMean_proposale = s_bar; // eq (3.29)
@@ -1131,8 +1131,13 @@ Vector6f Particle::drawSampleRandomPose(Vector6f sMean_proposale, Matrix6f sCov_
     //return sMean_proposale + 0.000001*Vector6f::Random();
 }
 
-Vector6f Particle::motionModel(Vector6f sold,VectorUFastSLAMf* u){
-    Vector6f s_k = sold; // s(k) = f(s(k-1),u(k)) put in correct motion model!
+Vector6f Particle::motionModel(Vector6f sold, VectorUFastSLAMf* u, float Ts) // Ts == sample time
+{
+    Vector6f s_k = sold; // s(k) = f(s(k-1),u(k))
+
+    // Kinematic motion model where u=[x_dot, y_dot, z_dot, roll_dot, pitch_dot, yaw_dot]
+    s_k += Ts*u;
+
     return s_k;
 }
 
