@@ -138,7 +138,7 @@ int main(int argc, char **argv)
             }
         }*/
 
-        if(current_state.mode == "OFFBOARD" && current_state.armed && position.pose.position.z > 0.8 && position.pose.position.z < 1.2)
+        if(current_state.mode == "OFFBOARD")
         {
             if(k%400 < 100)
             {
@@ -195,7 +195,7 @@ int main(int argc, char **argv)
 
 
         local_pos_pub.publish(pose);
-        logToFile("/home/chris/Dropbox/P8 (CA2)/Controller/logs/yawlog.txt","%f,%f",yawSetpoint,yaw);
+        //logToFile("/home/chris/Dropbox/P8 (CA2)/Controller/logs/yawlog.txt","%f,%f",yawSetpoint,yaw);
         last_request1 = ros::Time::now();
         ros::spinOnce();
         rate.sleep();
