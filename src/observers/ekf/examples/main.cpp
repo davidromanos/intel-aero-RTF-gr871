@@ -5,7 +5,7 @@
 // File: main.cpp
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 26-Apr-2017 14:21:39
+// C/C++ source code generated on  : 28-Apr-2017 12:27:39
 //
 
 //***********************************************************************
@@ -41,6 +41,7 @@
 
 // Function Declarations
 static void argInit_2x1_real_T(double result[2]);
+static void argInit_3x1_real_T(double result[3]);
 static void argInit_6x1_real_T(double result[6]);
 static void argInit_6x6_real_T(double result[36]);
 static double argInit_real_T();
@@ -59,6 +60,22 @@ static void argInit_2x1_real_T(double result[2])
 
   // Loop over the array to initialize each element.
   for (idx0 = 0; idx0 < 2; idx0++) {
+    // Set the value of the array element.
+    // Change this value to the value that the application requires.
+    result[idx0] = argInit_real_T();
+  }
+}
+
+//
+// Arguments    : double result[3]
+// Return Type  : void
+//
+static void argInit_3x1_real_T(double result[3])
+{
+  int idx0;
+
+  // Loop over the array to initialize each element.
+  for (idx0 = 0; idx0 < 3; idx0++) {
     // Set the value of the array element.
     // Change this value to the value that the application requires.
     result[idx0] = argInit_real_T();
@@ -124,20 +141,23 @@ static unsigned char argInit_uint8_T()
 //
 static void main_ekf()
 {
-  double dv3[6];
-  double dv4[36];
-  double dv5[2];
-  double est[16];
+  double dv2[6];
+  double dv3[36];
+  double dv4[2];
+  double dv5[3];
+  double est[19];
 
   // Initialize function 'ekf' input arguments.
   // Initialize function input argument 'fastslam'.
   // Initialize function input argument 'C_fs'.
   // Initialize function input argument 'imu'.
+  // Initialize function input argument 'giro'.
   // Call the entry-point 'ekf'.
-  argInit_6x1_real_T(dv3);
-  argInit_6x6_real_T(dv4);
-  argInit_2x1_real_T(dv5);
-  ekf(argInit_uint8_T(), dv3, dv4, dv5, argInit_real_T(), argInit_real_T(),
+  argInit_6x1_real_T(dv2);
+  argInit_6x6_real_T(dv3);
+  argInit_2x1_real_T(dv4);
+  argInit_3x1_real_T(dv5);
+  ekf(argInit_uint8_T(), dv2, dv3, dv4, dv5, argInit_real_T(), argInit_real_T(),
       argInit_real_T(), argInit_real_T(), est);
 }
 

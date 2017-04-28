@@ -5,7 +5,7 @@
  * File: _coder_ekf_mex.cpp
  *
  * MATLAB Coder version            : 3.3
- * C/C++ source code generated on  : 26-Apr-2017 14:21:39
+ * C/C++ source code generated on  : 28-Apr-2017 12:27:39
  */
 
 /* Include Files */
@@ -14,7 +14,7 @@
 
 /* Function Declarations */
 static void ekf_mexFunction(int32_T nlhs, mxArray *plhs[1], int32_T nrhs, const
-  mxArray *prhs[8]);
+  mxArray *prhs[9]);
 
 /* Function Definitions */
 
@@ -22,21 +22,21 @@ static void ekf_mexFunction(int32_T nlhs, mxArray *plhs[1], int32_T nrhs, const
  * Arguments    : int32_T nlhs
  *                const mxArray *plhs[1]
  *                int32_T nrhs
- *                const mxArray *prhs[8]
+ *                const mxArray *prhs[9]
  * Return Type  : void
  */
 static void ekf_mexFunction(int32_T nlhs, mxArray *plhs[1], int32_T nrhs, const
-  mxArray *prhs[8])
+  mxArray *prhs[9])
 {
   int32_T n;
-  const mxArray *inputs[8];
+  const mxArray *inputs[9];
   const mxArray *outputs[1];
   int32_T b_nlhs;
 
   /* Check for proper number of arguments. */
-  if (nrhs != 8) {
+  if (nrhs != 9) {
     emlrtErrMsgIdAndTxt(emlrtRootTLSGlobal, "EMLRT:runTime:WrongNumberOfInputs",
-                        5, 12, 8, 4, 3, "ekf");
+                        5, 12, 9, 4, 3, "ekf");
   }
 
   if (nlhs > 1) {

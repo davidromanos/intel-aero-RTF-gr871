@@ -5,7 +5,7 @@
 // File: ekf_initialize.h
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 26-Apr-2017 14:21:39
+// C/C++ source code generated on  : 28-Apr-2017 12:27:39
 //
 #ifndef EKF_INITIALIZE_H
 #define EKF_INITIALIZE_H

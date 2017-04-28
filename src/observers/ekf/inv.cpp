@@ -5,7 +5,7 @@
 // File: inv.cpp
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 26-Apr-2017 14:21:39
+// C/C++ source code generated on  : 28-Apr-2017 12:27:39
 //
 
 // Include Files
@@ -33,12 +33,12 @@ static void invNxN(const double x_data[], const int x_size[2], double y_data[],
   int yk;
   int i1;
   int minval;
-  double b_x_data[64];
-  int ipiv_data[8];
+  double b_x_data[121];
+  int ipiv_data[11];
   int k;
   int u1;
   int j;
-  int p_data[8];
+  int p_data[11];
   int mmj;
   int c;
   int ix;

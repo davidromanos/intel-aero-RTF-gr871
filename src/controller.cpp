@@ -299,8 +299,8 @@ void stateFeedbackController::update(double setpoint[],double *meas)
 
     Matrix tmpK0(2,2);
     tmpK0.setEntry(K0.getEntry(0,0)*cos(meas[12]),0,0);
-    tmpK0.setEntry(K0.getEntry(0,0)*sin(meas[12]),0,1);
-    tmpK0.setEntry(K0.getEntry(1,1)*-1*sin(meas[12]),1,0);
+    tmpK0.setEntry(K0.getEntry(0,0)*-1*sin(meas[12]),0,1);
+    tmpK0.setEntry(K0.getEntry(1,1)*sin(meas[12]),1,0);
     tmpK0.setEntry(K0.getEntry(1,1)*cos(meas[12]),1,1);
 
 
@@ -312,8 +312,8 @@ void stateFeedbackController::update(double setpoint[],double *meas)
     Matrix tmpK0Integrators(2,2);
 
     tmpK0Integrators.setEntry(K0integrators.getEntry(0,0)*cos(meas[12]),0,0);
-    tmpK0Integrators.setEntry(K0integrators.getEntry(0,0)*sin(meas[12]),0,1);
-    tmpK0Integrators.setEntry(K0integrators.getEntry(1,1)*-1*sin(meas[12]),1,0);
+    tmpK0Integrators.setEntry(K0integrators.getEntry(0,0)*-1*sin(meas[12]),0,1);
+    tmpK0Integrators.setEntry(K0integrators.getEntry(1,1)*sin(meas[12]),1,0);
     tmpK0Integrators.setEntry(K0integrators.getEntry(1,1)*cos(meas[12]),1,1);
 
     xIntegrator.Update(error[0]);
@@ -340,7 +340,7 @@ double yawReference(double x,double y)
 {
     double output = 0;
     double norm = sqrt(x*x + y*y);
-    std::cout << "norm:  " << norm << "  x:  " << x << "  y:  " << y << "\n";
+
     if(y>=0)
     {
         output = acos(x/norm);
@@ -349,7 +349,7 @@ double yawReference(double x,double y)
     {
         output = -1*acos(x/norm);
     }
-    std::cout << "norm:  " << norm << "  x:  " << x << "  y:  " << y << "  out:  " << output << "\n";
+    //std::cout << "norm:  " << norm << "  x:  " << x << "  y:  " << y << "  out:  " << output << "\n";
     return output;
 }
 
@@ -390,24 +390,6 @@ int main(int argc, char **argv)
     /////////////////  xy CONTROLLER ///////////////
     stateFeedbackController xyController(0.05);
 
-    /*xyController.K0.setEntry(-1*0.0305,0,0);
-    xyController.K0.setEntry(0,0,1);
-    xyController.K0.setEntry(0,1,0);
-    xyController.K0.setEntry(-1*-0.0218,1,1);
-
-    xyController.Kx.setEntry(-1*0.1328,0,0);
-    xyController.Kx.setEntry(-1*0.0656,0,1);
-    xyController.Kx.setEntry(-1*-0.0318,0,2);
-    xyController.Kx.setEntry(-1*-0.0161,0,3);
-    xyController.Kx.setEntry(-1*-0.0075,0,4);
-
-    xyController.Ky.setEntry(-1*-0.1009,0,0);
-    xyController.Ky.setEntry(-1*0.0413,0,1);
-    xyController.Ky.setEntry(-1*-0.0108,0,2);
-    xyController.Ky.setEntry(-1*0.0018,0,3);
-    xyController.Ky.setEntry(-1*0.0031,0,4);*/
-
-
 
     xyController.K0.setEntry(-1*0.2099,0,0);
     xyController.K0.setEntry(0,0,1);
@@ -439,17 +421,12 @@ int main(int argc, char **argv)
     zcontroller.gainZcontroller.setEntry(-1*1.1745,0,1);
     zcontroller.gainZcontroller.setEntry(-1*0.8963,0,2);
 
-    double estimatedStates[16];
+    double estimatedStates[19];
 
     std::vector<waypoint> listOfWaypoints;
     listOfWaypoints.push_back(waypoint(0,0,1));
     listOfWaypoints.push_back(waypoint(2,0,2));
     listOfWaypoints.push_back(waypoint(0,1,1));
-
-    Derivative xdot(2);
-    Derivative ydot(2);
-
-
 
 
 
@@ -466,6 +443,7 @@ int main(int argc, char **argv)
     ros::Subscriber imu_sub = nh.subscribe<sensor_msgs::Imu>
             ("mavros/imu/data", 10, imu_cb);
 
+
     ros::Publisher local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>
             ("mavros/setpoint_position/local", 10);
 
@@ -473,15 +451,10 @@ int main(int argc, char **argv)
             ("mavros/setpoint_attitude/attitude", 10);
 
 
-
     ros::Publisher thrust_pub = nh.advertise<std_msgs::Float64>
             ("mavros/setpoint_attitude/att_throttle", 10);
 
-    ros::Publisher rate_pub = nh.advertise<geometry_msgs::TwistStamped>
-            ("mavros/setpoint_attitude/cmd_vel", 10);
 
-    ros::Publisher rate1_pub = nh.advertise<geometry_msgs::TwistStamped>
-            ("mavros/setpoint_attitude", 10);
 
     ros::ServiceClient arming_client = nh.serviceClient<mavros_msgs::CommandBool>
             ("mavros/cmd/arming");
@@ -511,6 +484,7 @@ int main(int argc, char **argv)
                                     0,0,0,0,1,0,
                                     0,0,0,0,0,1};
     double imuMeas[2] = {0,0};
+    double gyroMeas[3] = {0,0,0};
     geometry_msgs::PoseStamped pose;
 
     waypoint currentWaypoint,oldWaypoint;
@@ -526,8 +500,8 @@ int main(int argc, char **argv)
     pose.pose.orientation.x = 0;
     std_msgs::Float64 thrustInput;
     thrustInput.data = 0.0;
-    geometry_msgs::TwistStamped yawRateInput;
-    yawRateInput.twist.angular.z = 3.14;
+
+
     double yawRef = 0;
 
     //send a few setpoints before starting
@@ -594,10 +568,22 @@ int main(int argc, char **argv)
 
             imuMeas[0] = roll;
             imuMeas[1] = pitch;
+            gyroMeas[0] = imuData.angular_velocity.x;
+            gyroMeas[1] = imuData.angular_velocity.y;
+            gyroMeas[2] = imuData.angular_velocity.z;
+
+            gyroMeas[0] = 0;
+            gyroMeas[1] = 0;
+            gyroMeas[2] = 0;
+
+
+
 
             yawRef = yawReference(currentWaypoint.x-oldWaypoint.x,currentWaypoint.y-oldWaypoint.y);
 
-            ekf(1,fastslamMeas,covariansfastslam,imuMeas,xyController.output[1],xyController.output[0],yawRef-1*M_PI/2,zcontroller.thrust[0]+0.02,estimatedStates);
+            //ekf(1,fastslamMeas,covariansfastslam,imuMeas,gyroMeas,xyController.output[1],xyController.output[0],yawRef-1*M_PI/2,zcontroller.thrust[0],estimatedStates);
+            ekf(1,fastslamMeas,covariansfastslam,imuMeas,gyroMeas,xyController.output[1],xyController.output[0],yawRef,zcontroller.thrust[0],estimatedStates);
+            //ekf(1,fastslamMeas,covariansfastslam,imuMeas,xyController.output[1],xyController.output[0],yawRef-1*M_PI/2,zcontroller.thrust[0],estimatedStates);
             //estimatedStates[12] = yaw;
 
 
@@ -618,30 +604,7 @@ int main(int argc, char **argv)
 
             }
 
-            /*if(k%1200 < 400)
-            {
-                oldWaypoint = currentWaypoint;
-                currentWaypoint = listOfWaypoints[0];
-                setpoints[0] =
-                setpoints[1] = 0;
 
-            }
-            else if(k%1200 < 800)
-            {
-                oldWaypoint = currentWaypoint;
-                currentWaypoint = listOfWaypoints[1];
-                setpoints[0] = 0;
-                setpoints[1] = 1;
-
-            }
-            else
-            {
-                oldWaypoint = currentWaypoint;
-                currentWaypoint = listOfWaypoints[2];
-                setpoints[0] = 0;
-                setpoints[1] = 0;
-
-            }*/
             setpoints[0] = currentWaypoint.x;
             setpoints[1] = currentWaypoint.y;
             setpoints[2] = currentWaypoint.z;
@@ -672,12 +635,18 @@ int main(int argc, char **argv)
             last_request1 = ros::Time::now();
         }
         attitude_pub.publish(pose);
+
+
         thrust_pub.publish(thrustInput);
-        logToFile("/home/chris/Dropbox/P8 (CA2)/Controller/logs/controllerlog.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll);
+        gyroMeas[0] = imuData.angular_velocity.x;
+        gyroMeas[1] = imuData.angular_velocity.y;
+        gyroMeas[2] = imuData.angular_velocity.z;
+        logToFile("/home/chris/Dropbox/P8 (CA2)/Controller/logs/controllerlog.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,gyroMeas[0],gyroMeas[1],gyroMeas[2],yawRef);
         last_request1 = ros::Time::now();
         ros::spinOnce();
         rate.sleep();
     }
     return 0;
+    ekf_terminate();
 }
 
