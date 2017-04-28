@@ -22,3 +22,14 @@ add_library(observer_ydot
  observer_ydot/rtGetNaN.cpp
  observer_ydot/rtGetInf.cpp
 )
+add_library(ekf
+ ekf/ekf.cpp
+ ekf/ekf_terminate.cpp
+ ekf/ekf_initialize.cpp
+ ekf/rt_nonfinite.cpp
+ ekf/rtGetNaN.cpp
+ ekf/rtGetInf.cpp
+ ekf/inv.cpp
+ ekf/eye.cpp
+ 
+)

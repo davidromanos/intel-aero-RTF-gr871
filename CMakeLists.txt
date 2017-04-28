@@ -123,6 +123,7 @@ include_directories(
   src/observers/observer_z
   src/observers/observer_xdot
   src/observers/observer_ydot
+  src/observers/ekf
   include
 )
 
@@ -150,7 +151,7 @@ add_executable(true_position src/true_position.cpp)
 
 
 
-add_executable(controller src/controller.cpp)
+add_executable(controller src/controller.cpp ${HEADER_FILES})
 add_executable(yawEstimation src/yawEstimation.cpp ${HEADER_FILES})
 ## observers/kalmanfilter_z.c
 ## observers/kalmanfilter_z_terminate.c
@@ -190,7 +191,7 @@ target_link_libraries(true_position ${catkin_LIBRARIES})
 
 target_link_libraries(yawEstimation ${catkin_LIBRARIES} utils)
 
-target_link_libraries(controller ${catkin_LIBRARIES} observer_z observer_xdot observer_ydot)
+target_link_libraries(controller ${catkin_LIBRARIES} observer_z observer_xdot observer_ydot ekf utils)
 #target_link_libraries(controller ${catkin_LIBRARIES})
 
 

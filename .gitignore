@@ -26,3 +26,5 @@ src/observers/observer_z/html/
 *.user
 
 *.autosave
+
+src/observers/ekf/html/
