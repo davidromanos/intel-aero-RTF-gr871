@@ -192,8 +192,9 @@ class Zcontroller{
         std::vector<double> thrust;
         Matrix gainZcontroller;
         double integratorGainZ;
-    private:
         Integrator integrator;
+    private:
+
         double zerror;
 
         double updateRate;        
@@ -240,7 +241,7 @@ double Zcontroller::update(double setpoint,double *estimatedZStates)
 }
 void Zcontroller::reset(double *estimatedZStates)
 {
-    this->integrator.state = (estimatedZStates[13]*gainZcontroller.getEntry(0,0))/integratorGainZ;
+    this->integrator.state = -1*(estimatedZStates[13]*gainZcontroller.getEntry(0,0))/integratorGainZ;
     this->thrust[0] = 0.587;
 }
 class stateFeedbackController{
@@ -678,7 +679,7 @@ int main(int argc, char **argv)
             setpoints[0] = position.pose.position.x;
             setpoints[1] = position.pose.position.y;
             setpoints[2] = position.pose.position.z;
-            std::cout << "Resetting to:" << setpoints[0] <<"," << setpoints[1] <<"," << setpoints[2] << "\n";
+            std::cout << "Resetting to:" << setpoints[0] <<"," << setpoints[1] <<"," << setpoints[2] << " state: " << zcontroller.integrator.state  <<  "\n";
 
             last_request1 = ros::Time::now();
 
@@ -690,22 +691,21 @@ int main(int argc, char **argv)
         pose.pose.orientation.z = q1.getZ();
         pose.pose.orientation.w = q1.getW();
 
-        attitude_pub.publish(pose);
-        /*pose.pose.position.x = 0;
-        pose.pose.position.y = 0;
-        pose.pose.position.z = 1;
+
+
         pose.pose.orientation.x = 0;
         pose.pose.orientation.y = 0;
         pose.pose.orientation.z = 0;
-        pose.pose.orientation.w = 1;*/
+        pose.pose.orientation.w = 1;
 
+        attitude_pub.publish(pose);
         //local_pos_pub.publish(pose);
 
         thrust_pub.publish(thrustInput);
         gyroMeas[0] = imuData.angular_velocity.x;
         gyroMeas[1] = imuData.angular_velocity.y;
         gyroMeas[2] = imuData.angular_velocity.z;
-        logToFile("/home/chris/Dropbox/P8 (CA2)/Controller/logs/controllerlog.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,gyroMeas[0],gyroMeas[1],gyroMeas[2],yawRef);
+        logToFile("/home/joan/Dropbox/P8 (CA2)/Controller/logs/controllerlog.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,gyroMeas[0],gyroMeas[1],gyroMeas[2],yawRef);
         last_request1 = ros::Time::now();
         ros::spinOnce();
         rate.sleep();
