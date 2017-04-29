@@ -19,6 +19,7 @@
 #include <vector>
 #include <string>
 #include <cstdlib>
+#include <random>
 
 using namespace std;
 using namespace Eigen;
@@ -137,21 +138,22 @@ GOTMeasurement::GOTMeasurement(unsigned int i, Vector3f GOT_meas)
 
 VectorXf GOTMeasurement::MeasurementModel(Vector6f pose, Vector3f l)
 {
-    Vector3f z = pose.topRows<3>() - l;
+    Vector3f z = l - pose.topRows<3>();
     return z;
 }
 
 VectorXf GOTMeasurement::inverseMeasurementModel(Vector6f pose)
 {
     Vector6f s = pose; // temp variable to make it look like equations
-    Vector3f l = s.topRows<3>() - z;
+    Vector3f l = s.topRows<3>() + z;
     return l;
 }
 
 MatrixXf GOTMeasurement::calculateHs(Vector6f pose, Vector3f l)
 {    
     MatrixXf Hs(3, 6);
-    Hs << Matrix3f::Identity(3,3), Matrix3f::Zero(3,3);
+    Hs << -1.0*Matrix3f::Identity(3,3), Matrix3f::Zero(3,3);
+    //cout << " Hs" << Hs << endl;
     return Hs;
 }
 
@@ -166,7 +168,7 @@ MatrixXf GOTMeasurement::getzCov(){
     return zCov;
 }
 
-MatrixXf GOTMeasurement::zCov = 0.1*Matrix3f::Identity(); // static variable - has to be declared outside class!
+MatrixXf GOTMeasurement::zCov = 0.05*Matrix3f::Identity(); // static variable - has to be declared outside class!
 
 
 /* ############################## Defines ImgMeasurement class ##############################  */
@@ -553,7 +555,7 @@ MapTree::~MapTree()
     if (root != NULL){
         //cout << "deleting MapTree: " << mapTreeIdentifier << " References to root: " << root->referenced << " Debugging: ";
         removeReferenceToSubTree(root);
-        cout << endl;
+        //cout << endl;
     }
 }
 
@@ -896,7 +898,7 @@ unsigned int Path::countLengthOfPath(){
 }
 
 Vector6f* Path::getPose(){
-    // return lates pose!
+    // return latest pose!
     return &(PathRoot->nextNode->S);
 }
 
@@ -931,7 +933,7 @@ public:
     /* variables */
     Path* s;
     MapTree* map;
-    float w;
+    double w;
 
     static boost::mt19937 rng; // Creating a new random number generator every time could be optimized
     //rng.seed(static_cast<unsigned int>(time(0)));
@@ -942,7 +944,7 @@ public:
     Particle(const Particle &ParticleToCopy);       // Copy constructer used in case where we need to make a copy of a Particle
     ~Particle();
     void updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New, VectorUFastSLAMf* u, unsigned int k, float Ts);
-    float getWeigth();
+    double getWeigth();
 
 private:
     /* variables */
@@ -967,6 +969,7 @@ Particle::Particle(Vector6f s0, unsigned int k)   // default Constructor definit
 
 Particle::Particle(const Particle &ParticleToCopy)   // Copy Constructor
 {
+    //cout << "Copying particle" << endl;
     s = new Path(*(ParticleToCopy.s)); //makes copy of s on the heap
     map = new MapTree(*(ParticleToCopy.map));
     w = ParticleToCopy.w;
@@ -974,10 +977,10 @@ Particle::Particle(const Particle &ParticleToCopy)   // Copy Constructor
 
 Particle::~Particle()
 {    
+    //cout << "Deleting particle" << endl;
     delete s; // call destructor of s
     delete map; // call destructor of map
 }
-
 
 void Particle::updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New,VectorUFastSLAMf* u, unsigned int k, float Ts)
 {
@@ -1052,10 +1055,12 @@ Vector6f Particle::drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUF
     //cout << "D10" << endl;
     Vector6f s_bar = motionModel(*s_old,u,Ts);
 
+    //cout << endl << "s_bar" << endl << s_bar << endl;
+
     Matrix6f sCov_proposale= sCov; // eq (3.28)
     Vector6f sMean_proposale = s_bar; // eq (3.29)
     if (z_Ex != NULL){
-        for( int i = 1; i <= z_Ex->nMeas; i = i + 1 ) {
+        for(int i = 1; i <= z_Ex->nMeas; i = i + 1 ) {
 
             Measurement* z_tmp = z_Ex->getMeasurement(i);
 
@@ -1069,26 +1074,37 @@ Vector6f Particle::drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUF
 
             MatrixXf Zki;
             MatrixXf zCov_tmp = z_tmp->getzCov();
-
+/*
+            if(li_old->c == 55){
+                cout << endl << "li_55->lCov" << endl << li_old->lCov << endl;
+                cout << endl << "li_55->lhat" << endl << li_old->lhat << endl;
+            }
+*/
             Zki = zCov_tmp + Hli*(li_old->lCov)*Hli.transpose();
 
             VectorXf zhat;
             zhat = z_tmp->MeasurementModel(s_bar,li_old->lhat);
 
+            //cout << "i: " << i << "     z_tmp->c: " << z_tmp->c << endl;
+            //cout << "z_tmp->z: " << endl << z_tmp->z << endl << endl;
+            //cout << "li_old->lhat: " << endl << li_old->lhat << endl << endl;
+            //cout << "z_tmp->MeasurementModel: " << endl << zhat << endl << endl;
+
             sCov_proposale = (Hsi.transpose()*Zki.inverse()*Hsi + sCov_proposale.inverse()).inverse();  // eq (3.30)
-            sMean_proposale = sMean_proposale + sCov_proposale*Hsi.transpose()*Zki.inverse()*(zhat - z_tmp->z); // eq (3.31)
+            sMean_proposale = sMean_proposale + sCov_proposale*Hsi.transpose()*Zki.inverse()*(z_tmp->z - zhat); // eq (3.31)
         }
     }
 
-    cout << endl << "sMean_proposale" << endl << sMean_proposale << endl;
-    cout << endl << "sCov_proposale" << endl << sCov_proposale << endl;
+    //cout << endl << "sMean_proposale" << endl << sMean_proposale << endl;
+    //cout << endl << "sCov_proposale" << endl << sCov_proposale << endl;
 
     Vector6f s_proposale = drawSampleRandomPose(sMean_proposale, sCov_proposale);
 
-    cout << endl << "s_proposale" << endl << s_proposale << endl;
+    //cout << endl << "s_proposale" << endl << s_proposale << endl;
 
     return s_proposale;
 }
+
 
 Vector6f Particle::drawSampleRandomPose(Vector6f sMean_proposale, Matrix6f sCov_proposale){
     boost::normal_distribution<> nd(0.0, 1.0);
@@ -1105,7 +1121,7 @@ Vector6f Particle::drawSampleRandomPose(Vector6f sMean_proposale, Matrix6f sCov_
     Vector6f sample = sMean_proposale + U * Sigma * normal;
 
     return sample;
-    //return sMean_proposale + 0.000001*Vector6f::Random();
+    //return sMean_proposale;// + 0.000001*Vector6f::Random();
 }
 
 Vector6f Particle::motionModel(Vector6f sold, VectorUFastSLAMf* u, float Ts) // Ts == sample time
@@ -1113,7 +1129,7 @@ Vector6f Particle::motionModel(Vector6f sold, VectorUFastSLAMf* u, float Ts) // 
     Vector6f s_k = sold; // s(k) = f(s(k-1),u(k))
 
     // Kinematic motion model where u=[x_dot, y_dot, z_dot, roll_dot, pitch_dot, yaw_dot]
-    s_k += Ts*u;
+    //s_k += Ts*u;
 
     return s_k;
 }
@@ -1121,8 +1137,8 @@ Vector6f Particle::motionModel(Vector6f sold, VectorUFastSLAMf* u, float Ts) // 
 
 void Particle::calculateImportanceWeight(MeasurementSet* z_Ex, Vector6f s_proposale){
     MatrixXf wCov_i;
-    float wi;
-    float w_tmp;
+    double wi;
+    double w_tmp;
 
     if (z_Ex != NULL){
         for( int i = 1; i <= z_Ex->nMeas; i = i + 1 ) {
@@ -1143,12 +1159,14 @@ void Particle::calculateImportanceWeight(MeasurementSet* z_Ex, Vector6f s_propos
 
             VectorXf z_diff;
             z_diff = z_tmp->z - zhat;
-            //cout << "z_diff" << endl << z_diff << endl;
 
             wCov_i = Hsi*sCov*Hsi.transpose() + Hli*li_old->lCov*Hli.transpose() + z_tmp->getzCov(); // (3.45)
 
-            //cout << "wCov_i" << endl << wCov_i << endl << endl;
-            w_tmp = 1/(sqrt( (float)(2*pi*wCov_i).determinant() ))*exp( (float)(z_diff.transpose()*wCov_i.inverse()*z_diff)  );// (3.46)
+
+            MatrixXf expTerm;
+            expTerm = z_diff.transpose()*wCov_i.inverse()*z_diff;
+
+            w_tmp = 1/(sqrt( (2*pi*wCov_i).determinant() ))*exp( -0.5*expTerm(0,0) );// (3.46) and  (14.2) on page 459 in IPRP
 
             //cout << "calculated weigth tmp: " << w_tmp << endl;
 
@@ -1167,15 +1185,255 @@ void Particle::calculateImportanceWeight(MeasurementSet* z_Ex, Vector6f s_propos
 }
 
 
-float Particle::getWeigth()
+double Particle::getWeigth()
 {
     return w;
 }
 
-Matrix6f Particle::sCov = 0.1*Matrix6f::Identity(); // static variable - has to be declared outside class!
+Matrix6f Particle::sCov = 0.05*Matrix6f::Identity(); // static variable - has to be declared outside class!
 
 boost::mt19937 Particle::rng; // Creating a new random number generator every time could be optimized
 //rng.seed(static_cast<unsigned int>(time(0)));
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ############################## Defines ParticleSet class ##############################  */
+
+class ParticleSet
+{
+public:
+    /* variables */
+    vector<Particle*> Parray;
+    Matrix6f sCov;
+    unsigned int k; // number of interations since time zero
+
+    /* functions */
+    ParticleSet(int Nparticles = 10,Vector6f s0 = Vector6f::Constant(0)); 		/* Initialize a standard particle set with 100 particles */
+    ~ParticleSet();
+    void updateParticleSet(MeasurementSet* z_Ex, MeasurementSet* z_New, VectorUFastSLAMf u, float Ts);
+    Vector6f* getLatestPoseEstimate();
+    int getNParticles();
+
+    private:
+    /* variables */
+    int nParticles;
+    Path* sMean;                    // instance of path Class to keep track of the estimated mean of the Particle filter!
+    double StartTime;
+
+
+    /* functions */
+    void resample();
+    void estimateDistribution();
+    void resampleSimple();
+};
+
+ParticleSet::ParticleSet(int Nparticles,Vector6f s0){
+    k=0;
+    sMean = new Path(s0,k); // makes new path to keep track of the estimated mean of the Particle filter!
+
+    nParticles = Nparticles;
+    Parray.reserve(nParticles);
+
+    for(int i = 1; i<=nParticles; i++){
+        Parray[i] = new Particle;
+    }
+    StartTime = ros::Time::now().toSec();
+}
+
+ParticleSet::~ParticleSet(){
+    double endTime = ros::Time::now().toSec();
+    double meanTime = (endTime - StartTime)/k;
+    cout << "meanTime per particle update: " << meanTime << endl;
+
+    for(int i = 1; i<=nParticles; i++){
+        delete Parray[i];
+    }
+    delete sMean;
+}
+
+int ParticleSet::getNParticles(){
+    return nParticles;
+}
+
+void ParticleSet::updateParticleSet(MeasurementSet* z_Ex, MeasurementSet* z_New, VectorUFastSLAMf u, float Ts){
+    k++;
+    for(int i = 1; i<=nParticles;i++){
+        //cout << endl << "updating particle: " << i << endl;
+        Parray[i]->updateParticle(z_Ex,z_New,&u,k,Ts);
+    }
+
+    resample();
+    estimateDistribution();
+}
+
+void ParticleSet::resample(){
+    // Resampling wheel
+    //cout << "resampling..." << endl;
+
+    vector<Particle*> Parraytmp;
+    Parraytmp.reserve(nParticles);
+
+    // Find max w
+    Particle* tmpP;
+
+    double wmax = 0;
+    for(int i = 1; i<=nParticles;i++){
+        if(i==1){
+            wmax = Parray[i]->w;
+            tmpP = Parray[i];
+        }
+        else if(Parray[i]->w > wmax){
+            wmax = Parray[i]->w;
+            tmpP = Parray[i];
+        }
+    }
+
+    cout << endl << "Current best pose estimate" << endl << *(tmpP->s->getPose()) << endl;
+
+    // generate random index between 1 and number of particles
+    default_random_engine generator;
+    uniform_int_distribution<int> distribution(1,nParticles);
+    uniform_real_distribution<double> distribution2(0,1);
+
+    int index = distribution(generator); // random index
+
+    double beta = 0;
+
+    for (int z = 1; z <= nParticles; z++){
+        // generate random addition to beta
+        double rand = distribution2(generator);
+        beta = beta + rand*2*wmax;
+
+        double weight = Parray[index]->w;
+        while (beta > weight){
+            beta = beta - weight;
+
+            index = index + 1;
+            if (index > nParticles){
+                index = 1;
+            }
+            weight = Parray[index]->w;
+        }
+
+        Parraytmp[z] = new Particle(*Parray[index]);
+    }
+
+    for(int i = 1; i<=nParticles; i++){
+        delete Parray[i];
+    }
+    for(int i = 1; i<=nParticles; i++){
+        Parray[i] = Parraytmp[i];
+    }
+    //cout << "Done resampling!" << endl;
+}
+
+
+
+void ParticleSet::resampleSimple(){
+    // primitiv resampling
+    double wTotal=0;
+    for(int i = 1; i<=nParticles;i++){
+        wTotal = wTotal + Parray[i]->w;
+    }
+
+    for(int i = 1; i<=nParticles;i++){
+        Parray[i]->w = Parray[i]->w/wTotal;
+    }
+
+    Particle* tmpPointer;
+    double wtmp = 0;
+
+    // primitiv resampling
+    for(int i = 1; i<=nParticles;i++){
+        if(i==1){
+            wtmp = Parray[i]->w;
+            tmpPointer = Parray[i];
+        }
+        else if(Parray[i]->w > wtmp){
+            wtmp = Parray[i]->w;
+            tmpPointer = Parray[i];
+        }
+    }
+
+    Particle* Parray_tmp[nParticles];
+    for(int i = 1; i<=nParticles;i++){
+        Parray_tmp[i] = Parray[i];
+    }
+
+    for(int i = 1; i<=nParticles;i++){
+        Parray[i] = new Particle(*tmpPointer);
+    }
+
+    for(int i = 1; i<=nParticles;i++){
+        delete Parray_tmp[i];
+    }
+}
+
+Vector6f* ParticleSet::getLatestPoseEstimate(){
+    return sMean->getPose();
+}
+
+void ParticleSet::estimateDistribution(){
+    double wSum = 0;
+    double wNorm = 0;
+
+    for(int i = 1; i<=nParticles;i++){
+        wSum = wSum + Parray[i]->w;
+    }
+
+    Vector6f sTmp = Vector6f::Zero();
+    Vector6f sMean_estimate = Vector6f::Zero();
+    double wSum_squared = 0;
+
+    for(int i = 1; i<=nParticles;i++){
+        sTmp = *(Parray[i]->s->getPose());
+        wNorm = (Parray[i]->w)/wSum;
+
+        sMean_estimate = sMean_estimate + wNorm*sTmp; // weighted mean!
+    }
+
+    Matrix6f sCov_estimate = Matrix6f::Zero();
+    Matrix6f sCov_estimate_tmp = Matrix6f::Zero();
+    Vector6f sDiff = Vector6f::Zero();
+
+    for(int i = 1; i<=nParticles;i++){
+        sTmp = *(Parray[i]->s->getPose());
+        wNorm = (Parray[i]->w)/wSum;
+        sDiff = sTmp-sMean_estimate;
+
+        for(int j = 0; j<=5;j++){
+            for(int k = 0; k<=5;k++){
+                sCov_estimate_tmp(j,k) = sDiff(j)*sDiff(k)*(float)wNorm; // weighted mean!
+            }
+        }
+        sCov_estimate = sCov_estimate + sCov_estimate_tmp;
+        wSum_squared = wSum_squared + wNorm*wNorm;
+    }
+    sCov_estimate = 1/(1-wSum_squared)*sCov_estimate;
+
+    //cout << endl << "sCov_estimate" << endl << sCov_estimate << endl;
+    cout << endl << "sMean_estimate" << endl << sMean_estimate << endl;
+
+    sCov = sCov_estimate;
+    sMean->addPose(sMean_estimate,k);
+}
+
+
+
+
 
 
 
@@ -1188,10 +1446,98 @@ int main(int argc, char **argv)
 
     cout << ros::Time::now() << endl;
 
+    // malte playing with particle Sets
+    int Nparticles = 50;
+    Vector6f s0 = Vector6f::Constant(0);
+
+    ParticleSet* Pset = new ParticleSet(Nparticles,s0);
+
+
+    VectorUFastSLAMf u = VectorUFastSLAMf::Zero();
+
+    unsigned int k=1;
+    unsigned int j=0;
+    int Nlandmarks = 50;
+    int Nk = 40;
+
+    MeasurementSet* z_Ex = new MeasurementSet;
+    MeasurementSet* z_New = new MeasurementSet;
+    GOTMeasurement* z_tmp;
+    Vector3f V_tmp;
+    bool toggle = true;
+
+    float measNoise = 0.0;
+    float measSign = -1;
+
+
+    while (k<=Nk){
+        cout << "#################################### k=" << k << " ####################################" << endl;
+        delete z_New;
+        z_New = new MeasurementSet;
+        delete z_Ex;
+        z_Ex = new MeasurementSet;
+
+        if(j+10<Nlandmarks){
+            if(toggle){
+                for(unsigned int i = 1; i<=10; i++){
+                    V_tmp = Vector3f::Constant(i)+measNoise*Vector3f::Random();
+                    z_tmp = new GOTMeasurement(i,measSign*V_tmp); //generate random numbers...
+                    z_New->addMeasurement(z_tmp);
+                }
+                toggle = false;
+            }
+            else{
+                for(unsigned int i = 1+j; i<=10+j; i++){
+                    V_tmp = Vector3f::Constant(i)+measNoise*Vector3f::Random();
+                    z_tmp = new GOTMeasurement(i,measSign*V_tmp); //generate random numbers...
+                    z_Ex->addMeasurement(z_tmp);
+
+                    V_tmp = Vector3f::Constant(i+10)+measNoise*Vector3f::Random();
+                    z_tmp = new GOTMeasurement(i+10,measSign*V_tmp); //generate random numbers...
+                    z_New->addMeasurement(z_tmp);
+                }
+                j = j + 10;
+            }
+        }
+        else{
+            unsigned int rand1 = (int)(((float)rand()/(float)RAND_MAX)*(float)Nlandmarks);
+            unsigned int rand2 = (int)(((float)rand()/(float)RAND_MAX)*(float)Nlandmarks);
+
+            if(rand1>Nlandmarks){rand1=Nlandmarks;}
+            if(rand2>Nlandmarks){rand2=Nlandmarks;}
+            if(rand2<rand1){
+                unsigned int tmp = rand2;
+                rand2=rand1;
+                rand1=tmp;
+            }
+
+            cout << "random numbers: "<< rand1 << ", " << rand2 << endl;
+
+            for(unsigned int i = rand1; i<=rand2; i++){
+                V_tmp = Vector3f::Constant(i)+measNoise*Vector3f::Random();
+
+                z_tmp = new GOTMeasurement(i,measSign*V_tmp); //generate random numbers...
+                z_Ex->addMeasurement(z_tmp);
+            }
+        }
+    Pset->updateParticleSet(z_Ex,z_New,u,0);
+    //cout << endl << "latest pose" << endl << *(Pset->getLatestPoseEstimate()) << endl << endl;
+
+    cout << "globalLandmarkCounter: " << globalLandmarkCounter << endl;
+    cout << "globalMapNodeCounter: " << globalMapNodeCounter << endl;
+
+    k++;
+    }
+
+    delete z_New;
+    delete z_Ex;
+    delete Pset;
+
+
+
     // malte playing with particles
-
-
-    int Nparticles = 2;
+/*
+    int Nparticles = 200;
     Particle* Parray[Nparticles];
 
     for(int i = 1; i<=Nparticles;i++){
@@ -1211,6 +1557,10 @@ int main(int argc, char **argv)
     Vector3f V_tmp;
     bool toggle = true;
 
+    float measNoise = 0.001;
+    float measSign = -1;
+
+
     while (k<=Nk){
         cout << "#################################### k=" << k << " ####################################" << endl;
         delete z_New;
@@ -1221,26 +1571,29 @@ int main(int argc, char **argv)
         if(j+10<Nlandmarks){
             if(toggle){
                 for(unsigned int i = 1; i<=10; i++){
-                    V_tmp = Vector3f::Constant(i)+0.00000001*Vector3f::Random();
-                    z_tmp = new GOTMeasurement(i,V_tmp); //generate random numbers...
+                    V_tmp = Vector3f::Constant(i)+measNoise*Vector3f::Random();
+                    z_tmp = new GOTMeasurement(i,measSign*V_tmp); //generate random numbers...
                     z_New->addMeasurement(z_tmp);
 
+                    //cout << "i" << endl << i << endl;
                     //cout << "V_tmp" << endl << V_tmp << endl;
                 }
                 toggle = false;
             }
             else{
                 for(unsigned int i = 1+j; i<=10+j; i++){
-                    V_tmp = Vector3f::Constant(i);//+0.00000001*Vector3f::Random();
-                    z_tmp = new GOTMeasurement(i,V_tmp); //generate random numbers...
+                    V_tmp = Vector3f::Constant(i)+measNoise*Vector3f::Random();
+                    z_tmp = new GOTMeasurement(i,measSign*V_tmp); //generate random numbers...
                     z_Ex->addMeasurement(z_tmp);
 
+                    //cout << "i" << endl << i << endl;
                     //cout << "V_tmp" << endl << V_tmp << endl;
 
-                    V_tmp = Vector3f::Constant(i+10);//+0.00000001*Vector3f::Random();
-                    z_tmp = new GOTMeasurement(i+10,V_tmp); //generate random numbers...
+                    V_tmp = Vector3f::Constant(i+10)+measNoise*Vector3f::Random();
+                    z_tmp = new GOTMeasurement(i+10,measSign*V_tmp); //generate random numbers...
                     z_New->addMeasurement(z_tmp);
 
+                    //cout << "i+10" << endl << i+10 << endl;
                     //cout << "V_tmp" << endl << V_tmp << endl;
                 }
                 j = j + 10;
@@ -1258,26 +1611,28 @@ int main(int argc, char **argv)
                 rand1=tmp;
             }
 
-            //cout << "random numbers: "<< rand1 << ", " << rand2 << endl;
+            cout << "random numbers: "<< rand1 << ", " << rand2 << endl;
 
             for(unsigned int i = rand1; i<=rand2; i++){
-                V_tmp = Vector3f::Constant(i);//+0.00000001*Vector3f::Random();
+                V_tmp = Vector3f::Constant(i)+measNoise*Vector3f::Random();
 
 
                 //cout << "V_tmp" << endl << V_tmp << endl;
 
-                z_tmp = new GOTMeasurement(i,V_tmp); //generate random numbers...
+                z_tmp = new GOTMeasurement(i,measSign*V_tmp); //generate random numbers...
                 z_Ex->addMeasurement(z_tmp);
             }
         }
 
+        //cout << "z_Ex->nMeas: " << z_Ex->nMeas << endl;
+        //cout << "z_New->nMeas: " << z_New->nMeas << endl;
 
         for(int i = 1; i<=Nparticles;i++){
             cout << endl << "updating particle: " << i << endl;
-            Parray[i]->updateParticle(z_Ex,z_New,&u,k);
+            Parray[i]->updateParticle(z_Ex,z_New,&u,k,0);
         }
 
-        float wTotal=0;
+        double wTotal=0;
         for(int i = 1; i<=Nparticles;i++){
             wTotal = wTotal + Parray[i]->w;
         }
@@ -1286,7 +1641,7 @@ int main(int argc, char **argv)
             Parray[i]->w = Parray[i]->w/wTotal;
         }
 
-/*
+
         cout << "P1 weight: " << Parray[1]->getWeigth() << endl;
         cout << " Current s norm:" << endl << (*(Parray[1]->s->getPose())).norm() << endl << endl;
 
@@ -1301,12 +1656,12 @@ int main(int argc, char **argv)
 
         cout << "P5 weight: " << Parray[5]->getWeigth() << endl;
         cout << " Current s norm:" << endl << (*(Parray[5]->s->getPose())).norm() << endl << endl;
-*/
+
         cout << "globalLandmarkCounter: " << globalLandmarkCounter << endl;
         cout << "globalMapNodeCounter: " << globalMapNodeCounter << endl;
 
         Particle* tmpPointer;
-        float wtmp = 0;
+        double wtmp = 0;
 
         // primitiv resampling
         //cout << "D1" << endl;
@@ -1356,7 +1711,7 @@ int main(int argc, char **argv)
 
     cout << "globalLandmarkCounter: " << globalLandmarkCounter << endl;
     cout << "globalMapNodeCounter: " << globalMapNodeCounter << endl;
-
+*/
 
     // malte playing with Paths
 /*
