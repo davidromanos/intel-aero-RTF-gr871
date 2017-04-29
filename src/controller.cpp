@@ -187,6 +187,7 @@ std::vector<double> Matrix::multiplyVector(std::vector<double> input)
 class Zcontroller{
     public:
         double update(double setpoint,double *estimatedZStates);
+        void reset(double *estimatedZStates);
         Zcontroller(double updateRate); //constructor
         std::vector<double> thrust;
         Matrix gainZcontroller;
@@ -237,9 +238,15 @@ double Zcontroller::update(double setpoint,double *estimatedZStates)
     }
     return thrust[0];
 }
+void Zcontroller::reset(double *estimatedZStates)
+{
+    this->integrator.state = (estimatedZStates[13]*gainZcontroller.getEntry(0,0))/integratorGainZ;
+    this->thrust[0] = 0.587;
+}
 class stateFeedbackController{
     public:
         void update(double setpoint[],double *meas);
+        void reset();
         std::vector<double> output;
         Matrix K0;
         Matrix K0integrators;
@@ -248,6 +255,7 @@ class stateFeedbackController{
         stateFeedbackController(double updateRate); //constructor
     private:
         double updateRate;
+        double errorLimit = 5.0;
         Integrator xIntegrator;
         Integrator yIntegrator;
         std::vector<double> Xstates;
@@ -275,15 +283,23 @@ stateFeedbackController::stateFeedbackController(double updateRate) :
     error.assign(2,0);
 }
 
+void stateFeedbackController::reset()
+{
+    xIntegrator.state = 0;
+    yIntegrator.state = 0;
+    output[0] = 0;
+    output[1] = 0;
+}
+
 void stateFeedbackController::update(double setpoint[],double *meas)
 {
     error[0] = setpoint[0]- meas[0];
     error[1] = setpoint[1]- meas[1];
 
-    /*if(error[0] > 1) error[0] = 1;
-    if(error[0] < -1) error[0] = -1;
-    if(error[1] > 1) error[1] = 1;
-    if(error[1] < -1) error[1] = -1;*/
+    if(error[0] > errorLimit) error[0] = errorLimit;
+    if(error[0] < -errorLimit) error[0] = -errorLimit;
+    if(error[1] > errorLimit) error[1] = errorLimit;
+    if(error[1] < -errorLimit) error[1] = -errorLimit;
 
     Xstates[0] = meas[2];
     Xstates[1] = meas[3];
@@ -327,8 +343,17 @@ void stateFeedbackController::update(double setpoint[],double *meas)
     tmpK0Integrators.setEntry(K0integrators.getEntry(1,1)*cos(meas[12]),1,1);
 
 
-    xIntegrator.Update(error[0]);
-    yIntegrator.Update(error[1]);
+    if(error[0] != errorLimit && error[0] != -errorLimit)
+    {
+        xIntegrator.Update(error[0]);
+    }
+    if(error[1] != errorLimit && error[1] != -errorLimit)
+    {
+        yIntegrator.Update(error[1]);
+    }
+
+
+
     error[0] = xIntegrator.state;
     error[1] = yIntegrator.state;
     //std::cout << "x state:  " << xIntegrator.state << "  y state:  " << yIntegrator.state<< "\n";
@@ -536,67 +561,64 @@ int main(int argc, char **argv)
     ros::Time last_request = ros::Time::now();
     ros::Time last_request1 = ros::Time::now();
 
+    int simulation = 0;
 
     while(ros::ok()){
-        if( current_state.mode != "OFFBOARD" &&
-            (ros::Time::now() - last_request > ros::Duration(2.0))){
-            if( set_mode_client.call(offb_set_mode) &&
-                offb_set_mode.response.success){
-                ROS_INFO("Offboard enabled");
-            }
-            last_request = ros::Time::now();
-        } else {
-            if( !current_state.armed &&
+
+        if(simulation == 1)
+        {
+            if( current_state.mode != "OFFBOARD" &&
                 (ros::Time::now() - last_request > ros::Duration(2.0))){
-                if( arming_client.call(arm_cmd) &&
-                    arm_cmd.response.success){
-                    ROS_INFO("Vehicle armed");
+                if( set_mode_client.call(offb_set_mode) &&
+                    offb_set_mode.response.success){
+                    ROS_INFO("Offboard enabled");
                 }
                 last_request = ros::Time::now();
+            } else {
+                if( !current_state.armed &&
+                    (ros::Time::now() - last_request > ros::Duration(2.0))){
+                    if( arming_client.call(arm_cmd) &&
+                        arm_cmd.response.success){
+                        ROS_INFO("Vehicle armed");
+                    }
+                    last_request = ros::Time::now();
+                }
             }
         }
+        q1.setW(position.pose.orientation.w);
+        q1.setX(position.pose.orientation.x);
+        q1.setY(position.pose.orientation.y);
+        q1.setZ(position.pose.orientation.z);
+
+        tf::Matrix3x3 m(q1);
+
+        m.getRPY(roll, pitch, yaw);
+
+        q1.setW(imuData.orientation.w);
+        q1.setX(imuData.orientation.x);
+        q1.setY(imuData.orientation.y);
+        q1.setZ(imuData.orientation.z);
+        m.setRotation(q1);
+        m.getRPY(imuRoll,imuPitch,imuYaw);
+        //std::cout << "Roll: " << roll << ", Pitch: " << pitch << ", Yaw: " << yaw << std::endl;
+
+        fastslamMeas[0] = position.pose.position.x;
+        fastslamMeas[1] = position.pose.position.y;
+        fastslamMeas[2] = position.pose.position.z;
+        fastslamMeas[3] = roll;
+        fastslamMeas[4] = pitch;
+        fastslamMeas[5] = yaw;
+
+        imuMeas[0] = imuRoll;
+        imuMeas[1] = imuPitch;
+        gyroMeas[0] = imuData.angular_velocity.x;
+        gyroMeas[1] = imuData.angular_velocity.y;
+        gyroMeas[2] = imuData.angular_velocity.z;
+
+
+
         if(current_state.mode == "OFFBOARD" && current_state.armed)//&& ros::Time::now()-last_request1 > ros::Duration(2.0)
         {
-
-            q1.setW(position.pose.orientation.w);
-            q1.setX(position.pose.orientation.x);
-            q1.setY(position.pose.orientation.y);
-            q1.setZ(position.pose.orientation.z);
-
-            tf::Matrix3x3 m(q1);
-
-            m.getRPY(roll, pitch, yaw);
-
-            q1.setW(imuData.orientation.w);
-            q1.setX(imuData.orientation.x);
-            q1.setY(imuData.orientation.y);
-            q1.setZ(imuData.orientation.z);
-            m.setRotation(q1);
-            m.getRPY(imuRoll,imuPitch,imuYaw);
-            //std::cout << "Roll: " << roll << ", Pitch: " << pitch << ", Yaw: " << yaw << std::endl;
-
-            fastslamMeas[0] = position.pose.position.x;
-            fastslamMeas[1] = position.pose.position.y;
-            fastslamMeas[2] = position.pose.position.z;
-            fastslamMeas[3] = roll;
-            fastslamMeas[4] = pitch;
-            fastslamMeas[5] = yaw;
-
-            imuMeas[0] = roll;
-            imuMeas[1] = pitch;
-            gyroMeas[0] = imuData.angular_velocity.x;
-            gyroMeas[1] = imuData.angular_velocity.y;
-            gyroMeas[2] = imuData.angular_velocity.z;
-
-            gyroMeas[0] = 0;
-            gyroMeas[1] = 0;
-            gyroMeas[2] = 0;
-
-
-
-
-            yawRef = yawReference(currentWaypoint.x-oldWaypoint.x,currentWaypoint.y-oldWaypoint.y);
-
             //ekf(1,fastslamMeas,covariansfastslam,imuMeas,gyroMeas,xyController.output[1],xyController.output[0],yawRef-1*M_PI/2,zcontroller.thrust[0],estimatedStates);
             ekf(1,fastslamMeas,covariansfastslam,imuMeas,gyroMeas,xyController.output[1],xyController.output[0],yawRef,zcontroller.thrust[0],estimatedStates);
             //ekf(1,fastslamMeas,covariansfastslam,imuMeas,xyController.output[1],xyController.output[0],yawRef-1*M_PI/2,zcontroller.thrust[0],estimatedStates);
@@ -606,25 +628,28 @@ int main(int argc, char **argv)
             xyController.update(setpoints,estimatedStates);
 
 
-
-            k++;
-            if(k%300 == 0)
+            if(simulation == 1)
             {
-                i++;
-                if(i>listOfWaypoints.size()-1)
+                yawRef = yawReference(currentWaypoint.x-oldWaypoint.x,currentWaypoint.y-oldWaypoint.y);
+                k++;
+                if(k%300 == 0)
                 {
-                    i = 0;
+                    i++;
+                    if(i>listOfWaypoints.size()-1)
+                    {
+                        i = 0;
+                    }
+                    oldWaypoint = currentWaypoint;
+                    currentWaypoint = listOfWaypoints[i];
+
                 }
-                oldWaypoint = currentWaypoint;
-                currentWaypoint = listOfWaypoints[i];
 
-            }
-
-            if(abs(yaw-yawRef)< 0.3)
-            {
-                setpoints[0] = currentWaypoint.x;
-                setpoints[1] = currentWaypoint.y;
-                setpoints[2] = currentWaypoint.z;
+                if(abs(yaw-yawRef)< 0.15 && abs(estimatedStates[18])<0.1)
+                {
+                    setpoints[0] = currentWaypoint.x;
+                    setpoints[1] = currentWaypoint.y;
+                    setpoints[2] = currentWaypoint.z;
+                }
             }
 
             //setpoints[0] = 0;
@@ -640,22 +665,41 @@ int main(int argc, char **argv)
             //q1.setEuler(0.0,0.1,0.1);
 
             //q1.setRPY(0.0,0.0,0.0);
-            pose.pose.orientation.x = q1.getX();
-            pose.pose.orientation.y = q1.getY();
-            pose.pose.orientation.z = q1.getZ();
-            pose.pose.orientation.w = q1.getW();
+
 
             thrustInput.data = zcontroller.update(setpoints[2],estimatedStates); // the z states is the last states
-
-            //local_pos_pub.publish(pose);
-
         }
         else
         {
-            last_request1 = ros::Time::now();
-        }
-        attitude_pub.publish(pose);
+            yawRef = yaw;
+            ekf(1,fastslamMeas,covariansfastslam,imuMeas,gyroMeas,0,0,yaw,0.587,estimatedStates);
+            zcontroller.reset(estimatedStates);
+            xyController.reset();
+            setpoints[0] = position.pose.position.x;
+            setpoints[1] = position.pose.position.y;
+            setpoints[2] = position.pose.position.z;
+            std::cout << "Resetting to:" << setpoints[0] <<"," << setpoints[1] <<"," << setpoints[2] << "\n";
 
+            last_request1 = ros::Time::now();
+
+            q1.setRPY(0,0,yawRef);
+        }
+
+        pose.pose.orientation.x = q1.getX();
+        pose.pose.orientation.y = q1.getY();
+        pose.pose.orientation.z = q1.getZ();
+        pose.pose.orientation.w = q1.getW();
+
+        attitude_pub.publish(pose);
+        /*pose.pose.position.x = 0;
+        pose.pose.position.y = 0;
+        pose.pose.position.z = 1;
+        pose.pose.orientation.x = 0;
+        pose.pose.orientation.y = 0;
+        pose.pose.orientation.z = 0;
+        pose.pose.orientation.w = 1;*/
+
+        //local_pos_pub.publish(pose);
 
         thrust_pub.publish(thrustInput);
         gyroMeas[0] = imuData.angular_velocity.x;
