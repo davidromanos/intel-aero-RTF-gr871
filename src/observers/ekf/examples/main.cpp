@@ -5,7 +5,7 @@
 // File: main.cpp
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 28-Apr-2017 12:27:39
+// C/C++ source code generated on  : 29-Apr-2017 10:36:44
 //
 
 //***********************************************************************
@@ -141,23 +141,23 @@ static unsigned char argInit_uint8_T()
 //
 static void main_ekf()
 {
-  double dv2[6];
-  double dv3[36];
-  double dv4[2];
-  double dv5[3];
+  double dv6[6];
+  double dv7[36];
+  double dv8[2];
+  double dv9[3];
   double est[19];
 
   // Initialize function 'ekf' input arguments.
   // Initialize function input argument 'fastslam'.
   // Initialize function input argument 'C_fs'.
   // Initialize function input argument 'imu'.
-  // Initialize function input argument 'giro'.
+  // Initialize function input argument 'gyro'.
   // Call the entry-point 'ekf'.
-  argInit_6x1_real_T(dv2);
-  argInit_6x6_real_T(dv3);
-  argInit_2x1_real_T(dv4);
-  argInit_3x1_real_T(dv5);
-  ekf(argInit_uint8_T(), dv2, dv3, dv4, dv5, argInit_real_T(), argInit_real_T(),
+  argInit_6x1_real_T(dv6);
+  argInit_6x6_real_T(dv7);
+  argInit_2x1_real_T(dv8);
+  argInit_3x1_real_T(dv9);
+  ekf(argInit_uint8_T(), dv6, dv7, dv8, dv9, argInit_real_T(), argInit_real_T(),
       argInit_real_T(), argInit_real_T(), est);
 }
 

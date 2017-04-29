@@ -298,9 +298,14 @@ void stateFeedbackController::update(double setpoint[],double *meas)
 
 
     Matrix tmpK0(2,2);
-    tmpK0.setEntry(K0.getEntry(0,0)*cos(meas[12]),0,0);
+    /*tmpK0.setEntry(K0.getEntry(0,0)*cos(meas[12]),0,0);
     tmpK0.setEntry(K0.getEntry(0,0)*-1*sin(meas[12]),0,1);
     tmpK0.setEntry(K0.getEntry(1,1)*sin(meas[12]),1,0);
+    tmpK0.setEntry(K0.getEntry(1,1)*cos(meas[12]),1,1);*/
+
+    tmpK0.setEntry(K0.getEntry(0,0)*cos(meas[12]),0,0);
+    tmpK0.setEntry(K0.getEntry(0,0)*sin(meas[12]),0,1);
+    tmpK0.setEntry(K0.getEntry(1,1)*-1*sin(meas[12]),1,0);
     tmpK0.setEntry(K0.getEntry(1,1)*cos(meas[12]),1,1);
 
 
@@ -311,10 +316,16 @@ void stateFeedbackController::update(double setpoint[],double *meas)
     XY[1] = meas[1];
     Matrix tmpK0Integrators(2,2);
 
-    tmpK0Integrators.setEntry(K0integrators.getEntry(0,0)*cos(meas[12]),0,0);
+    /*tmpK0Integrators.setEntry(K0integrators.getEntry(0,0)*cos(meas[12]),0,0);
     tmpK0Integrators.setEntry(K0integrators.getEntry(0,0)*-1*sin(meas[12]),0,1);
     tmpK0Integrators.setEntry(K0integrators.getEntry(1,1)*sin(meas[12]),1,0);
+    tmpK0Integrators.setEntry(K0integrators.getEntry(1,1)*cos(meas[12]),1,1);*/
+
+    tmpK0Integrators.setEntry(K0integrators.getEntry(0,0)*cos(meas[12]),0,0);
+    tmpK0Integrators.setEntry(K0integrators.getEntry(0,0)*sin(meas[12]),0,1);
+    tmpK0Integrators.setEntry(K0integrators.getEntry(1,1)*-1*sin(meas[12]),1,0);
     tmpK0Integrators.setEntry(K0integrators.getEntry(1,1)*cos(meas[12]),1,1);
+
 
     xIntegrator.Update(error[0]);
     yIntegrator.Update(error[1]);
@@ -491,6 +502,11 @@ int main(int argc, char **argv)
 
     currentWaypoint = listOfWaypoints[0];
     oldWaypoint = listOfWaypoints[listOfWaypoints.size()-1];
+
+    setpoints[0] = currentWaypoint.x;
+    setpoints[1] = currentWaypoint.y;
+    setpoints[2] = currentWaypoint.z;
+
     pose.pose.position.x = 0;
     pose.pose.position.y = 0;
     pose.pose.position.z = 2;
@@ -604,13 +620,17 @@ int main(int argc, char **argv)
 
             }
 
+            if(abs(yaw-yawRef)< 0.3)
+            {
+                setpoints[0] = currentWaypoint.x;
+                setpoints[1] = currentWaypoint.y;
+                setpoints[2] = currentWaypoint.z;
+            }
 
-            setpoints[0] = currentWaypoint.x;
-            setpoints[1] = currentWaypoint.y;
-            setpoints[2] = currentWaypoint.z;
             //setpoints[0] = 0;
             //setpoints[1] = 0;
            // std::cout <<"estx:  "<< estimatedStates[0] <<"  xout:  "<< xyController.output[0] <<"esty:  "<< estimatedStates[1]<<"   yout:   "<< xyController.output[1] << "\n";
+            //q1.setRPY(xyController.output[1],xyController.output[0],M_PI/4);
             q1.setRPY(xyController.output[1],xyController.output[0],yawRef);
 
             //q1.setRPY(xyController.output[0],xyController.output[1],yawReference(setpoints[0],setpoints[1]));

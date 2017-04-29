@@ -5,7 +5,7 @@
  * File: _coder_ekf_api.h
  *
  * MATLAB Coder version            : 3.3
- * C/C++ source code generated on  : 28-Apr-2017 12:27:39
+ * C/C++ source code generated on  : 29-Apr-2017 10:36:44
  */
 
 #ifndef _CODER_EKF_API_H
@@ -25,7 +25,7 @@ extern emlrtContext emlrtContextGlobal;
 
 /* Function Declarations */
 extern void ekf(uint8_T fastslam_on, real_T fastslam[6], real_T C_fs[36], real_T
-                imu[2], real_T giro[3], real_T roll_ref, real_T pitch_ref,
+                imu[2], real_T gyro[3], real_T roll_ref, real_T pitch_ref,
                 real_T yaw_ref, real_T thrust_ref, real_T est[19]);
 extern void ekf_api(const mxArray * const prhs[9], const mxArray *plhs[1]);
 extern void ekf_atexit(void);

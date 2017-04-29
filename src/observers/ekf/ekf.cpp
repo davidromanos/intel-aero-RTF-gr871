@@ -5,7 +5,7 @@
 // File: ekf.cpp
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 28-Apr-2017 12:27:39
+// C/C++ source code generated on  : 29-Apr-2017 10:36:44
 //
 
 // Include Files
@@ -28,7 +28,7 @@ static double P[361];
 //                const double fastslam[6]
 //                const double C_fs[36]
 //                const double imu[2]
-//                const double giro[3]
+//                const double gyro[3]
 //                double roll_ref
 //                double pitch_ref
 //                double yaw_ref
@@ -37,21 +37,50 @@ static double P[361];
 // Return Type  : void
 //
 void ekf(unsigned char fastslam_on, const double fastslam[6], const double C_fs
-         [36], const double imu[2], const double giro[3], double roll_ref,
+         [36], const double imu[2], const double gyro[3], double roll_ref,
          double pitch_ref, double yaw_ref, double thrust_ref, double est[19])
 {
-  double C_giro[9];
+  double dv0[9];
   int i0;
   int c;
-  double H_giro[57];
-  double C_imu[4];
+  double H_gyro[57];
+  double cov[361];
+  static const double dv1[361] = { 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5 };
+
   double b_imu[5];
   double meas_data[11];
   int meas_size_idx_0;
-  double b_C_imu[25];
-  double b_C_fs[121];
-  int H_size_idx_0;
   double R_data[121];
+  static const double dv2[25] = { 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.1 };
+
+  int H_size_idx_0;
+  double b_C_fs[121];
   double H_imu[95];
   static const double b_H_imu[38] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1938,
     0.0, 0.1944, 0.0, -0.3103, 0.0, 0.0, 0.0, 0.0, 0.8608, 0.0, -0.4211, 0.0,
@@ -59,6 +88,14 @@ void ekf(unsigned char fastslam_on, const double fastslam[6], const double C_fs
     0.0, 0.0, 0.0 };
 
   double H_data[209];
+  static const double dv3[22] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+
+  static const double dv4[33] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.1, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.1 };
+
+  double b_pitch_ref[4];
   double H_fs[209];
   static const double b_H_fs[114] = { 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1938,
@@ -102,10 +139,10 @@ void ekf(unsigned char fastslam_on, const double fastslam[6], const double C_fs
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 4.0628930817610067, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 18.046121593291407, 0.0,
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.04379, 0.0, 0.0,
-    0.0, 0.0, 0.0, 9.1802935010482187, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.9180293501048219, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0 };
 
-  static const double dv0[323] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+  static const double dv5[323] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0907, 1.1869,
@@ -139,32 +176,6 @@ void ekf(unsigned char fastslam_on, const double fastslam[6], const double C_fs
   int br;
   int ic;
   double P_p[361];
-  static const double cov[361] = { 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8 };
-
   int ar;
   int ib;
   int ia;
@@ -172,7 +183,6 @@ void ekf(unsigned char fastslam_on, const double fastslam[6], const double C_fs
   int C_size[2];
   double b_C_data[121];
   int R_size[2];
-  double dv1[361];
 
   //  %y dot ARX
   //  %yaw ARX model
@@ -197,24 +207,25 @@ void ekf(unsigned char fastslam_on, const double fastslam[6], const double C_fs
   // yaw
   //  %roll];
   // pitch
-  eye(C_giro);
+  eye(dv0);
   for (i0 = 0; i0 < 16; i0++) {
     for (c = 0; c < 3; c++) {
-      H_giro[c + 3 * i0] = 0.0;
+      H_gyro[c + 3 * i0] = 0.0;
     }
   }
 
   for (i0 = 0; i0 < 3; i0++) {
     for (c = 0; c < 3; c++) {
-      H_giro[c + 3 * (i0 + 16)] = C_giro[c + 3 * i0];
+      H_gyro[c + 3 * (i0 + 16)] = dv0[c + 3 * i0];
     }
   }
 
   // weight matrix for states noise
-  // constant covariance noise matrix of imu and giro
-  b_eye(C_imu);
-  eye(C_giro);
+  memcpy(&cov[0], &dv1[0], 361U * sizeof(double));
+  cov[240] = 1.0;
+  cov[360] = 1.0;
 
+  // constant covariance noise matrix of imu and gyro
   // input vector
   // pi/2 here???
   // measurements and measurements covariance
@@ -228,7 +239,7 @@ void ekf(unsigned char fastslam_on, const double fastslam[6], const double C_fs
     }
 
     for (i0 = 0; i0 < 3; i0++) {
-      meas_data[i0 + 8] = giro[i0];
+      meas_data[i0 + 8] = gyro[i0];
     }
 
     meas_size_idx_0 = 11;
@@ -250,43 +261,15 @@ void ekf(unsigned char fastslam_on, const double fastslam[6], const double C_fs
       }
     }
 
-    for (i0 = 0; i0 < 6; i0++) {
-      for (c = 0; c < 2; c++) {
-        b_C_fs[(c + 11 * i0) + 6] = 0.0;
-      }
-    }
-
-    for (i0 = 0; i0 < 2; i0++) {
-      for (c = 0; c < 2; c++) {
-        b_C_fs[(c + 11 * (i0 + 6)) + 6] = C_imu[c + (i0 << 1)];
-      }
-    }
-
-    for (i0 = 0; i0 < 3; i0++) {
-      for (c = 0; c < 2; c++) {
-        b_C_fs[(c + 11 * (i0 + 8)) + 6] = 0.0;
-      }
-    }
-
-    for (i0 = 0; i0 < 6; i0++) {
-      for (c = 0; c < 3; c++) {
-        b_C_fs[(c + 11 * i0) + 8] = 0.0;
-      }
-    }
-
-    for (i0 = 0; i0 < 2; i0++) {
-      for (c = 0; c < 3; c++) {
-        b_C_fs[(c + 11 * (i0 + 6)) + 8] = 0.0;
-      }
-    }
-
-    for (i0 = 0; i0 < 3; i0++) {
-      for (c = 0; c < 3; c++) {
-        b_C_fs[(c + 11 * (i0 + 8)) + 8] = C_giro[c + 3 * i0];
-      }
-    }
-
     for (i0 = 0; i0 < 11; i0++) {
+      for (c = 0; c < 2; c++) {
+        b_C_fs[(c + 11 * i0) + 6] = dv3[c + (i0 << 1)];
+      }
+
+      for (c = 0; c < 3; c++) {
+        b_C_fs[(c + 11 * i0) + 8] = dv4[c + 3 * i0];
+      }
+
       memcpy(&R_data[i0 * 11], &b_C_fs[i0 * 11], 11U * sizeof(double));
     }
 
@@ -301,7 +284,7 @@ void ekf(unsigned char fastslam_on, const double fastslam[6], const double C_fs
       }
 
       for (c = 0; c < 3; c++) {
-        H_fs[(c + 11 * i0) + 8] = H_giro[c + 3 * i0];
+        H_fs[(c + 11 * i0) + 8] = H_gyro[c + 3 * i0];
       }
 
       memcpy(&H_data[i0 * 11], &H_fs[i0 * 11], 11U * sizeof(double));
@@ -312,7 +295,7 @@ void ekf(unsigned char fastslam_on, const double fastslam[6], const double C_fs
     }
 
     for (i0 = 0; i0 < 3; i0++) {
-      b_imu[i0 + 2] = giro[i0];
+      b_imu[i0 + 2] = gyro[i0];
     }
 
     meas_size_idx_0 = 5;
@@ -320,36 +303,7 @@ void ekf(unsigned char fastslam_on, const double fastslam[6], const double C_fs
       meas_data[i0] = b_imu[i0];
     }
 
-    for (i0 = 0; i0 < 2; i0++) {
-      for (c = 0; c < 2; c++) {
-        b_C_imu[c + 5 * i0] = C_imu[c + (i0 << 1)];
-      }
-    }
-
-    for (i0 = 0; i0 < 3; i0++) {
-      for (c = 0; c < 2; c++) {
-        b_C_imu[c + 5 * (i0 + 2)] = 0.0;
-      }
-    }
-
-    for (i0 = 0; i0 < 2; i0++) {
-      for (c = 0; c < 3; c++) {
-        b_C_imu[(c + 5 * i0) + 2] = 0.0;
-      }
-    }
-
-    for (i0 = 0; i0 < 3; i0++) {
-      for (c = 0; c < 3; c++) {
-        b_C_imu[(c + 5 * (i0 + 2)) + 2] = C_giro[c + 3 * i0];
-      }
-    }
-
-    for (i0 = 0; i0 < 5; i0++) {
-      for (c = 0; c < 5; c++) {
-        R_data[c + 5 * i0] = b_C_imu[c + 5 * i0];
-      }
-    }
-
+    memcpy(&R_data[0], &dv2[0], 25U * sizeof(double));
     H_size_idx_0 = 5;
     for (i0 = 0; i0 < 19; i0++) {
       for (c = 0; c < 2; c++) {
@@ -357,7 +311,7 @@ void ekf(unsigned char fastslam_on, const double fastslam[6], const double C_fs
       }
 
       for (c = 0; c < 3; c++) {
-        H_imu[(c + 5 * i0) + 2] = H_giro[c + 3 * i0];
+        H_imu[(c + 5 * i0) + 2] = H_gyro[c + 3 * i0];
       }
 
       for (c = 0; c < 5; c++) {
@@ -374,13 +328,13 @@ void ekf(unsigned char fastslam_on, const double fastslam[6], const double C_fs
   // predited y
   // predicted states constantly linear
   // predicted states vector
-  C_imu[0] = pitch_ref;
-  C_imu[1] = roll_ref;
-  C_imu[2] = yaw_ref + 1.5707963267948966;
-  C_imu[3] = thrust_ref - 0.587;
-  states_p[0] = (states[0] + 0.0477 * std::cos(states[12]) * states[2]) + 0.0477
+  b_pitch_ref[0] = pitch_ref;
+  b_pitch_ref[1] = roll_ref;
+  b_pitch_ref[2] = yaw_ref;
+  b_pitch_ref[3] = thrust_ref - 0.587;
+  states_p[0] = (states[0] + 0.0477 * std::cos(states[12]) * states[2]) - 0.0477
     * std::sin(states[12]) * states[7];
-  states_p[1] = (states[1] + 0.0477 * std::cos(states[12]) * states[7]) - 0.0477
+  states_p[1] = (states[1] + 0.0477 * std::cos(states[12]) * states[7]) + 0.0477
     * std::sin(states[12]) * states[2];
   for (i0 = 0; i0 < 17; i0++) {
     a[i0] = 0.0;
@@ -390,7 +344,7 @@ void ekf(unsigned char fastslam_on, const double fastslam[6], const double C_fs
 
     b_a[i0] = 0.0;
     for (c = 0; c < 4; c++) {
-      b_a[i0] += d_a[i0 + 17 * c] * C_imu[c];
+      b_a[i0] += d_a[i0 + 17 * c] * b_pitch_ref[c];
     }
 
     states_p[i0 + 2] = a[i0] + b_a[i0];
@@ -406,19 +360,19 @@ void ekf(unsigned char fastslam_on, const double fastslam[6], const double C_fs
   F[76] = 0.0;
   F[95] = 0.0;
   F[114] = 0.0;
-  F[133] = 0.0477 * std::sin(states[12]);
+  F[133] = -0.0477 * std::sin(states[12]);
   F[152] = 0.0;
   F[171] = 0.0;
   F[190] = 0.0;
   F[209] = 0.0;
-  F[228] = -0.0477 * states[2] * std::sin(states[12]) + 0.0477 * states[7] * std::
+  F[228] = -0.0477 * states[2] * std::sin(states[12]) - 0.0477 * states[7] * std::
     cos(states[12]);
   F[247] = 0.0;
   F[266] = 0.0;
   F[285] = 0.0;
   F[1] = 0.0;
   F[20] = 1.0;
-  F[39] = -0.0477 * std::sin(states[12]);
+  F[39] = 0.0477 * std::sin(states[12]);
   F[58] = 0.0;
   F[77] = 0.0;
   F[96] = 0.0;
@@ -428,7 +382,7 @@ void ekf(unsigned char fastslam_on, const double fastslam[6], const double C_fs
   F[172] = 0.0;
   F[191] = 0.0;
   F[210] = 0.0;
-  F[229] = -0.0477 * states[7] * std::sin(states[12]) - 0.0477 * states[2] * std::
+  F[229] = 0.0477 * states[7] * std::sin(states[12]) + 0.0477 * states[2] * std::
     cos(states[12]);
   F[248] = 0.0;
   F[267] = 0.0;
@@ -440,7 +394,7 @@ void ekf(unsigned char fastslam_on, const double fastslam[6], const double C_fs
   }
 
   for (i0 = 0; i0 < 19; i0++) {
-    memcpy(&F[i0 * 19 + 2], &dv0[i0 * 17], 17U * sizeof(double));
+    memcpy(&F[i0 * 19 + 2], &dv5[i0 * 17], 17U * sizeof(double));
   }
 
   // predicted covariance estimate with linearised model
@@ -670,10 +624,10 @@ void ekf(unsigned char fastslam_on, const double fastslam[6], const double C_fs
 
   // update covariance
   k = (signed char)R_size[1];
-  memset(&F[0], 0, 361U * sizeof(double));
+  memset(&cov[0], 0, 361U * sizeof(double));
   for (cr = 0; cr <= 343; cr += 19) {
     for (ic = cr; ic + 1 <= cr + 19; ic++) {
-      F[ic] = 0.0;
+      cov[ic] = 0.0;
     }
   }
 
@@ -686,7 +640,7 @@ void ekf(unsigned char fastslam_on, const double fastslam[6], const double C_fs
         ia = ar;
         for (ic = cr; ic + 1 <= cr + 19; ic++) {
           ia++;
-          F[ic] += H_data[ib] * L_data[ia];
+          cov[ic] += H_data[ib] * L_data[ia];
         }
       }
 
@@ -696,10 +650,10 @@ void ekf(unsigned char fastslam_on, const double fastslam[6], const double C_fs
     br += k;
   }
 
-  c_eye(b_F);
+  b_eye(F);
   for (i0 = 0; i0 < 19; i0++) {
     for (c = 0; c < 19; c++) {
-      dv1[c + 19 * i0] = b_F[c + 19 * i0] - F[c + 19 * i0];
+      b_F[c + 19 * i0] = F[c + 19 * i0] - cov[c + 19 * i0];
     }
   }
 
@@ -708,7 +662,7 @@ void ekf(unsigned char fastslam_on, const double fastslam[6], const double C_fs
     for (i0 = 0; i0 < 19; i0++) {
       P[k + 19 * i0] = 0.0;
       for (c = 0; c < 19; c++) {
-        P[k + 19 * i0] += dv1[k + 19 * c] * P_p[c + 19 * i0];
+        P[k + 19 * i0] += b_F[k + 19 * c] * P_p[c + 19 * i0];
       }
     }
 

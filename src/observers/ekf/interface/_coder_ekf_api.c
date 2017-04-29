@@ -5,7 +5,7 @@
  * File: _coder_ekf_api.c
  *
  * MATLAB Coder version            : 3.3
- * C/C++ source code generated on  : 28-Apr-2017 12:27:39
+ * C/C++ source code generated on  : 29-Apr-2017 10:36:44
  */
 
 /* Include Files */
@@ -44,7 +44,7 @@ static real_T (*g_emlrt_marshallIn(const mxArray *imu, const char_T *identifier)
   [2];
 static real_T (*h_emlrt_marshallIn(const mxArray *u, const emlrtMsgIdentifier
   *parentId))[2];
-static real_T (*i_emlrt_marshallIn(const mxArray *giro, const char_T *identifier))
+static real_T (*i_emlrt_marshallIn(const mxArray *gyro, const char_T *identifier))
   [3];
 static real_T (*j_emlrt_marshallIn(const mxArray *u, const emlrtMsgIdentifier
   *parentId))[3];
@@ -212,11 +212,11 @@ static real_T (*h_emlrt_marshallIn(const mxArray *u, const emlrtMsgIdentifier
   return y;
 }
 /*
- * Arguments    : const mxArray *giro
+ * Arguments    : const mxArray *gyro
  *                const char_T *identifier
  * Return Type  : real_T (*)[3]
  */
-  static real_T (*i_emlrt_marshallIn(const mxArray *giro, const char_T
+  static real_T (*i_emlrt_marshallIn(const mxArray *gyro, const char_T
   *identifier))[3]
 {
   real_T (*y)[3];
@@ -224,8 +224,8 @@ static real_T (*h_emlrt_marshallIn(const mxArray *u, const emlrtMsgIdentifier
   thisId.fIdentifier = (const char *)identifier;
   thisId.fParent = NULL;
   thisId.bParentIsCell = false;
-  y = j_emlrt_marshallIn(emlrtAlias(giro), &thisId);
-  emlrtDestroyArray(&giro);
+  y = j_emlrt_marshallIn(emlrtAlias(gyro), &thisId);
+  emlrtDestroyArray(&gyro);
   return y;
 }
 
@@ -390,7 +390,7 @@ void ekf_api(const mxArray * const prhs[9], const mxArray *plhs[1])
   real_T (*fastslam)[6];
   real_T (*C_fs)[36];
   real_T (*imu)[2];
-  real_T (*giro)[3];
+  real_T (*gyro)[3];
   real_T roll_ref;
   real_T pitch_ref;
   real_T yaw_ref;
@@ -403,7 +403,7 @@ void ekf_api(const mxArray * const prhs[9], const mxArray *plhs[1])
   fastslam = c_emlrt_marshallIn(emlrtAlias((const mxArray *)prhs[1]), "fastslam");
   C_fs = e_emlrt_marshallIn(emlrtAlias((const mxArray *)prhs[2]), "C_fs");
   imu = g_emlrt_marshallIn(emlrtAlias((const mxArray *)prhs[3]), "imu");
-  giro = i_emlrt_marshallIn(emlrtAlias((const mxArray *)prhs[4]), "giro");
+  gyro = i_emlrt_marshallIn(emlrtAlias((const mxArray *)prhs[4]), "gyro");
   roll_ref = k_emlrt_marshallIn(emlrtAliasP((const mxArray *)prhs[5]),
     "roll_ref");
   pitch_ref = k_emlrt_marshallIn(emlrtAliasP((const mxArray *)prhs[6]),
@@ -413,7 +413,7 @@ void ekf_api(const mxArray * const prhs[9], const mxArray *plhs[1])
     "thrust_ref");
 
   /* Invoke the target function */
-  ekf(fastslam_on, *fastslam, *C_fs, *imu, *giro, roll_ref, pitch_ref, yaw_ref,
+  ekf(fastslam_on, *fastslam, *C_fs, *imu, *gyro, roll_ref, pitch_ref, yaw_ref,
       thrust_ref, *est);
 
   /* Marshall function outputs */
