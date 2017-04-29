@@ -4,6 +4,8 @@ project(intel_aero_rtf_gr871)
 ## Add support for C++11, supported in ROS Kinetic and newer
 add_definitions(-std=c++11)
 
+find_package( OpenCV 3.1.0 REQUIRED )
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -146,11 +148,11 @@ add_executable(offb_node src/offb_node.cpp)
 add_executable(true_position src/true_position.cpp)
 
 add_executable(depthgrab src/depthgrab.cpp)
+add_executable(markers src/markers.cpp)
 add_executable(test_imagepub src/test_imagepub.cpp)
 add_executable(test_imagesub src/test_imagesub.cpp)
 
 add_executable(controller src/controller.cpp ${HEADER_FILES})
-add_executable(yawEstimation src/yawEstimation.cpp ${HEADER_FILES})
 ## observers/kalmanfilter_z.c
 ## observers/kalmanfilter_z_terminate.c
 ## observers/kalmanfilter_z_initialize.c
@@ -175,9 +177,9 @@ add_dependencies(offb_node ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_
 add_dependencies(true_position ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
 
 add_dependencies(depthgrab ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
+add_dependencies(markers ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
 add_dependencies(test_imagepub ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
 add_dependencies(test_imagesub ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
-add_dependencies(yawEstimation ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
 
 add_dependencies(controller ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS} intel_aero_rtf_gr871_generate_messages_cpp)
 
@@ -189,9 +191,9 @@ target_link_libraries(offb_node ${catkin_LIBRARIES})
 target_link_libraries(true_position ${catkin_LIBRARIES})
 
 target_link_libraries(depthgrab ${catkin_LIBRARIES})
+target_link_libraries(markers ${catkin_LIBRARIES})
 target_link_libraries(test_imagepub ${catkin_LIBRARIES})
 target_link_libraries(test_imagesub ${catkin_LIBRARIES})
-target_link_libraries(yawEstimation ${catkin_LIBRARIES} utils)
 
 target_link_libraries(controller ${catkin_LIBRARIES} ekf utils)
 #target_link_libraries(controller ${catkin_LIBRARIES})

@@ -595,7 +595,7 @@ int main(int argc, char **argv)
 
 
 
-            yawRef = yawReference(currentWaypoint.x-oldWaypoint.x,currentWaypoint.y-oldWaypoint.y);
+            yawRef = 0;//yawReference(currentWaypoint.x-oldWaypoint.x,currentWaypoint.y-oldWaypoint.y);
 
             //ekf(1,fastslamMeas,covariansfastslam,imuMeas,gyroMeas,xyController.output[1],xyController.output[0],yawRef-1*M_PI/2,zcontroller.thrust[0],estimatedStates);
             ekf(1,fastslamMeas,covariansfastslam,imuMeas,gyroMeas,xyController.output[1],xyController.output[0],yawRef,zcontroller.thrust[0],estimatedStates);
@@ -661,7 +661,7 @@ int main(int argc, char **argv)
         gyroMeas[0] = imuData.angular_velocity.x;
         gyroMeas[1] = imuData.angular_velocity.y;
         gyroMeas[2] = imuData.angular_velocity.z;
-        logToFile("/home/chris/Dropbox/P8 (CA2)/Controller/logs/controllerlog.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,gyroMeas[0],gyroMeas[1],gyroMeas[2],yawRef);
+        logToFile("/home/thomas/logs/controllerlog.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,gyroMeas[0],gyroMeas[1],gyroMeas[2],yawRef);
         last_request1 = ros::Time::now();
         ros::spinOnce();
         rate.sleep();
