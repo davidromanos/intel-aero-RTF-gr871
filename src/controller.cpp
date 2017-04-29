@@ -229,13 +229,13 @@ double Zcontroller::update(double setpoint,double *estimatedZStates)
 
     thrust = gainZcontroller.multiplyVector(zStates);
     thrust[0] = thrust[0] + integrator.state*integratorGainZ + 0.587;
-    if(thrust[0]>1.0)
+    if(thrust[0]>0.7)
     {
-        thrust[0] = 1.0;
+        thrust[0] = 0.7;
     }
-    else if(thrust[0]<0.0)
+    else if(thrust[0]<0.3)
     {
-        thrust[0] = 0.0;
+        thrust[0] = 0.3;
     }
     return thrust[0];
 }
@@ -675,6 +675,7 @@ int main(int argc, char **argv)
             yawRef = yaw;
             ekf(1,fastslamMeas,covariansfastslam,imuMeas,gyroMeas,0,0,yaw,0.587,estimatedStates);
             zcontroller.reset(estimatedStates);
+            thrustInput.data = zcontroller.thrust[0];
             xyController.reset();
             setpoints[0] = position.pose.position.x;
             setpoints[1] = position.pose.position.y;
