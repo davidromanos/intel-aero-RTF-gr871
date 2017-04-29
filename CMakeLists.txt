@@ -4,8 +4,6 @@ project(intel_aero_rtf_gr871)
 ## Add support for C++11, supported in ROS Kinetic and newer
 add_definitions(-std=c++11)
 
-find_package( OpenCV 3.1.0 REQUIRED )
-
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -16,7 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   geometry_msgs
   gazebo_msgs
-  cv_bridge
+  cv_bridge_new
   image_transport
   tf
   message_generation
@@ -24,6 +22,22 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
+
+# don't use opencv as found by any prior running of find_package
+unset(OpenCV_CONFIG_PATH CACHE)
+unset(OpenCV_DIR CACHE)
+
+set(TMP_PREFIX_PATH ${CMAKE_PREFIX_PATH})
+set(CMAKE_PREFIX_PATH "/usr/local")
+find_package(OpenCV 3.1.0 REQUIRED)
+
+# restore CMAKE_PREFIX_PATH and other cached variables
+# so nothing other package finds this opencv
+set(CMAKE_PREFIX_PATH ${TMP_PREFIX_PATH})
+
+unset(OpenCV_CONFIG_PATH CACHE)
+unset(OpenCV_DIR CACHE)
+
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -124,6 +138,7 @@ include_directories(
   ${catkin_INCLUDE_DIRS}    
   src/observers/ekf
   include
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 add_subdirectory(src/observers)
@@ -190,10 +205,10 @@ add_dependencies(controller ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED
 target_link_libraries(offb_node ${catkin_LIBRARIES})
 target_link_libraries(true_position ${catkin_LIBRARIES})
 
-target_link_libraries(depthgrab ${catkin_LIBRARIES})
-target_link_libraries(markers ${catkin_LIBRARIES})
-target_link_libraries(test_imagepub ${catkin_LIBRARIES})
-target_link_libraries(test_imagesub ${catkin_LIBRARIES})
+target_link_libraries(depthgrab ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
+target_link_libraries(markers ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
+target_link_libraries(test_imagepub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
+target_link_libraries(test_imagesub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
 
 target_link_libraries(controller ${catkin_LIBRARIES} ekf utils)
 #target_link_libraries(controller ${catkin_LIBRARIES})
