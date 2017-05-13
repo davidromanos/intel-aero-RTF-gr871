@@ -5,7 +5,7 @@
 // File: ekf.h
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 29-Apr-2017 17:16:06
+// C/C++ source code generated on  : 13-May-2017 13:22:22
 //
 #ifndef EKF_H
 #define EKF_H
@@ -15,14 +15,15 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+#include "rt_nonfinite.h"
 #include "rtwtypes.h"
 #include "ekf_types.h"
 
 // Function Declarations
-extern void ekf(unsigned char fastslam_on, const double fastslam[6], const
-                double C_fs[36], const double imu[2], const double gyro[3],
-                double roll_ref, double pitch_ref, double yaw_ref, double
-                thrust_ref, double est[19]);
+extern void ekf(unsigned char fastslam_on, const double fastslam[4], double
+                C_fs[16], const double PX4[3], double roll_ref, double pitch_ref,
+                double yaw_ref, double thrust_ref, double est[19], double Pout[9],
+                double *VarYaw);
 extern void ekf_init();
 
 #endif

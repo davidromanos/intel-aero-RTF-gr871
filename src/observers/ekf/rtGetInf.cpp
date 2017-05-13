@@ -5,7 +5,7 @@
  * File: rtGetInf.cpp
  *
  * MATLAB Coder version            : 3.3
- * C/C++ source code generated on  : 29-Apr-2017 17:16:06
+ * C/C++ source code generated on  : 13-May-2017 13:22:22
  */
 
 /*

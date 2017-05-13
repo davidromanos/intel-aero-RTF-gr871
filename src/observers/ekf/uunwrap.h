@@ -2,13 +2,13 @@
 // Academic License - for use in teaching, academic research, and meeting
 // course requirements at degree granting institutions only.  Not for
 // government, commercial, or other organizational use.
-// File: inv.h
+// File: uunwrap.h
 //
 // MATLAB Coder version            : 3.3
 // C/C++ source code generated on  : 13-May-2017 13:22:22
 //
-#ifndef INV_H
-#define INV_H
+#ifndef UUNWRAP_H
+#define UUNWRAP_H
 
 // Include Files
 #include <cmath>
@@ -20,13 +20,13 @@
 #include "ekf_types.h"
 
 // Function Declarations
-extern void inv(const double x_data[], const int x_size[2], double y_data[], int
-                y_size[2]);
+extern void uunwrap(double in, double state, double oldinput, double *out,
+                    double *oldin);
 
 #endif
 
 //
-// File trailer for inv.h
+// File trailer for uunwrap.h
 //
 // [EOF]
 //

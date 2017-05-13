@@ -5,7 +5,7 @@
 // File: ekf_initialize.h
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 29-Apr-2017 17:16:06
+// C/C++ source code generated on  : 13-May-2017 13:22:22
 //
 #ifndef EKF_INITIALIZE_H
 #define EKF_INITIALIZE_H
@@ -15,6 +15,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+#include "rt_nonfinite.h"
 #include "rtwtypes.h"
 #include "ekf_types.h"
 

@@ -5,7 +5,7 @@
 // File: main.cpp
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 29-Apr-2017 17:16:06
+// C/C++ source code generated on  : 13-May-2017 13:22:22
 //
 
 //***********************************************************************
@@ -40,31 +40,14 @@
 #include "ekf_initialize.h"
 
 // Function Declarations
-static void argInit_2x1_real_T(double result[2]);
 static void argInit_3x1_real_T(double result[3]);
-static void argInit_6x1_real_T(double result[6]);
-static void argInit_6x6_real_T(double result[36]);
+static void argInit_4x1_real_T(double result[4]);
+static void argInit_4x4_real_T(double result[16]);
 static double argInit_real_T();
 static unsigned char argInit_uint8_T();
 static void main_ekf();
 
 // Function Definitions
-
-//
-// Arguments    : double result[2]
-// Return Type  : void
-//
-static void argInit_2x1_real_T(double result[2])
-{
-  int idx0;
-
-  // Loop over the array to initialize each element.
-  for (idx0 = 0; idx0 < 2; idx0++) {
-    // Set the value of the array element.
-    // Change this value to the value that the application requires.
-    result[idx0] = argInit_real_T();
-  }
-}
 
 //
 // Arguments    : double result[3]
@@ -83,15 +66,15 @@ static void argInit_3x1_real_T(double result[3])
 }
 
 //
-// Arguments    : double result[6]
+// Arguments    : double result[4]
 // Return Type  : void
 //
-static void argInit_6x1_real_T(double result[6])
+static void argInit_4x1_real_T(double result[4])
 {
   int idx0;
 
   // Loop over the array to initialize each element.
-  for (idx0 = 0; idx0 < 6; idx0++) {
+  for (idx0 = 0; idx0 < 4; idx0++) {
     // Set the value of the array element.
     // Change this value to the value that the application requires.
     result[idx0] = argInit_real_T();
@@ -99,20 +82,20 @@ static void argInit_6x1_real_T(double result[6])
 }
 
 //
-// Arguments    : double result[36]
+// Arguments    : double result[16]
 // Return Type  : void
 //
-static void argInit_6x6_real_T(double result[36])
+static void argInit_4x4_real_T(double result[16])
 {
   int idx0;
   int idx1;
 
   // Loop over the array to initialize each element.
-  for (idx0 = 0; idx0 < 6; idx0++) {
-    for (idx1 = 0; idx1 < 6; idx1++) {
+  for (idx0 = 0; idx0 < 4; idx0++) {
+    for (idx1 = 0; idx1 < 4; idx1++) {
       // Set the value of the array element.
       // Change this value to the value that the application requires.
-      result[idx0 + 6 * idx1] = argInit_real_T();
+      result[idx0 + (idx1 << 2)] = argInit_real_T();
     }
   }
 }
@@ -141,24 +124,23 @@ static unsigned char argInit_uint8_T()
 //
 static void main_ekf()
 {
-  double dv6[6];
-  double dv7[36];
-  double dv8[2];
-  double dv9[3];
+  double dv1[4];
+  double dv2[16];
+  double dv3[3];
   double est[19];
+  double Pout[9];
+  double VarYaw;
 
   // Initialize function 'ekf' input arguments.
   // Initialize function input argument 'fastslam'.
   // Initialize function input argument 'C_fs'.
-  // Initialize function input argument 'imu'.
-  // Initialize function input argument 'gyro'.
+  // Initialize function input argument 'PX4'.
   // Call the entry-point 'ekf'.
-  argInit_6x1_real_T(dv6);
-  argInit_6x6_real_T(dv7);
-  argInit_2x1_real_T(dv8);
-  argInit_3x1_real_T(dv9);
-  ekf(argInit_uint8_T(), dv6, dv7, dv8, dv9, argInit_real_T(), argInit_real_T(),
-      argInit_real_T(), argInit_real_T(), est);
+  argInit_4x1_real_T(dv1);
+  argInit_4x4_real_T(dv2);
+  argInit_3x1_real_T(dv3);
+  ekf(argInit_uint8_T(), dv1, dv2, dv3, argInit_real_T(), argInit_real_T(),
+      argInit_real_T(), argInit_real_T(), est, Pout, &VarYaw);
 }
 
 //

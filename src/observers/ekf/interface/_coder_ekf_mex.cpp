@@ -5,7 +5,7 @@
  * File: _coder_ekf_mex.cpp
  *
  * MATLAB Coder version            : 3.3
- * C/C++ source code generated on  : 29-Apr-2017 17:16:06
+ * C/C++ source code generated on  : 13-May-2017 13:22:22
  */
 
 /* Include Files */
@@ -13,33 +13,33 @@
 #include "_coder_ekf_mex.h"
 
 /* Function Declarations */
-static void ekf_mexFunction(int32_T nlhs, mxArray *plhs[1], int32_T nrhs, const
-  mxArray *prhs[9]);
+static void ekf_mexFunction(int32_T nlhs, mxArray *plhs[3], int32_T nrhs, const
+  mxArray *prhs[8]);
 
 /* Function Definitions */
 
 /*
  * Arguments    : int32_T nlhs
- *                const mxArray *plhs[1]
+ *                const mxArray *plhs[3]
  *                int32_T nrhs
- *                const mxArray *prhs[9]
+ *                const mxArray *prhs[8]
  * Return Type  : void
  */
-static void ekf_mexFunction(int32_T nlhs, mxArray *plhs[1], int32_T nrhs, const
-  mxArray *prhs[9])
+static void ekf_mexFunction(int32_T nlhs, mxArray *plhs[3], int32_T nrhs, const
+  mxArray *prhs[8])
 {
   int32_T n;
-  const mxArray *inputs[9];
-  const mxArray *outputs[1];
+  const mxArray *inputs[8];
+  const mxArray *outputs[3];
   int32_T b_nlhs;
 
   /* Check for proper number of arguments. */
-  if (nrhs != 9) {
+  if (nrhs != 8) {
     emlrtErrMsgIdAndTxt(emlrtRootTLSGlobal, "EMLRT:runTime:WrongNumberOfInputs",
-                        5, 12, 9, 4, 3, "ekf");
+                        5, 12, 8, 4, 3, "ekf");
   }
 
-  if (nlhs > 1) {
+  if (nlhs > 3) {
     emlrtErrMsgIdAndTxt(emlrtRootTLSGlobal,
                         "EMLRT:runTime:TooManyOutputArguments", 3, 4, 3, "ekf");
   }
