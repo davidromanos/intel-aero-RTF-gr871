@@ -36,9 +36,7 @@
 using namespace std;
 using namespace cv;
 
-const float calibrationSquareDimension = 0.0190f; //meters
 const float arucoSquareDimension = 0.0190f; //meters
-const Size chessboardDimensions = Size(6,9);
 
 
 void createArucoMarkers()

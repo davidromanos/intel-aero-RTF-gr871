@@ -22,13 +22,15 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/sync_policies/exact_time.h>
 
+#include <opencv2/aruco.hpp>
+
 // To be able to use cout
 #include <iostream>
 #include <iomanip>
 using namespace std;
 
 #define USE_IMAGE_SYNCHRONIZER 1
-
+#define OPTICAL_FLOW_TRACKING 0
 
 typedef union U_FloatParse {
     float float_data;
@@ -66,6 +68,8 @@ ros::Subscriber camerainfo1_sub;
 ros::Subscriber camerainfo2_sub;
 
 cv::Mat RGB_Image;
+
+cv::aruco::Dictionary markerDictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
 
 
 int ReadDepthData(unsigned int height_pos, unsigned int width_pos, sensor_msgs::ImageConstPtr depth_image)
@@ -260,7 +264,9 @@ void imageCallback(const sensor_msgs::ImageConstPtr& image) {
 
             //cout << "M = " << endl << " " << temp << endl << endl;
 
-            // Do feature tracking
+
+#if OPTICAL_FLOW_TRACKING
+            // Do feature tracking (Optical flow)
             cv::Mat gray;
             cv::cvtColor(RGB_Image, gray, cv::COLOR_BGR2GRAY);
 
@@ -332,6 +338,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& image) {
                 displayX = p.x;
                 displayY = p.y;
             }
+#endif
 
 
             // Prepare for display
@@ -394,8 +401,16 @@ void imageCallback(const sensor_msgs::ImageConstPtr& image) {
                     cv::putText(blended, str, cv::Point(displayX+4, displayY+12+4), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255));
                 }
 
+
+                // Perform Aruco detection
+                vector<int> markerIds;
+                vector<vector<cv::Point2f> > markerCorners, rejectedCandidates;
+                cv::aruco::detectMarkers(RGB_Image, markerDictionary, markerCorners, markerIds);
+                cv::aruco::drawDetectedMarkers(blended, markerCorners, markerIds);
+
                 cv::imshow("view", blended);
-		cv::waitKey(1); // this is necessary to show the image in the view from OpenCV 3
+
+                cv::waitKey(1); // this is necessary to show the image in the view from OpenCV 3
             }
 
             cv_bridge::CvImage cv_image;
