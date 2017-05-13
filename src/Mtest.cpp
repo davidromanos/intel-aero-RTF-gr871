@@ -20,9 +20,11 @@
 #include <string>
 #include <cstdlib>
 #include <random>
+#include <boost/filesystem.hpp>
 
 using namespace std;
 using namespace Eigen;
+IOFormat OctaveFmt(FullPrecision, 0, ", ", ";\n", "", "", "[", "]");
 
 #define deg2rad(x)  (x*M_PI)/180.f
 #define rad2deg(x)  (x*180.f)/M_PI
@@ -31,7 +33,9 @@ typedef Matrix<float, 6, 1> Vector6f;
 typedef Matrix<float, 6, 6> Matrix6f;
 typedef Matrix<float, 6, 1> VectorUFastSLAMf; // velocities in the order: [x_dot, y_dot, z_dot, roll_dot, pitch_dot, yaw_dot]
 typedef Matrix<float, 6, Dynamic> Matrix6kf;
+
 float pi = 3.14159265359;
+ofstream dataFileStream;
 
 /*template<typename M>
 M load_csv_to_matrix (const std::string & path) {
@@ -520,6 +524,7 @@ class MapTree
         void correctLandmark(landmark* newLandmarkData);
         landmark* extractLandmarkNodePointer(unsigned int Landmark_identifier);
         void printAllLandmarkPositions();
+        void saveData(string filename);
 
     private:
         mapNode* makeNewPath(landmark* newLandmarkData, mapNode* startNode);
@@ -792,7 +797,6 @@ void MapTree::printAllLandmarkPositions(){
 
 
 
-
 /* ############################## Defines Path class ##############################  */
 struct Node_Path {
     Vector6f S;
@@ -817,6 +821,7 @@ public:
     unsigned int countLengthOfPath();
     Vector6f* getPose();
     Vector6f* getPose(unsigned int k);
+    void saveData(string filename);
 
 private:
     void deletePath(Node_Path *PathNode);
@@ -915,14 +920,17 @@ Vector6f* Path::getPose(unsigned int k){
         Node_Path* tmp_pointer = PathRoot->nextNode;
 
         while(tmp_pointer->k != k){
-            cout << tmp_pointer->k << ","; // for debugging
-            tmp_pointer = tmp_pointer->nextNode;
+            //cout << tmp_pointer->k << ","; // for debugging
+            if (tmp_pointer->nextNode != NULL){
+                tmp_pointer = tmp_pointer->nextNode;
+            }
+            else{
+                return NULL;
+            }
         }
         return &(tmp_pointer->S);
     }
 }
-
-
 
 
 /* ############################## Defines particle class ##############################  */
@@ -934,17 +942,19 @@ public:
     Path* s;
     MapTree* map;
     double w;
+    Matrix6f s_k_Cov; // particle covariance
 
     static boost::mt19937 rng; // Creating a new random number generator every time could be optimized
     //rng.seed(static_cast<unsigned int>(time(0)));
 
 
     /* functions */
-    Particle(Vector6f s0 = Vector6f::Constant(0), unsigned int k = 0); 		// Initialize a standard particle with "zero-pose" or custom pose
+    Particle(Vector6f s0 = Vector6f::Constant(0),Matrix6f s_0_Cov = 0.01*Matrix6f::Identity(), unsigned int k = 0); 		// Initialize a standard particle with "zero-pose" or custom pose
     Particle(const Particle &ParticleToCopy);       // Copy constructer used in case where we need to make a copy of a Particle
     ~Particle();
     void updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New, VectorUFastSLAMf* u, unsigned int k, float Ts);
     double getWeigth();
+    void saveData(string filename);
 
 private:
     /* variables */
@@ -952,19 +962,22 @@ private:
 
     /* functions */
     Vector6f drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUFastSLAMf* u, MeasurementSet* z_Ex, float Ts);
+    Vector6f drawSampleFromProposaleDistributionNEW(Vector6f* s_old, VectorUFastSLAMf* u,MeasurementSet* z_Ex, float Ts);
     Vector6f motionModel(Vector6f sold, VectorUFastSLAMf* u, float Ts);
     void handleExMeas(MeasurementSet* z_Ex, Vector6f s_proposale);
     void handleNewMeas(MeasurementSet* z_New, Vector6f s_proposale);
     void updateLandmarkEstimates(Vector6f s_proposale, MeasurementSet* z_Ex, MeasurementSet* z_New);
     Vector6f drawSampleRandomPose(Vector6f sMean_proposale, Matrix6f sCov_proposale);
     void calculateImportanceWeight(MeasurementSet* z_Ex, Vector6f s_proposale);
+    Matrix6f calculateFs(Vector6f *s_k_minor_1);
 };
 
-Particle::Particle(Vector6f s0, unsigned int k)   // default Constructor definition
+Particle::Particle(Vector6f s0, Matrix6f s_0_Cov, unsigned int k)   // default Constructor definition
 {
     s = new Path(s0,k); // makes new path!
     map = new MapTree; // makes new mapTree
     w = 1;
+    s_k_Cov = s_0_Cov;
 }
 
 Particle::Particle(const Particle &ParticleToCopy)   // Copy Constructor
@@ -973,6 +986,7 @@ Particle::Particle(const Particle &ParticleToCopy)   // Copy Constructor
     s = new Path(*(ParticleToCopy.s)); //makes copy of s on the heap
     map = new MapTree(*(ParticleToCopy.map));
     w = ParticleToCopy.w;
+    s_k_Cov = ParticleToCopy.s_k_Cov;
 }
 
 Particle::~Particle()
@@ -984,7 +998,7 @@ Particle::~Particle()
 
 void Particle::updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New,VectorUFastSLAMf* u, unsigned int k, float Ts)
 {
-    Vector6f s_proposale = drawSampleFromProposaleDistribution(s->getPose(),u,z_Ex,Ts);
+    Vector6f s_proposale = drawSampleFromProposaleDistributionNEW(s->getPose(),u,z_Ex,Ts);
     s->addPose(s_proposale,k); // we are done estimating our pose and add it to the path!
 
     updateLandmarkEstimates(s_proposale,z_Ex,z_New);
@@ -1106,6 +1120,78 @@ Vector6f Particle::drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUF
 }
 
 
+
+Matrix6f Particle::calculateFs(Vector6f *s_k_minor_1){
+    return Matrix6f::Identity();
+}
+
+
+Vector6f Particle::drawSampleFromProposaleDistributionNEW(Vector6f* s_old, VectorUFastSLAMf* u,MeasurementSet* z_Ex, float Ts)
+{
+    //cout << "D10" << endl;
+    //generate random noise with zero mean and the known model noise covariance
+    Vector6f wk = drawSampleRandomPose(Vector6f::Zero(), sCov); // draw random noise
+
+    // prediction step
+    Vector6f s_bar = motionModel(*s_old,u,Ts) + wk;
+
+    Matrix6f Fs = calculateFs(s_old);
+    Matrix6f sCov_proposale =  Fs.transpose()*s_k_Cov*Fs + sCov;
+
+    //cout << endl << "s_bar" << endl << s_bar << endl;
+    //prediction step
+    Vector6f sMean_proposale = s_bar;
+    if (z_Ex != NULL){
+        for(int i = 1; i <= z_Ex->nMeas; i = i + 1 ) {
+
+            Measurement* z_tmp = z_Ex->getMeasurement(i);
+
+            landmark* li_old = map->extractLandmarkNodePointer(z_tmp->c);
+
+            MatrixXf Hli;
+            Hli = z_tmp->calculateHl(s_bar,li_old->lhat); //resizes automatically due to the "=" operator
+
+            MatrixXf Hsi;
+            Hsi = z_tmp->calculateHs(s_bar,li_old->lhat); //resizes automatically due to the "=" operator
+
+            MatrixXf Zki;
+            MatrixXf zCov_tmp = z_tmp->getzCov();
+/*
+            if(li_old->c == 55){
+                cout << endl << "li_55->lCov" << endl << li_old->lCov << endl;
+                cout << endl << "li_55->lhat" << endl << li_old->lhat << endl;
+            }
+*/
+            Zki = zCov_tmp + Hli*(li_old->lCov)*Hli.transpose();
+
+            VectorXf zhat;
+            zhat = z_tmp->MeasurementModel(s_bar,li_old->lhat);
+
+            //cout << "i: " << i << "     z_tmp->c: " << z_tmp->c << endl;
+            //cout << "z_tmp->z: " << endl << z_tmp->z << endl << endl;
+            //cout << "li_old->lhat: " << endl << li_old->lhat << endl << endl;
+            //cout << "z_tmp->MeasurementModel: " << endl << zhat << endl << endl;
+
+            sCov_proposale = (Hsi.transpose()*Zki.inverse()*Hsi + sCov_proposale.inverse()).inverse();  // eq (3.30)
+            sMean_proposale = sMean_proposale + sCov_proposale*Hsi.transpose()*Zki.inverse()*(z_tmp->z - zhat); // eq (3.31)
+        }
+    }
+
+    //cout << endl << "sMean_proposale" << endl << sMean_proposale << endl;
+    //cout << endl << "sCov_proposale" << endl << sCov_proposale << endl;
+    //cout << endl << "s_proposale" << endl << s_proposale << endl;
+    Vector6f s_proposale = sMean_proposale;
+    s_k_Cov = sCov_proposale;
+    return s_proposale;
+}
+
+
+
+
+
+
+
+
 Vector6f Particle::drawSampleRandomPose(Vector6f sMean_proposale, Matrix6f sCov_proposale){
     boost::normal_distribution<> nd(0.0, 1.0);
     boost::variate_generator<boost::mt19937&, boost::normal_distribution<> > randN(rng, nd); // see http://lost-found-wandering.blogspot.dk/2011/05/sampling-from-multivariate-normal-in-c.html
@@ -1221,11 +1307,12 @@ public:
     unsigned int k; // number of interations since time zero
 
     /* functions */
-    ParticleSet(int Nparticles = 10,Vector6f s0 = Vector6f::Constant(0)); 		/* Initialize a standard particle set with 100 particles */
+    ParticleSet(int Nparticles = 10,Vector6f s0 = Vector6f::Constant(0), Matrix6f s_0_Cov = 0.1*Matrix6f::Identity()); 		/* Initialize a standard particle set with 100 particles */
     ~ParticleSet();
     void updateParticleSet(MeasurementSet* z_Ex, MeasurementSet* z_New, VectorUFastSLAMf u, float Ts);
     Vector6f* getLatestPoseEstimate();
     int getNParticles();
+    void saveData();
 
     private:
     /* variables */
@@ -1240,7 +1327,7 @@ public:
     void resampleSimple();
 };
 
-ParticleSet::ParticleSet(int Nparticles,Vector6f s0){
+ParticleSet::ParticleSet(int Nparticles,Vector6f s0,Matrix6f s_0_Cov){
     k=0;
     sMean = new Path(s0,k); // makes new path to keep track of the estimated mean of the Particle filter!
 
@@ -1248,7 +1335,7 @@ ParticleSet::ParticleSet(int Nparticles,Vector6f s0){
     Parray.reserve(nParticles);
 
     for(int i = 1; i<=nParticles; i++){
-        Parray[i] = new Particle;
+        Parray[i] = new Particle(s0,s_0_Cov,k);
     }
     StartTime = ros::Time::now().toSec();
 }
@@ -1437,6 +1524,84 @@ void ParticleSet::estimateDistribution(){
 
 
 
+// save data
+void ParticleSet::saveData(){
+    string topDir = "Data";
+    boost::filesystem::create_directories(topDir);
+
+    string filename = topDir + "/t_" + to_string(k) + ".m";
+
+    dataFileStream.open(filename);
+    dataFileStream << "t" << to_string(k) << " = struct('Particles',[]);" << endl;
+    dataFileStream.close();
+
+    for(int i = 1; i<=nParticles; i++){
+        Parray[i]->saveData(filename);
+
+        if (i == 1){
+            dataFileStream.open(filename,ios::in | ios::ate);
+            dataFileStream << "t" << to_string(k) << ".Particles = particle;" << endl;
+            dataFileStream << "clear particle Path map" << endl;
+            dataFileStream.close();
+        }
+        else {
+            dataFileStream.open(filename,ios::in | ios::ate);
+            dataFileStream << "t" << to_string(k) << ".Particles(" << to_string(i) << ") = particle;" << endl;
+            dataFileStream << "clear particle Path map" << endl;
+            dataFileStream.close();
+        }
+
+    }
+}
+
+void Particle::saveData(string filename){
+    s->saveData(filename);
+    map->saveData(filename);
+    dataFileStream.open(filename,ios::in | ios::ate);
+    dataFileStream << "particle = struct('Path',Path,'map',map);" << endl;
+    dataFileStream.close();
+}
+
+void Path::saveData(string filename){
+    dataFileStream.open(filename,ios::in | ios::ate);
+    dataFileStream << "Path = struct('PathLength',[],'Path',[]);" << endl;
+    dataFileStream << "Path.PathLength = " << PathLength << ";" << endl;
+
+    unsigned int j = 1;
+    if (PathRoot!=NULL){
+        Node_Path* tmp_pointer = PathRoot->nextNode;
+        while (tmp_pointer->nextNode != NULL){
+            tmp_pointer = tmp_pointer->nextNode;
+
+            dataFileStream << "Path.Path(:," << j << ") = " << tmp_pointer->S.format(OctaveFmt) << ";" << endl;
+            j++;
+        }
+    }
+
+    dataFileStream.close();
+}
+
+void MapTree::saveData(string filename){
+    dataFileStream.open(filename,ios::in | ios::ate);
+    dataFileStream << "map = struct('nLandmarks',[],'mean',[],'cov',[]);" << endl;
+    dataFileStream << "map.nLandmarks = " << N_Landmarks << ";" << endl;
+
+    unsigned int j = 1;
+
+    for(unsigned int i = 1;i<=N_Landmarks;i++){
+        if (extractLandmarkNodePointer(i) != NULL){
+             dataFileStream << "map.mean(:," << i << ") = " << extractLandmarkNodePointer(i)->lhat.format(OctaveFmt) << ";" << endl;
+             dataFileStream << "map.cov(:,:," << i << ") = " << extractLandmarkNodePointer(i)->lCov.format(OctaveFmt) << ";" << endl;
+
+        }
+        else{
+            cout<<"Error: NULL pointer!";
+        }
+    }
+
+    dataFileStream.close();
+}
+
 
 
 int main(int argc, char **argv)
@@ -1447,10 +1612,11 @@ int main(int argc, char **argv)
     cout << ros::Time::now() << endl;
 
     // malte playing with particle Sets
-    int Nparticles = 50;
+    int Nparticles = 200;
     Vector6f s0 = Vector6f::Constant(0);
+    Matrix6f s_0_Cov = 0.01*Matrix6f::Identity();
 
-    ParticleSet* Pset = new ParticleSet(Nparticles,s0);
+    ParticleSet* Pset = new ParticleSet(Nparticles,s0,s_0_Cov);
 
 
     VectorUFastSLAMf u = VectorUFastSLAMf::Zero();
@@ -1528,6 +1694,8 @@ int main(int argc, char **argv)
 
     k++;
     }
+
+    Pset->saveData();
 
     delete z_New;
     delete z_Ex;
