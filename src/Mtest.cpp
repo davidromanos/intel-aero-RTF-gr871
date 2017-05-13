@@ -172,7 +172,7 @@ MatrixXf GOTMeasurement::getzCov(){
     return zCov;
 }
 
-MatrixXf GOTMeasurement::zCov = 0.05*Matrix3f::Identity(); // static variable - has to be declared outside class!
+MatrixXf GOTMeasurement::zCov = 0.2*Matrix3f::Identity(); // static variable - has to be declared outside class!
 
 
 /* ############################## Defines ImgMeasurement class ##############################  */
@@ -1212,7 +1212,9 @@ Vector6f Particle::drawSampleRandomPose(Vector6f sMean_proposale, Matrix6f sCov_
 
 Vector6f Particle::motionModel(Vector6f sold, VectorUFastSLAMf* u, float Ts) // Ts == sample time
 {
-    Vector6f s_k = sold; // s(k) = f(s(k-1),u(k))
+    Vector6f motion;
+    motion << 0.9,0,0,0,0,0;
+    Vector6f s_k = sold + motion; // s(k) = f(s(k-1),u(k))
 
     // Kinematic motion model where u=[x_dot, y_dot, z_dot, roll_dot, pitch_dot, yaw_dot]
     //s_k += Ts*u;
@@ -1276,7 +1278,7 @@ double Particle::getWeigth()
     return w;
 }
 
-Matrix6f Particle::sCov = 0.05*Matrix6f::Identity(); // static variable - has to be declared outside class!
+Matrix6f Particle::sCov = 0.5*Matrix6f::Identity(); // static variable - has to be declared outside class!
 
 boost::mt19937 Particle::rng; // Creating a new random number generator every time could be optimized
 //rng.seed(static_cast<unsigned int>(time(0)));
@@ -1532,7 +1534,14 @@ void ParticleSet::saveData(){
     string filename = topDir + "/t_" + to_string(k) + ".m";
 
     dataFileStream.open(filename);
-    dataFileStream << "t" << to_string(k) << " = struct('Particles',[]);" << endl;
+    dataFileStream << "t" << to_string(k) << " = struct('Particles',[],'meanPath',[]);" << endl;
+    dataFileStream.close();
+
+    sMean->saveData(filename);
+
+    dataFileStream.open(filename,ios::in | ios::ate);
+    dataFileStream << "t" << to_string(k) << ".meanPath = Path;" << endl;
+    dataFileStream << "clear Path" << endl;
     dataFileStream.close();
 
     for(int i = 1; i<=nParticles; i++){
@@ -1561,6 +1570,7 @@ void Particle::saveData(string filename){
     dataFileStream << "particle = struct('Path',Path,'map',map);" << endl;
     dataFileStream.close();
 }
+
 
 void Path::saveData(string filename){
     dataFileStream.open(filename,ios::in | ios::ate);
@@ -1612,7 +1622,7 @@ int main(int argc, char **argv)
     cout << ros::Time::now() << endl;
 
     // malte playing with particle Sets
-    int Nparticles = 200;
+    int Nparticles = 100;
     Vector6f s0 = Vector6f::Constant(0);
     Matrix6f s_0_Cov = 0.01*Matrix6f::Identity();
 
@@ -1632,8 +1642,8 @@ int main(int argc, char **argv)
     Vector3f V_tmp;
     bool toggle = true;
 
-    float measNoise = 0.0;
-    float measSign = -1;
+    float measNoise = 0.1;
+    float measSign = 1;
 
 
     while (k<=Nk){
@@ -1643,10 +1653,13 @@ int main(int argc, char **argv)
         delete z_Ex;
         z_Ex = new MeasurementSet;
 
+        Vector3f motion;
+        motion << k*-1.0,0,0;
+
         if(j+10<Nlandmarks){
             if(toggle){
                 for(unsigned int i = 1; i<=10; i++){
-                    V_tmp = Vector3f::Constant(i)+measNoise*Vector3f::Random();
+                    V_tmp = Vector3f::Constant(i)+measNoise*Vector3f::Random() + motion;
                     z_tmp = new GOTMeasurement(i,measSign*V_tmp); //generate random numbers...
                     z_New->addMeasurement(z_tmp);
                 }
@@ -1654,11 +1667,11 @@ int main(int argc, char **argv)
             }
             else{
                 for(unsigned int i = 1+j; i<=10+j; i++){
-                    V_tmp = Vector3f::Constant(i)+measNoise*Vector3f::Random();
+                    V_tmp = Vector3f::Constant(i)+measNoise*Vector3f::Random() + motion;
                     z_tmp = new GOTMeasurement(i,measSign*V_tmp); //generate random numbers...
                     z_Ex->addMeasurement(z_tmp);
 
-                    V_tmp = Vector3f::Constant(i+10)+measNoise*Vector3f::Random();
+                    V_tmp = Vector3f::Constant(i+10)+measNoise*Vector3f::Random() + motion;
                     z_tmp = new GOTMeasurement(i+10,measSign*V_tmp); //generate random numbers...
                     z_New->addMeasurement(z_tmp);
                 }
@@ -1680,7 +1693,8 @@ int main(int argc, char **argv)
             cout << "random numbers: "<< rand1 << ", " << rand2 << endl;
 
             for(unsigned int i = rand1; i<=rand2; i++){
-                V_tmp = Vector3f::Constant(i)+measNoise*Vector3f::Random();
+
+                V_tmp = Vector3f::Constant(i)+measNoise*Vector3f::Random()+motion;
 
                 z_tmp = new GOTMeasurement(i,measSign*V_tmp); //generate random numbers...
                 z_Ex->addMeasurement(z_tmp);
