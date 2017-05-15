@@ -35,3 +35,16 @@ add_library(ekf
  ekf/mod.cpp
  ekf/measurementModel.cpp	
 )
+add_library(ekfnobias
+ ekfnobias/ekfnobias.cpp
+ ekfnobias/ekfnobias_terminate.cpp
+ ekfnobias/ekfnobias_initialize.cpp
+ ekfnobias/rt_nonfinite.cpp
+ ekfnobias/rtGetNaN.cpp
+ ekfnobias/rtGetInf.cpp
+ ekfnobias/inv.cpp
+ ekfnobias/eye.cpp
+ ekfnobias/uunwrap.cpp
+ ekfnobias/mod.cpp
+ ekfnobias/measurementModel.cpp	
+)

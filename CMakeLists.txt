@@ -121,6 +121,7 @@ catkin_package(CATKIN_DEPENDS roscpp rospy std_msgs message_runtime)
 include_directories(
   ${catkin_INCLUDE_DIRS}    
   src/observers/ekf
+  src/observers/ekfnobias
   include
 )
 
@@ -188,7 +189,7 @@ target_link_libraries(true_position ${catkin_LIBRARIES})
 
 target_link_libraries(yawEstimation ${catkin_LIBRARIES} utils)
 
-target_link_libraries(controller ${catkin_LIBRARIES} ekf utils)
+target_link_libraries(controller ${catkin_LIBRARIES} ekf ekfnobias utils)
 #target_link_libraries(controller ${catkin_LIBRARIES})
 
 

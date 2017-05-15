@@ -28,3 +28,5 @@ src/observers/observer_z/html/
 *.autosave
 
 src/observers/ekf/html/
+
+src/observers/ekfnobias/html/
