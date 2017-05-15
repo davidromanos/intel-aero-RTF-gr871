@@ -18,7 +18,10 @@ find_package(catkin REQUIRED COMPONENTS
   image_transport
   tf
   message_generation
+  cmake_modules
 )
+
+find_package(Eigen REQUIRED) 
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -37,6 +40,7 @@ set(CMAKE_PREFIX_PATH ${TMP_PREFIX_PATH})
 
 unset(OpenCV_CONFIG_PATH CACHE)
 unset(OpenCV_DIR CACHE)
+
 
 
 
@@ -125,7 +129,7 @@ generate_messages(
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
-catkin_package(CATKIN_DEPENDS roscpp rospy std_msgs message_runtime)
+catkin_package(CATKIN_DEPENDS roscpp rospy std_msgs message_runtime DEPENDS Eigen)
 
 ###########
 ## Build ##
@@ -137,11 +141,14 @@ catkin_package(CATKIN_DEPENDS roscpp rospy std_msgs message_runtime)
 include_directories(
   ${catkin_INCLUDE_DIRS}    
   src/observers/ekf
+  src/FastSLAM
   include
   ${OpenCV_INCLUDE_DIRS}
+  ${Eigen_INCLUDE_DIRS}
 )
 
 add_subdirectory(src/observers)
+add_subdirectory(src/FastSLAM)
 set(HEADER_FILES include/utils.h)
 add_library(utils src/utils.cpp ${HEADER_FILES})
 ## Declare a C++ library
@@ -168,12 +175,8 @@ add_executable(test_imagepub src/test_imagepub.cpp)
 add_executable(test_imagesub src/test_imagesub.cpp)
 
 add_executable(controller src/controller.cpp ${HEADER_FILES})
-## observers/kalmanfilter_z.c
-## observers/kalmanfilter_z_terminate.c
-## observers/kalmanfilter_z_initialize.c
-## observers/rt_nonfinite.c
-## observers/rtGetNaN.c
-## observers/rtGetInf.c
+
+add_executable(Mtest src/Mtest.cpp ${FASTSLAM_HEADER_FILES}) 
 
 
 
@@ -198,6 +201,8 @@ add_dependencies(test_imagesub ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPOR
 
 add_dependencies(controller ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS} intel_aero_rtf_gr871_generate_messages_cpp)
 
+add_dependencies(Mtest ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS}) 
+
 
 
 
@@ -213,7 +218,7 @@ target_link_libraries(test_imagesub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
 target_link_libraries(controller ${catkin_LIBRARIES} ekf utils)
 #target_link_libraries(controller ${catkin_LIBRARIES})
 
-
+target_link_libraries(Mtest ${catkin_LIBRARIES} ${Eigen_LIBRARIES} FastSLAM) 
 
 
 

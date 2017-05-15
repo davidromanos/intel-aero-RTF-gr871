@@ -1,0 +1,4 @@
+set(FASTSLAM_HEADER_FILES FastSLAM.h)
+add_library(FastSLAM
+ FastSLAM.cpp ${FASTSLAM_HEADER_FILES}
+)
