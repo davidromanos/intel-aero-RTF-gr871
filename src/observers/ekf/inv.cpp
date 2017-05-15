@@ -5,7 +5,7 @@
 // File: inv.cpp
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 29-Apr-2017 10:36:44
+// C/C++ source code generated on  : 13-May-2017 13:22:22
 //
 
 // Include Files
@@ -31,14 +31,14 @@ static void invNxN(const double x_data[], const int x_size[2], double y_data[],
 {
   int n;
   int yk;
-  int i1;
+  int i2;
   int minval;
-  double b_x_data[121];
-  int ipiv_data[11];
+  double b_x_data[49];
+  int ipiv_data[7];
   int k;
   int u1;
   int j;
-  int p_data[11];
+  int p_data[7];
   int mmj;
   int c;
   int ix;
@@ -51,13 +51,13 @@ static void invNxN(const double x_data[], const int x_size[2], double y_data[],
   y_size[0] = x_size[0];
   y_size[1] = x_size[1];
   yk = x_size[0] * x_size[1];
-  for (i1 = 0; i1 < yk; i1++) {
-    y_data[i1] = 0.0;
+  for (i2 = 0; i2 < yk; i2++) {
+    y_data[i2] = 0.0;
   }
 
   yk = x_size[0] * x_size[1];
-  for (i1 = 0; i1 < yk; i1++) {
-    b_x_data[i1] = x_data[i1];
+  for (i2 = 0; i2 < yk; i2++) {
+    b_x_data[i2] = x_data[i2];
   }
 
   minval = x_size[0];
@@ -109,8 +109,8 @@ static void invNxN(const double x_data[], const int x_size[2], double y_data[],
         }
       }
 
-      i1 = c + mmj;
-      for (jy = c + 1; jy + 1 <= i1; jy++) {
+      i2 = c + mmj;
+      for (jy = c + 1; jy + 1 <= i2; jy++) {
         b_x_data[jy] /= b_x_data[c];
       }
     }
@@ -122,8 +122,8 @@ static void invNxN(const double x_data[], const int x_size[2], double y_data[],
       smax = b_x_data[jy];
       if (b_x_data[jy] != 0.0) {
         ix = c + 1;
-        i1 = mmj + kAcol;
-        for (ijA = kAcol; ijA + 1 < i1; ijA++) {
+        i2 = mmj + kAcol;
+        for (ijA = kAcol; ijA + 1 < i2; ijA++) {
           b_x_data[ijA] += b_x_data[ix] * -smax;
           ix++;
         }

@@ -31,5 +31,7 @@ add_library(ekf
  ekf/rtGetInf.cpp
  ekf/inv.cpp
  ekf/eye.cpp
- 
+ ekf/uunwrap.cpp
+ ekf/mod.cpp
+ ekf/measurementModel.cpp	
 )

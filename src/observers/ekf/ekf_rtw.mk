@@ -2,7 +2,7 @@
 ## Makefile generated for MATLAB file/project 'ekf'. 
 ## 
 ## Makefile     : ekf_rtw.mk
-## Generated on : Sat Apr 29 10:36:52 2017
+## Generated on : Fri May 12 21:52:37 2017
 ## MATLAB Coder version: 3.3 (R2017a)
 ## 
 ## Build Info:
@@ -28,7 +28,7 @@ MATLAB_ROOT               = /usr/local/MATLAB/R2017a
 MATLAB_BIN                = /usr/local/MATLAB/R2017a/bin
 MATLAB_ARCH_BIN           = /usr/local/MATLAB/R2017a/bin/glnxa64
 MASTER_ANCHOR_DIR         = 
-START_DIR                 = /home/joan/Dropbox/P8\ \(CA2\)/Controller/Matlab\ coder
+START_DIR                 = /home/chris/Dropbox/P8\ \(CA2\)/Controller/Matlab\ coder
 ARCH                      = glnxa64
 RELATIVE_PATH_TO_ANCHOR   = .
 C_STANDARD_OPTS           = -ansi -pedantic -Wno-long-long -fwrapv
@@ -197,7 +197,7 @@ DEFINES = $(DEFINES_STANDARD)
 ## SOURCE FILES
 ###########################################################################
 
-SRCS = $(START_DIR)/codegen/lib/ekf/ekf_initialize.cpp $(START_DIR)/codegen/lib/ekf/ekf_terminate.cpp $(START_DIR)/codegen/lib/ekf/ekf.cpp $(START_DIR)/codegen/lib/ekf/eye.cpp $(START_DIR)/codegen/lib/ekf/inv.cpp $(START_DIR)/codegen/lib/ekf/rt_nonfinite.cpp $(START_DIR)/codegen/lib/ekf/rtGetNaN.cpp $(START_DIR)/codegen/lib/ekf/rtGetInf.cpp
+SRCS = $(START_DIR)/codegen/lib/ekf/ekf_initialize.cpp $(START_DIR)/codegen/lib/ekf/ekf_terminate.cpp $(START_DIR)/codegen/lib/ekf/ekf.cpp $(START_DIR)/codegen/lib/ekf/uunwrap.cpp $(START_DIR)/codegen/lib/ekf/eye.cpp $(START_DIR)/codegen/lib/ekf/measurementModel.cpp $(START_DIR)/codegen/lib/ekf/mod.cpp $(START_DIR)/codegen/lib/ekf/inv.cpp $(START_DIR)/codegen/lib/ekf/rt_nonfinite.cpp $(START_DIR)/codegen/lib/ekf/rtGetNaN.cpp $(START_DIR)/codegen/lib/ekf/rtGetInf.cpp
 
 ALL_SRCS = $(SRCS)
 
@@ -205,7 +205,7 @@ ALL_SRCS = $(SRCS)
 ## OBJECTS
 ###########################################################################
 
-OBJS = ekf_initialize.o ekf_terminate.o ekf.o eye.o inv.o rt_nonfinite.o rtGetNaN.o rtGetInf.o
+OBJS = ekf_initialize.o ekf_terminate.o ekf.o uunwrap.o eye.o measurementModel.o mod.o inv.o rt_nonfinite.o rtGetNaN.o rtGetInf.o
 
 ALL_OBJS = $(OBJS)
 

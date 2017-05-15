@@ -6,6 +6,11 @@
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/State.h>
+#include <random>
+
+std::default_random_engine generator;
+std::normal_distribution<double> distribution(0.0,0.01);
+
 
 gazebo_msgs::ModelStates gazebo_model_state;
 void callback(const gazebo_msgs::ModelStates::ConstPtr& msg){
@@ -45,6 +50,10 @@ int count = 1;
     pose.header.stamp=ros::Time::now();
     pose.header.seq=count;
     pose.header.frame_id=1;
+
+    pose.pose.position.x = pose.pose.position.x + distribution(generator);
+    pose.pose.position.y = pose.pose.position.y + distribution(generator);
+    pose.pose.position.z = pose.pose.position.z + distribution(generator);
 
     true_pos_pub.publish(pose);
     twist_pub.publish(twist);
