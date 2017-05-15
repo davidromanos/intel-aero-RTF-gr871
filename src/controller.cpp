@@ -415,7 +415,7 @@ int main(int argc, char **argv)
     xyController.Ky.setEntry(-1*0.0076,0,5);*/
 
     xyController.Kx.setEntry(-1*0.0969,0,0);
-    xyController.Kx.setEntry(-1*0.01661,0,1);
+    xyController.Kx.setEntry(-1*0.1661,0,1);
     xyController.Kx.setEntry(-1*0.0630,0,2);
     xyController.Kx.setEntry(-1*-0.0251,0,3);
     xyController.Kx.setEntry(-1*-0.0217,0,4);
@@ -687,17 +687,18 @@ int main(int argc, char **argv)
                 k = 0;
                 i = 0;
                 listOfWaypoints.clear();
-                /*listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]));
-                listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]+0.25));
-                listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]-0.25));*/
-
-                /*listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]));
-                listOfWaypoints.push_back(waypoint(setpoints[0]-0.25,setpoints[1]-0.25,setpoints[2]));
-                listOfWaypoints.push_back(waypoint(setpoints[0]-0.25,setpoints[1]+0.25,setpoints[2]));
-                listOfWaypoints.push_back(waypoint(setpoints[0]+0.25,setpoints[1]+0.25,setpoints[2]));
-                listOfWaypoints.push_back(waypoint(setpoints[0]+0.25,setpoints[1]-0.25,setpoints[2]));*/
+                //listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]));
+                //listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]+1));
+                //listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]-0.25));
 
                 listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]));
+                listOfWaypoints.push_back(waypoint(setpoints[0]-0.75,setpoints[1]-0.75,setpoints[2]));
+
+                listOfWaypoints.push_back(waypoint(setpoints[0]-0.75,setpoints[1]+0.75,setpoints[2]));
+                listOfWaypoints.push_back(waypoint(setpoints[0]+0.75,setpoints[1]+0.75,setpoints[2]));
+                listOfWaypoints.push_back(waypoint(setpoints[0]+0.75,setpoints[1]-0.75,setpoints[2]));
+
+                //listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]));
             }
             currentWaypoint = listOfWaypoints[0];
             last_request1 = ros::Time::now();
@@ -722,7 +723,7 @@ int main(int argc, char **argv)
 
         thrust_pub.publish(thrustInput);
 
-        logToFile("/home/chris/Dropbox/P8 (CA2)/Controller/logs/newlog.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,yawRef,estimatedStates[16],estimatedStates[17],estimatedStates[18]);
+        logToFile("/home/joan/flightlog.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,yawRef,estimatedStates[16],estimatedStates[17],estimatedStates[18]);
         last_request1 = ros::Time::now();
         ros::spinOnce();
         rate.sleep();
