@@ -65,7 +65,6 @@ static struct rs_intrinsics depth_intrin;
 static struct rs_extrinsics depth_to_color;
 
 ros::Subscriber camerainfo1_sub;
-ros::Subscriber camerainfo2_sub;
 
 cv::Mat RGB_Image;
 
@@ -194,8 +193,10 @@ void imageCallback(const sensor_msgs::ImageConstPtr& image) {
         cv_bridge::CvImageConstPtr cv_ptr;
         cv_ptr = cv_bridge::toCvShare(image);
 
-        cv::Mat temp;
-        cv_ptr->image.convertTo(temp, CV_32FC1);
+        cv::Mat tempWithNaN, temp;
+        cv_ptr->image.convertTo(tempWithNaN, CV_32FC1);
+	cv::Mat mask = cv::Mat(tempWithNaN == tempWithNaN); // create a mask that will contain 0xFF at all non-NaN depth values
+	tempWithNaN.copyTo(temp, mask);
 
         if (depth_to_color.initialized && rgb_intrin.initialized && depth_intrin.initialized) {
 
@@ -245,20 +246,22 @@ void imageCallback(const sensor_msgs::ImageConstPtr& image) {
                 float* pixel = temp.ptr<float>(y);  // point to first color in row
                 for (x = 0; x < temp.cols; x++) {
                     //depth_in_meters = temp.at<float>(y,x) / 1000.0;  // see http://stackoverflow.com/questions/8932893/accessing-certain-pixel-rgb-value-in-opencv
-                    depth_in_meters = *pixel++ / 1000.0;
-                    depth_pixel[0] = x;
-                    depth_pixel[1] = y;
-
-                    rs_deproject_pixel_to_point(depth_point, &depth_intrin, depth_pixel, depth_in_meters);
-                    rs_transform_point_to_point(color_point, &depth_to_color, depth_point);
-                    rs_project_point_to_pixel(color_pixel, &rgb_intrin, color_point, true);
-                    rs_project_point_to_pixel(registered_pixel, &rgb_intrin, color_point, false);
-
-                    if (color_pixel[0] >= 0 && color_pixel[0] < registered_depth.cols && color_pixel[1] >= 0 && color_pixel[1] < registered_depth.rows) {
-                        registered_depth.at<float>(color_pixel[1],color_pixel[0]) = depth_in_meters * 1000;
-                        depthPx = cv::Vec3f(registered_pixel[0], registered_pixel[1], depth_in_meters); // store undistorted X/Y pixel coordinate + depth (in meters)
-                        registered_depth2.at<cv::Vec3f>(color_pixel[1],color_pixel[0]) = depthPx;
-                    }
+                    depth_in_meters = *pixel++;
+	            //if (depth_in_meters != nan) {
+	                    depth_pixel[0] = x;
+	                    depth_pixel[1] = y;
+	
+	                    rs_deproject_pixel_to_point(depth_point, &depth_intrin, depth_pixel, depth_in_meters);
+	                    rs_transform_point_to_point(color_point, &depth_to_color, depth_point);		    
+	                    rs_project_point_to_pixel(color_pixel, &rgb_intrin, color_point, true);
+	                    rs_project_point_to_pixel(registered_pixel, &rgb_intrin, color_point, false);
+	
+	                    if (color_pixel[0] >= 0 && color_pixel[0] < registered_depth.cols && color_pixel[1] >= 0 && color_pixel[1] < registered_depth.rows) {
+	                        registered_depth.at<float>(color_pixel[1],color_pixel[0]) = depth_in_meters * 1000;
+	                        depthPx = cv::Vec3f(registered_pixel[0], registered_pixel[1], depth_in_meters); // store undistorted X/Y pixel coordinate + depth (in meters)
+	                        registered_depth2.at<cv::Vec3f>(color_pixel[1],color_pixel[0]) = depthPx;
+	                    }
+		     //}
                 }
             }
 
@@ -347,6 +350,13 @@ void imageCallback(const sensor_msgs::ImageConstPtr& image) {
 
             cv::Mat normalized;
             grayBGR.convertTo(normalized, CV_8UC3, 255.0/5000, 0);  // see http://docs.ros.org/diamondback/api/cv_bridge/html/c++/classsensor__msgs_1_1CvBridge.html
+	    
+ 	    // Show depth within red color channel
+	    cv::Mat channels[3];
+	    cv::split(normalized, channels);
+	    channels[0] = cv::Mat::zeros(normalized.rows, normalized.cols, CV_8UC1);
+	    channels[1] = cv::Mat::zeros(normalized.rows, normalized.cols, CV_8UC1);
+	    cv::merge(channels, 3, normalized);
 
             if (RGB_Image.cols == normalized.cols) {
                 cv::Mat blended;
@@ -471,84 +481,12 @@ void camerainfo_cb(const sensor_msgs::CameraInfoConstPtr& cameraInfo) { // rgb i
             rgb_intrin.coeffs[4] = cameraInfo->D[4];
             rgb_intrin.initialized = true;
 
+	    depth_intrin = rgb_intrin;
+
             camerainfo1_sub.shutdown();
     }
 }
 
-void camerainfo2_cb(const sensor_msgs::CameraInfoConstPtr& cameraInfo) { // depth image
-    if (!strcmp(cameraInfo->distortion_model.c_str(), "plumb_bob")) { // string matches
-            /*ROS_INFO("Camera info for Depth image");
-            ROS_INFO("Width: %d, Height: %d", cameraInfo->width, cameraInfo->height);
-            ROS_INFO("D[0] = %f, D[1] = %f, D[2] = %f, D[3] = %f, D[4] = %f", (double)cameraInfo->D[0], (double)cameraInfo->D[1], (double)cameraInfo->D[2], (double)cameraInfo->D[3], (double)cameraInfo->D[4]);
-            ROS_INFO("P = [");
-            ROS_INFO("    %f\t%f\t%f\t%f", (double)cameraInfo->P[0], (double)cameraInfo->P[1], (double)cameraInfo->P[2], (double)cameraInfo->P[3]);
-            ROS_INFO("    %f\t%f\t%f\t%f", (double)cameraInfo->P[4], (double)cameraInfo->P[5], (double)cameraInfo->P[6], (double)cameraInfo->P[7]);
-            ROS_INFO("    %f\t%f\t%f\t%f", (double)cameraInfo->P[8], (double)cameraInfo->P[9], (double)cameraInfo->P[10], (double)cameraInfo->P[11]);
-            ROS_INFO("]");
-
-            ROS_INFO("==================================");*/            
-            ROS_INFO("Depth");
-
-            // Convert into intrinsics object - see https://github.com/intel-ros/realsense/blob/17b7279fb0a3bfe11bb162c0413f949d639b7a76/realsense_camera/src/base_nodelet.cpp#L682-L705
-            depth_intrin.width = cameraInfo->width;
-            depth_intrin.height = cameraInfo->height;
-            depth_intrin.fx = cameraInfo->K[0];
-            depth_intrin.ppx = cameraInfo->K[2];
-            depth_intrin.fy = cameraInfo->K[4];
-            depth_intrin.ppy = cameraInfo->K[5];
-            depth_intrin.coeffs[0] = cameraInfo->D[0];
-            depth_intrin.coeffs[1] = cameraInfo->D[1];
-            depth_intrin.coeffs[2] = cameraInfo->D[2];
-            depth_intrin.coeffs[3] = cameraInfo->D[3];
-            depth_intrin.coeffs[4] = cameraInfo->D[4];
-            depth_intrin.initialized = true;
-
-            camerainfo2_sub.shutdown();
-    }
-}
-
-void ConfigureCamera(bool autoExposure)
-{
-    // See http://wiki.ros.org/dynamic_reconfigure
-    // rosrun dynamic_reconfigure dynparam dump /camera/driver dump.yaml
-
-    dynamic_reconfigure::ReconfigureRequest srv_req;
-    dynamic_reconfigure::ReconfigureResponse srv_resp;
-    dynamic_reconfigure::IntParameter int_param;
-    dynamic_reconfigure::Config conf;
-
-    if (autoExposure) {
-        int_param.name = "r200_dc_preset";
-        int_param.value = 3;
-        conf.ints.push_back(int_param);
-
-        int_param.name = "r200_lr_auto_exposure_enabled";
-        int_param.value = 1;
-        conf.ints.push_back(int_param);
-    }
-    else {
-        int_param.name = "r200_dc_preset";
-        int_param.value = 2;
-        conf.ints.push_back(int_param);
-
-        int_param.name = "r200_lr_auto_exposure_enabled";
-        int_param.value = 0;
-        conf.ints.push_back(int_param);
-
-        int_param.name = "r200_lr_gain";
-        int_param.value = 3700;
-        conf.ints.push_back(int_param);
-
-        int_param.name = "r200_lr_exposure";
-        int_param.value = 60;
-        conf.ints.push_back(int_param);
-    }
-
-
-    srv_req.config = conf;
-
-    ros::service::call("/camera/driver/set_parameters", srv_req, srv_resp);
-}
 
 void callback(
   const sensor_msgs::ImageConstPtr& depth_image,
@@ -594,17 +532,9 @@ int main(int argc, char **argv)
     camerainfo1_sub = n.subscribe<sensor_msgs::CameraInfo>
             ("/camera/rgb/camera_info", 10, camerainfo_cb);
 
-    camerainfo2_sub = n.subscribe<sensor_msgs::CameraInfo>
-            ("/camera/depth/camera_info", 10, camerainfo2_cb);
 
-    /*ros::Subscriber camerainfo3_sub = n.subscribe<sensor_msgs::CameraInfo>
-            ("/camera/depth_registered/sw_registered/camera_info", 10, camerainfo2_cb);*/
-
-    ConfigureCamera(true); // use auto exposure
-
-
-    float rotation[] = {0.999970,0.007027,0.003347,-0.007092,0.999780,0.019726,-0.003208,-0.019749,0.999800};
-    float translation[] = {-0.058334,-0.000392,-0.000706};
+    float rotation[] = {1,0,0,0,1,0,0,0,1};
+    float translation[] = {0,0,0};
     int i;
     for (i = 0; i < 9; i++) {
         depth_to_color.rotation[i] = rotation[i];
