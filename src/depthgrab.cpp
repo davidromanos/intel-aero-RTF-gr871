@@ -31,6 +31,7 @@ using namespace std;
 
 #define USE_IMAGE_SYNCHRONIZER 1
 #define OPTICAL_FLOW_TRACKING 0
+#define SIMULATED_PROCESSING_DELAY 33 // [ms] needs to be at least 1 ms as it is also used for visualization refresh
 
 typedef union U_FloatParse {
     float float_data;
@@ -247,21 +248,26 @@ void imageCallback(const sensor_msgs::ImageConstPtr& image) {
                 for (x = 0; x < temp.cols; x++) {
                     //depth_in_meters = temp.at<float>(y,x) / 1000.0;  // see http://stackoverflow.com/questions/8932893/accessing-certain-pixel-rgb-value-in-opencv
                     depth_in_meters = *pixel++;
-	            //if (depth_in_meters != nan) {
-	                    depth_pixel[0] = x;
-	                    depth_pixel[1] = y;
-	
-	                    rs_deproject_pixel_to_point(depth_point, &depth_intrin, depth_pixel, depth_in_meters);
+                    depth_pixel[0] = x;
+                    depth_pixel[1] = y;
+
+		    if (depth_in_meters > 0) {
+	                    /*rs_deproject_pixel_to_point(depth_point, &depth_intrin, depth_pixel, depth_in_meters);
 	                    rs_transform_point_to_point(color_point, &depth_to_color, depth_point);		    
 	                    rs_project_point_to_pixel(color_pixel, &rgb_intrin, color_point, true);
-	                    rs_project_point_to_pixel(registered_pixel, &rgb_intrin, color_point, false);
+	                    rs_project_point_to_pixel(registered_pixel, &rgb_intrin, color_point, false);*/
+			    // Hack as the RGB and Depth camera is aligned (on top of eachother) in simulation - hence Intrinsics are equal and Extrinsics is identity
+			    registered_pixel[0] = x;
+			    registered_pixel[1] = x;
+			    color_pixel[0] = x;
+			    color_pixel[1] = y;
 	
 	                    if (color_pixel[0] >= 0 && color_pixel[0] < registered_depth.cols && color_pixel[1] >= 0 && color_pixel[1] < registered_depth.rows) {
 	                        registered_depth.at<float>(color_pixel[1],color_pixel[0]) = depth_in_meters * 1000;
 	                        depthPx = cv::Vec3f(registered_pixel[0], registered_pixel[1], depth_in_meters); // store undistorted X/Y pixel coordinate + depth (in meters)
 	                        registered_depth2.at<cv::Vec3f>(color_pixel[1],color_pixel[0]) = depthPx;
 	                    }
-		     //}
+		    }
                 }
             }
 
@@ -420,7 +426,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& image) {
 
                 cv::imshow("view", blended);
 
-                cv::waitKey(1); // this is necessary to show the image in the view from OpenCV 3
+                cv::waitKey(SIMULATED_PROCESSING_DELAY); // this is necessary to show the image in the view from OpenCV 3
             }
 
             cv_bridge::CvImage cv_image;

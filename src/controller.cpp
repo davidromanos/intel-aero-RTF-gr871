@@ -445,7 +445,9 @@ int main(int argc, char **argv)
 
     std::vector<waypoint> listOfWaypoints;
     listOfWaypoints.push_back(waypoint(0,0,1));
-    listOfWaypoints.push_back(waypoint(2,0,2));
+    listOfWaypoints.push_back(waypoint(-1,1,1));
+    listOfWaypoints.push_back(waypoint(-1,-1,1));
+    listOfWaypoints.push_back(waypoint(0,-1,1));
     listOfWaypoints.push_back(waypoint(0,1,1));
     /*listOfWaypoints.push_back(waypoint(0,0,1));
     listOfWaypoints.push_back(waypoint(0,0,2));
