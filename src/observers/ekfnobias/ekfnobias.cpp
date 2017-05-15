@@ -5,7 +5,7 @@
 // File: ekfnobias.cpp
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 15-May-2017 16:40:48
+// C/C++ source code generated on  : 15-May-2017 17:33:47
 //
 
 // Include Files
@@ -64,7 +64,7 @@ void ekfnobias(unsigned char fastslam_on, const double fastslam[4], double C_fs
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2 };
 
   signed char C_PX4[9];
-  static const signed char iv1[9] = { 5, 0, 0, 0, 5, 0, 0, 0, 5 };
+  static const signed char iv1[9] = { 1, 0, 0, 0, 1, 0, 0, 0, 1 };
 
   int meas_size_idx_0;
   double meas_data[7];
@@ -72,8 +72,8 @@ void ekfnobias(unsigned char fastslam_on, const double fastslam[4], double C_fs
   double R_data[49];
   double H_data[119];
   static const double H_PX4[51] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    -0.1938, 0.0, 0.0, -0.1944, 0.0, 0.0, 0.3103, 0.0, 0.0, -0.0, 0.0, 0.0, 0.0,
-    0.0, 0.0, 0.0, -0.8608, 0.0, 0.0, 0.4211, 0.0, 0.0, 0.177, 0.0, 0.0, -0.0,
+    0.0, 0.0, 0.0, 0.1938, 0.0, 0.0, 0.1944, 0.0, 0.0, -0.3103, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.8608, 0.0, 0.0, -0.4211, 0.0, 0.0, -0.177,
     0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0 };
 

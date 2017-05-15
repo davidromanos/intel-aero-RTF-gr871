@@ -18,7 +18,10 @@
 #include "ekf_terminate.h"
 #include "ekf_initialize.h"
 #include "ekf_types.h"
-
+#include "ekfnobias.h"
+#include "ekfnobias_terminate.h"
+#include "ekfnobias_initialize.h"
+#include "ekfnobias_types.h"
 
 #include "utils.h"
 
@@ -443,7 +446,7 @@ int main(int argc, char **argv)
     xyController.Ky.setEntry(-1*-0.0008,0,4);
     xyController.Ky.setEntry(-1*0.0041,0,5);*/
 
-    xyController.Kx.setEntry(-1*-0.0923,0,0);
+    /*xyController.Kx.setEntry(-1*-0.0923,0,0);
     xyController.Kx.setEntry(-1*0.2800,0,1);
     xyController.Kx.setEntry(-1*0.4177 ,0,2);
     xyController.Kx.setEntry(-1*0.1570,0,3);
@@ -457,7 +460,24 @@ int main(int argc, char **argv)
     xyController.Ky.setEntry(-1*0.1502,0,3);
     xyController.Ky.setEntry(-1*-0.0483,0,4);
     xyController.Ky.setEntry(-1*-0.0016,0,5);
-    xyController.Ky.setEntry(-1*0.0095,0,6);
+    xyController.Ky.setEntry(-1*0.0095,0,6);*/
+
+    xyController.Kx.setEntry(-1*-0.0416,0,0);
+    xyController.Kx.setEntry(-1*0.1781,0,1);
+    xyController.Kx.setEntry(-1*0.3775 ,0,2);
+    xyController.Kx.setEntry(-1*0.1446,0,3);
+    xyController.Kx.setEntry(-1*-0.0559 ,0,4);
+    xyController.Kx.setEntry(-1*-0.0490,0,5);
+    xyController.Kx.setEntry(-1*-0.0143,0,6);
+
+    xyController.Ky.setEntry(-1*0.0416,0,0);
+    xyController.Ky.setEntry(-1*-0.1774,0,1);
+    xyController.Ky.setEntry(-1*-0.3743,0,2);
+    xyController.Ky.setEntry(-1*0.1379,0,3);
+    xyController.Ky.setEntry(-1*-0.0436,0,4);
+    xyController.Ky.setEntry(-1*-0.0011,0,5);
+    xyController.Ky.setEntry(-1*0.0088,0,6);
+
 
     /*xyController.K0integrators.setEntry(-1*-0.0664,0,0);
     xyController.K0integrators.setEntry(0,0,1);
@@ -520,6 +540,7 @@ int main(int argc, char **argv)
             ("mavros/set_mode");
 
     ekf_initialize();
+    ekfnobias_initialize();
 
     double roll, pitch, yaw;
     double imuRoll, imuPitch,imuYaw;
@@ -540,9 +561,9 @@ int main(int argc, char **argv)
     double covariansVelocities[9] = {1,0,0,
                                     0,1,0,
                                     0,0,1};
-    double covariansfastslam[16] = {1,0,0,0,
-                                    0,1,0,0,
-                                    0,0,1,0,
+    double covariansfastslam[16] = {3,0,0,0,
+                                    0,3,0,0,
+                                    0,0,3,0,
                                     0,0,0,1};
     
 
@@ -638,8 +659,13 @@ int main(int argc, char **argv)
         savecopy(&fastslamMeas[2],&position.pose.position.z);
         savecopy(&fastslamMeas[3],&yaw);
 
-
-
+        /*fastslamMeas[0] = 0;
+        fastslamMeas[1] = 0;
+        fastslamMeas[2] = 0;
+        fastslamMeas[3] = 0;
+        PX4Meas[0] = 0;
+        PX4Meas[1] = 0;
+        PX4Meas[2] = 0;*/
 
 
         if(current_state.mode == "OFFBOARD" && current_state.armed)
@@ -647,6 +673,8 @@ int main(int argc, char **argv)
 
             //ekf(1,fastslamMeas,covariansfastslam,PX4Meas,xyController.output[1]+estimatedStates[18],xyController.output[0]+estimatedStates[17],yawRef,zcontroller.thrust[0],estimatedStates,covariansVelocities,&VarYaw);
             ekf(1,fastslamMeas,covariansfastslam,PX4Meas,xyController.output[1]+estimatedStates[18],xyController.output[0]+estimatedStates[17],yawRef,zcontroller.thrust[0],estimatedStates,covariansVelocities,&VarYaw);
+            //ekfnobias(1,fastslamMeas,covariansfastslam,PX4Meas,xyController.output[1],xyController.output[0],yawRef,zcontroller.thrust[0],estimatedStates,covariansVelocities,&VarYaw);
+            //ekfnobias(1,fastslamMeas,covariansfastslam,PX4Meas,0,0,0,0.576,estimatedStates,covariansVelocities,&VarYaw);
             xyController.update(setpoints,estimatedStates);
 
 
@@ -704,6 +732,7 @@ int main(int argc, char **argv)
             yawRef = yaw;
             //ekf(1,fastslamMeas,covariansfastslam,PX4Meas,0+estimatedStates[18],0+estimatedStates[17],yawRef,0.587,estimatedStates,covariansVelocities,&VarYaw);
             ekf(1,fastslamMeas,covariansfastslam,PX4Meas,0,0,yawRef,0.587,estimatedStates,covariansVelocities,&VarYaw);
+            //ekfnobias(1,fastslamMeas,covariansfastslam,PX4Meas,0,0,0,0.576,estimatedStates,covariansVelocities,&VarYaw);
 
             //ekf(1,fastslamMeas,covariansfastslam,PX4Meas,0,0,yaw,0.587,estimatedStates,covariansVelocities,&VarYaw);
 
@@ -724,12 +753,12 @@ int main(int argc, char **argv)
                 //listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]+1));
                 //listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]-0.5));
 
-                /*listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]));
+                listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]));
                 listOfWaypoints.push_back(waypoint(setpoints[0]-0.75,setpoints[1]-0.75,setpoints[2]));
 
                 listOfWaypoints.push_back(waypoint(setpoints[0]-0.75,setpoints[1]+0.75,setpoints[2]));
                 listOfWaypoints.push_back(waypoint(setpoints[0]+0.75,setpoints[1]+0.75,setpoints[2]));
-                listOfWaypoints.push_back(waypoint(setpoints[0]+0.75,setpoints[1]-0.75,setpoints[2]));*/
+                listOfWaypoints.push_back(waypoint(setpoints[0]+0.75,setpoints[1]-0.75,setpoints[2]));
 
                 /*listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]));
                 listOfWaypoints.push_back(waypoint(setpoints[0]-0.75,setpoints[1]-0.75,setpoints[2]+1));
@@ -738,7 +767,7 @@ int main(int argc, char **argv)
                 listOfWaypoints.push_back(waypoint(setpoints[0]+0.75,setpoints[1]+0.75,setpoints[2]+1));
                 listOfWaypoints.push_back(waypoint(setpoints[0]+0.75,setpoints[1]-0.75,setpoints[2]));*/
 
-                listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]));
+                //listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]));
             }
             currentWaypoint = listOfWaypoints[0];
             last_request1 = ros::Time::now();
@@ -763,14 +792,15 @@ int main(int argc, char **argv)
 
         thrust_pub.publish(thrustInput);
 
-        logToFile("/home/joan/flightlogMonday.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,yawRef,estimatedStates[16],estimatedStates[17],estimatedStates[18]);
-        //logToFile("/home/chris/Dropbox/P8 (CA2)/Controller/logs/mondaylog.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,yawRef,estimatedStates[16],estimatedStates[17],estimatedStates[18]);
+        //logToFile("/home/joan/flightlogMonday.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,yawRef,estimatedStates[16],estimatedStates[17],estimatedStates[18]);
+        //logToFile("/home/chris/Dropbox/P8 (CA2)/Controller/logs/mondaylognobias.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,yawRef,estimatedStates[16],estimatedStates[17],estimatedStates[18]);
+        logToFile("/home/chris/Dropbox/P8 (CA2)/Controller/logs/mondaylognobias.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,yawRef,estimatedStates[16]);
         last_request1 = ros::Time::now();
         ros::spinOnce();
         rate.sleep();
     }
     return 0;
-    ekf_terminate();
+    ekfnobias_terminate();
 }
 
 

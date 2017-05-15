@@ -5,7 +5,7 @@
 // File: measurementModel.cpp
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 15-May-2017 16:40:48
+// C/C++ source code generated on  : 15-May-2017 17:33:47
 //
 
 // Include Files
@@ -40,7 +40,7 @@ void measurementModel(double H_fs0[68])
   signed char I[4];
   int i1;
 
-  // Cpitch = [0 0.1938 0.1944 -0.3103];
+  // Cpitch = [0.1938 0.1944 -0.3103 0];
   memset(&H_fs0[0], 0, 68U * sizeof(double));
   for (k = 0; k < 4; k++) {
     I[k] = 0;
