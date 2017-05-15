@@ -23,8 +23,8 @@ int main(int argc, char **argv)
 
     ros::Publisher true_pos_pub = nh.advertise<geometry_msgs::PoseStamped>
             ("mavros/mocap/pose", 30);
-    /*ros::Publisher twist_pub = nh.advertise<geometry_msgs::Twist>
-            ("twist", 30);*/
+    ros::Publisher twist_pub = nh.advertise<geometry_msgs::Twist>
+            ("twist", 30);
 
   ros::Rate loop_rate(30);
 
@@ -47,7 +47,7 @@ int count = 1;
     pose.header.frame_id=1;
 
     true_pos_pub.publish(pose);
-    //twist_pub.publish(twist);
+    twist_pub.publish(twist);
     ros::spinOnce();
     count++;
     loop_rate.sleep();

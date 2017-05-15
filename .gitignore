@@ -25,4 +25,6 @@ src/observers/observer_z/html/
 
 *.user
 
-*.cpp~
+*.autosave
+
+src/observers/ekf/html/

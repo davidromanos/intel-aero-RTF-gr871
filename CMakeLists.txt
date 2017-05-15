@@ -14,7 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   geometry_msgs
   gazebo_msgs
-  cv_bridge
+  cv_bridge_new
   image_transport
   tf
   message_generation
@@ -22,6 +22,22 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
+
+# don't use opencv as found by any prior running of find_package
+unset(OpenCV_CONFIG_PATH CACHE)
+unset(OpenCV_DIR CACHE)
+
+set(TMP_PREFIX_PATH ${CMAKE_PREFIX_PATH})
+set(CMAKE_PREFIX_PATH "/usr/local")
+find_package(OpenCV 3.1.0 REQUIRED)
+
+# restore CMAKE_PREFIX_PATH and other cached variables
+# so nothing other package finds this opencv
+set(CMAKE_PREFIX_PATH ${TMP_PREFIX_PATH})
+
+unset(OpenCV_CONFIG_PATH CACHE)
+unset(OpenCV_DIR CACHE)
+
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -119,15 +135,15 @@ catkin_package(CATKIN_DEPENDS roscpp rospy std_msgs message_runtime)
 ## Your package locations should be listed before other locations
 
 include_directories(
-  ${catkin_INCLUDE_DIRS}  
-  ToDoCore
-  src/observers/observer_z
-  src/observers/observer_xdot
-  src/observers/observer_ydot
+  ${catkin_INCLUDE_DIRS}    
+  src/observers/ekf
+  include
+  ${OpenCV_INCLUDE_DIRS}
 )
 
 add_subdirectory(src/observers)
-
+set(HEADER_FILES include/utils.h)
+add_library(utils src/utils.cpp ${HEADER_FILES})
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
 #   src/${PROJECT_NAME}/uav_offboard.cpp
@@ -138,44 +154,73 @@ add_subdirectory(src/observers)
 ## either from message generation or dynamic reconfigure
 # add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
+
+
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(offb_node src/offb_node.cpp)
 add_executable(true_position src/true_position.cpp)
-add_executable(depthgrab src/depthgrab.cpp)
 
-add_executable(controller src/controller.cpp)
-add_executable(Mtest src/Mtest.cpp)
+add_executable(depthgrab src/depthgrab.cpp)
+add_executable(markers src/markers.cpp)
+add_executable(test_imagepub src/test_imagepub.cpp)
+add_executable(test_imagesub src/test_imagesub.cpp)
+
+add_executable(controller src/controller.cpp ${HEADER_FILES})
 ## observers/kalmanfilter_z.c
 ## observers/kalmanfilter_z_terminate.c
 ## observers/kalmanfilter_z_initialize.c
 ## observers/rt_nonfinite.c
 ## observers/rtGetNaN.c
 ## observers/rtGetInf.c
+
+
+
+
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
 ## e.g. "rosrun someones_pkg node" instead of "rosrun someones_pkg someones_pkg_node"
 # set_target_properties(${PROJECT_NAME}_node PROPERTIES OUTPUT_NAME node PREFIX "")
 
+
+
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 add_dependencies(offb_node ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
 add_dependencies(true_position ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
-add_dependencies(controller ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS} intel_aero_rtf_gr871_generate_messages_cpp)
-#add_dependencies(offb_node uav_offboard_generate_messages_cpp)
+
 add_dependencies(depthgrab ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
-add_dependencies(Mtest ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
+add_dependencies(markers ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
+add_dependencies(test_imagepub ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
+add_dependencies(test_imagesub ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
+
+add_dependencies(controller ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS} intel_aero_rtf_gr871_generate_messages_cpp)
+
+
+
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(offb_node ${catkin_LIBRARIES})
 target_link_libraries(true_position ${catkin_LIBRARIES})
-target_link_libraries(depthgrab ${catkin_LIBRARIES})
 
-target_link_libraries(controller ${catkin_LIBRARIES} observer_z observer_xdot observer_ydot)
-target_link_libraries(Mtest ${catkin_LIBRARIES})
+target_link_libraries(depthgrab ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
+target_link_libraries(markers ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
+target_link_libraries(test_imagepub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
+target_link_libraries(test_imagesub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
+
+target_link_libraries(controller ${catkin_LIBRARIES} ekf utils)
 #target_link_libraries(controller ${catkin_LIBRARIES})
+
+
+
+
+
+
+
+
+
 #############
 ## Install ##
 #############
