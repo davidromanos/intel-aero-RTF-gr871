@@ -443,21 +443,21 @@ int main(int argc, char **argv)
     xyController.Ky.setEntry(-1*-0.0008,0,4);
     xyController.Ky.setEntry(-1*0.0041,0,5);*/
 
-    xyController.Kx.setEntry(-1*-0.0956,0,0);
-    xyController.Kx.setEntry(-1*0.2181,0,1);
-    xyController.Kx.setEntry(-1*0.2437 ,0,2);
-    xyController.Kx.setEntry(-1*0.0897,0,3);
-    xyController.Kx.setEntry(-1*-0.0349 ,0,4);
-    xyController.Kx.setEntry(-1*-0.0314,0,5);
-    xyController.Kx.setEntry(-1*-0.0090,0,6);
+    xyController.Kx.setEntry(-1*-0.0923,0,0);
+    xyController.Kx.setEntry(-1*0.2800,0,1);
+    xyController.Kx.setEntry(-1*0.4177 ,0,2);
+    xyController.Kx.setEntry(-1*0.1570,0,3);
+    xyController.Kx.setEntry(-1*-0.0600 ,0,4);
+    xyController.Kx.setEntry(-1*-0.0537,0,5);
+    xyController.Kx.setEntry(-1*-0.0154,0,6);
 
-    xyController.Ky.setEntry(-1*0.0955,0,0);
-    xyController.Ky.setEntry(-1*-0.2161,0,1);
-    xyController.Ky.setEntry(-1*-0.2394,0,2);
-    xyController.Ky.setEntry(-1* 0.0925,0,3);
-    xyController.Ky.setEntry(-1*-0.0239,0,4);
-    xyController.Ky.setEntry(-1*0.0004,0,5);
-    xyController.Ky.setEntry(-1*0.0057,0,6);
+    xyController.Ky.setEntry(-1*0.0924,0,0);
+    xyController.Ky.setEntry(-1*-0.2784,0,1);
+    xyController.Ky.setEntry(-1*-0.4130,0,2);
+    xyController.Ky.setEntry(-1*0.1502,0,3);
+    xyController.Ky.setEntry(-1*-0.0483,0,4);
+    xyController.Ky.setEntry(-1*-0.0016,0,5);
+    xyController.Ky.setEntry(-1*0.0095,0,6);
 
     /*xyController.K0integrators.setEntry(-1*-0.0664,0,0);
     xyController.K0integrators.setEntry(0,0,1);
@@ -722,13 +722,20 @@ int main(int argc, char **argv)
                 listOfWaypoints.clear();
                 //listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]));
                 //listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]+1));
-                //listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]-0.25));
+                //listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]-0.5));
 
                 /*listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]));
                 listOfWaypoints.push_back(waypoint(setpoints[0]-0.75,setpoints[1]-0.75,setpoints[2]));
 
                 listOfWaypoints.push_back(waypoint(setpoints[0]-0.75,setpoints[1]+0.75,setpoints[2]));
                 listOfWaypoints.push_back(waypoint(setpoints[0]+0.75,setpoints[1]+0.75,setpoints[2]));
+                listOfWaypoints.push_back(waypoint(setpoints[0]+0.75,setpoints[1]-0.75,setpoints[2]));*/
+
+                /*listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]));
+                listOfWaypoints.push_back(waypoint(setpoints[0]-0.75,setpoints[1]-0.75,setpoints[2]+1));
+
+                listOfWaypoints.push_back(waypoint(setpoints[0]-0.75,setpoints[1]+0.75,setpoints[2]));
+                listOfWaypoints.push_back(waypoint(setpoints[0]+0.75,setpoints[1]+0.75,setpoints[2]+1));
                 listOfWaypoints.push_back(waypoint(setpoints[0]+0.75,setpoints[1]-0.75,setpoints[2]));*/
 
                 listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]));
