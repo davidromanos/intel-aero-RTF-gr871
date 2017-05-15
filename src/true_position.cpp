@@ -43,8 +43,8 @@ int count = 1;
 
     if (gazebo_model_state.pose.size() >= 3) 
     {
-       pose.pose = gazebo_model_state.pose[2];
-       twist = gazebo_model_state.twist[2];
+       pose.pose = gazebo_model_state.pose[gazebo_model_state.pose.size()-1];
+       twist = gazebo_model_state.twist[gazebo_model_state.pose.size()-1];
     }
     
     pose.header.stamp=ros::Time::now();
