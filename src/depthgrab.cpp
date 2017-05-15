@@ -189,7 +189,6 @@ void imageCallback(const sensor_msgs::ImageConstPtr& image) {
 
     ROS_INFO("==================================");
 
-
     try {
         cv_bridge::CvImageConstPtr cv_ptr;
         cv_ptr = cv_bridge::toCvShare(image);
@@ -408,9 +407,34 @@ void imageCallback(const sensor_msgs::ImageConstPtr& image) {
                 cv::aruco::detectMarkers(RGB_Image, markerDictionary, markerCorners, markerIds);
                 cv::aruco::drawDetectedMarkers(blended, markerCorners, markerIds);
 
+                cout << markerCorners.size() << endl;
+
+                int dispX,dispY;
+                vector<cv::Point2f> MarkerPoints;
+                cv::Vec3f MarkerMeas; // cameraX, cameraY, worldZ (depth)
+                for (int i = 0; i < markerCorners.size(); i++) {
+                    MarkerPoints = markerCorners[i];
+                    cv::Point2f point = MarkerPoints[0];
+                    MarkerMeas = registered_depth2.at<cv::Vec3f>(point.y, point.x);
+
+                    ROS_INFO("Marker ID %d at (%f, %f)", markerIds[i], point.x, point.y);
+
+                    if (MarkerMeas[2] > 0) {
+                        dispX = point.x;
+                        dispY = point.y;
+
+                        sprintf(str, "X=%1.3f", MarkerMeas[0]);
+                        cv::putText(blended, str, cv::Point(dispX+4, dispY-12+4), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255)); // see http://answers.opencv.org/question/6544/how-can-i-display-timer-results-with-a-c-puttext-command/
+                        sprintf(str, "Y=%1.3f", MarkerMeas[1]);
+                        cv::putText(blended, str, cv::Point(dispX+4, dispY+4), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255));
+                        sprintf(str, "Z=%1.3f", MarkerMeas[2]);
+                        cv::putText(blended, str, cv::Point(dispX+4, dispY+12+4), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255));
+                    }
+                }
+
                 cv::imshow("view", blended);
 
-                cv::waitKey(1); // this is necessary to show the image in the view from OpenCV 3
+                cv::waitKey(33); // this is necessary to show the image in the view from OpenCV 3
             }
 
             cv_bridge::CvImage cv_image;
