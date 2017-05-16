@@ -5,7 +5,7 @@
 // File: ekf.cpp
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 13-May-2017 13:22:22
+// C/C++ source code generated on  : 16-May-2017 14:57:32
 //
 
 // Include Files
@@ -188,10 +188,10 @@ void ekf(unsigned char fastslam_on, const double fastslam[4], double C_fs[16],
   cov[320] = 0.01;
 
   //  z bias
-  cov[340] = 1.0E-5;
+  cov[340] = 1.0E-6;
 
   //  pitch bias
-  cov[360] = 1.0E-5;
+  cov[360] = 1.0E-6;
 
   // roll bias
   // constant covariance noise matrix PX4
@@ -206,6 +206,7 @@ void ekf(unsigned char fastslam_on, const double fastslam[4], double C_fs[16],
   // input vector
   //  Store the states from time to time.
   //  Store the covariance from time to time.
+  // u = [pitch_ref+states(18); roll_ref+states(19); yaw_ref; (thrust_ref-0.587)]; 
   // measurements and measurements covariance
   if (fastslam_on == 1) {
     H_fs[0] = std::cos(states[12]);

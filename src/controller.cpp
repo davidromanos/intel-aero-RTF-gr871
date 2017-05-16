@@ -248,11 +248,11 @@ double Zcontroller::update(double setpoint,double *estimatedZStates)
     {
         thrust[0] = 0.3;
     }*/
-    if(thrust[0]>1)
+    if(thrust[0]>0.7)
     {
-        thrust[0] = 1;
+        thrust[0] = 0.7;
     }
-    else if(thrust[0]<0)
+    else if(thrust[0]<0.3)
     {
         thrust[0] = 0.3;
     }
@@ -325,19 +325,19 @@ void stateFeedbackController::update(double setpoint[],double *meas)
     std::vector<double>tmp;
 
     tmp = Kx.multiplyVector(Xstates);
-    output[0] = tmp[0] - meas[17];
+    output[0] = tmp[0];
 
     tmp = Ky.multiplyVector(Ystates);
-    output[1] =tmp[0] - meas[18];
+    output[1] =tmp[0];
 
     if(std::isnan(output[0]) == 1){output[0] = 0;}
     if(std::isnan(output[1]) == 1){output[1] = 0;}
 
 
-    //if(output[0] > 0.6) output[0] = 0.6;
-    //if(output[0] < -0.6) output[0] = -0.6;
-    //if(output[1] > 0.6) output[1] = 0.6;
-    //if(output[1] < -0.6) output[1] = -0.6;
+    if(output[0] > 0.3) output[0] = 0.3;
+    if(output[0] < -0.3) output[0] = -0.3;
+    if(output[1] > 0.3) output[1] = 0.3;
+    if(output[1] < -0.3) output[1] = -0.3;
 }
 
 double yawReference(double x,double y)
@@ -414,15 +414,15 @@ int main(int argc, char **argv)
     xyController.Ky.setEntry(-1*-0.0005,0,4);
     xyController.Ky.setEntry(-1*0.0076,0,5);*/
 
-    xyController.Kx.setEntry(-1*0.0969,0,0);
-    xyController.Kx.setEntry(-1*0.1661,0,1);
+    xyController.Kx.setEntry(-1*0.0969*1.0,0,0);
+    xyController.Kx.setEntry(-1*0.1661*1.0,0,1);
     xyController.Kx.setEntry(-1*0.0630,0,2);
     xyController.Kx.setEntry(-1*-0.0251,0,3);
     xyController.Kx.setEntry(-1*-0.0217,0,4);
     xyController.Kx.setEntry(-1*-0.0064,0,5);
 
-    xyController.Ky.setEntry(-1*-0.0968,0,0);
-    xyController.Ky.setEntry(-1*-0.1635,0,1);
+    xyController.Ky.setEntry(-1*-0.0968*1.0,0,0);
+    xyController.Ky.setEntry(-1*-0.1635*1.0,0,1);
     xyController.Ky.setEntry(-1*0.0653,0,2);
     xyController.Ky.setEntry(-1*-0.0156,0,3);
     xyController.Ky.setEntry(-1*-0.0008,0,4);
@@ -537,7 +537,7 @@ int main(int argc, char **argv)
     std_msgs::Float64 thrustInput;
     thrustInput.data = 0.0;
 
-
+    // gazebo bias pitch = 0.02 roll = -0.02
 
     double yawRef = 0;
 
@@ -614,13 +614,14 @@ int main(int argc, char **argv)
         if(current_state.mode == "OFFBOARD" && current_state.armed)
         {
 
-            ekf(1,fastslamMeas,covariansfastslam,PX4Meas,xyController.output[1]+estimatedStates[18],xyController.output[0]+estimatedStates[17],yawRef,zcontroller.thrust[0],estimatedStates,covariansVelocities,&VarYaw);
+            ekf(1,fastslamMeas,covariansfastslam,PX4Meas,xyController.output[1],xyController.output[0],yawRef,zcontroller.thrust[0],estimatedStates,covariansVelocities,&VarYaw);
             xyController.update(setpoints,estimatedStates);
 
 
             if(simulation == 1)
             {
-                yawRef = yawReference(currentWaypoint.x-oldWaypoint.x,currentWaypoint.y-oldWaypoint.y);
+                //yawRef = yawReference(currentWaypoint.x-oldWaypoint.x,currentWaypoint.y-oldWaypoint.y);
+                yawRef = M_PI/4;
                 k++;
                 if(k%300 == 0)
                 {
@@ -645,7 +646,7 @@ int main(int argc, char **argv)
             else
             {
                 k++;
-                if(k%300 == 0)
+                if(k%500 == 0)
                 {
                     i++;
                     if(i>listOfWaypoints.size()-1)
@@ -663,14 +664,14 @@ int main(int argc, char **argv)
             }
 
 
-            q1.setRPY(xyController.output[1],xyController.output[0],yawRef);
+            q1.setRPY(xyController.output[1]-estimatedStates[18],xyController.output[0]-estimatedStates[17],yawRef);
 
             thrustInput.data = zcontroller.update(setpoints[2],estimatedStates);
         }
         else
         {
             yawRef = yaw;
-            ekf(1,fastslamMeas,covariansfastslam,PX4Meas,0+estimatedStates[18],0+estimatedStates[17],yawRef,0.587,estimatedStates,covariansVelocities,&VarYaw);
+            ekf(1,fastslamMeas,covariansfastslam,PX4Meas,0,0,yawRef,0.587,estimatedStates,covariansVelocities,&VarYaw);
 
             //ekf(1,fastslamMeas,covariansfastslam,PX4Meas,0,0,yaw,0.587,estimatedStates,covariansVelocities,&VarYaw);
 
@@ -710,10 +711,10 @@ int main(int argc, char **argv)
         pose.pose.orientation.y = q1.getY();
         pose.pose.orientation.z = q1.getZ();
         pose.pose.orientation.w = q1.getW();
-        //pose.pose.orientation.x = 0;
-        //pose.pose.orientation.y = 0;
-        //pose.pose.orientation.z = 1;
-        //pose.pose.orientation.w = 0;
+        /*pose.pose.orientation.x = 0;
+        pose.pose.orientation.y = 0;
+        pose.pose.orientation.z = 1;
+        pose.pose.orientation.w = 0;*/
 
 
 
@@ -723,7 +724,8 @@ int main(int argc, char **argv)
 
         thrust_pub.publish(thrustInput);
 
-        logToFile("/home/joan/flightlog.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,yawRef,estimatedStates[16],estimatedStates[17],estimatedStates[18]);
+        //logToFile("/home/joan/flightlog.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,yawRef,estimatedStates[16],estimatedStates[17],estimatedStates[18]);
+        logToFile("/home/chris/Dropbox/P8 (CA2)/Controller/logs/logthursday.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,yawRef,estimatedStates[16],estimatedStates[17],estimatedStates[18]);
         last_request1 = ros::Time::now();
         ros::spinOnce();
         rate.sleep();

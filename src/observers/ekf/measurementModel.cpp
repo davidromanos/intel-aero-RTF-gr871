@@ -5,7 +5,7 @@
 // File: measurementModel.cpp
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 13-May-2017 13:22:22
+// C/C++ source code generated on  : 16-May-2017 14:57:32
 //
 
 // Include Files
@@ -16,6 +16,21 @@
 // Function Definitions
 
 //
+// Cpitch = [0 0.1938 0.1944 -0.3103];
+//  Cpitch = [0 Cpitch];
+//  Croll = [0 0.8608 -0.4211 -0.1770];
+//  Croll = [0 Croll];
+//  Cyaw = 1;
+//  H_PX4 = blkdiag(Cpitch,Croll,Cyaw);
+//  H_PX4 = [zeros(3,2) H_PX4 zeros(3,6)];
+//  H_PX4(1,18) = 1;
+//  H_PX4(2,19) = 1;
+//
+//
+//  H_fs0 = zeros(4,19);
+//  H_fs0(1:2,1:2) = eye(2);
+//  H_fs0(3,14) = 1;
+//  H_fs0(4,13) = 1;
 // Arguments    : double H_fs0[76]
 //                double H_PX4[57]
 // Return Type  : void
@@ -24,9 +39,9 @@ void measurementModel(double H_fs0[76], double H_PX4[57])
 {
   double b_H_PX4[33];
   int k;
-  static const double varargin_1[5] = { 0.0, 0.0, 0.1938, 0.1944, -0.3103 };
+  static const double varargin_1[5] = { 0.0, 0.1938, 0.1944, -0.3103, 0.0 };
 
-  static const double varargin_2[5] = { 0.0, 0.0, 0.8608, -0.4211, -0.177 };
+  static const double varargin_2[5] = { 0.0, 0.8608, -0.4211, -0.177, 0.0 };
 
   int i1;
   signed char I[4];
