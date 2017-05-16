@@ -594,7 +594,7 @@ void MapTree::removeReferenceToSubTree(mapNode* nodeToStartFrom){
 }
 
 void MapTree::insertLandmark(landmark* newLandmark){
-    if(N_Landmarks==0){
+ /*   if(N_Landmarks==0){
         root = new mapNode;
         root->key_value = 0;
         root->left=NULL;
@@ -605,12 +605,21 @@ void MapTree::insertLandmark(landmark* newLandmark){
         N_nodes = 0;
         //cout << "D1: N" << N_nodes << " keyvalue: " << root->key_value << endl;
     }
-    else{
-        float c_tmp = (float)newLandmark->c;
-        int Needed_N_layers = (int)ceil(log2(c_tmp));
+    else{*/
 
-        if (Needed_N_layers>N_layers){
-            creatNewLayers(Needed_N_layers);
+        if (newLandmark->c == 1){ // handle special case
+            int Needed_N_layers = 1;
+            if (Needed_N_layers>N_layers){
+                creatNewLayers(Needed_N_layers);
+            }
+        }
+        else{
+            float c_tmp = (float)newLandmark->c;
+            int Needed_N_layers = (int)ceil(log2(c_tmp));
+
+            if (Needed_N_layers>N_layers){
+                creatNewLayers(Needed_N_layers);
+            }
         }
 
         mapNode* tmpMapNodePointer = root;
@@ -678,7 +687,7 @@ void MapTree::insertLandmark(landmark* newLandmark){
             //cout << "D5: Created new leaf to the left!" << endl;
         }
         else{cout << "Error in insertion of landmark in map" << endl;}
-    }
+    //}
 N_Landmarks++;
 }
 
@@ -1621,6 +1630,49 @@ int main(int argc, char **argv)
 
     cout << ros::Time::now() << endl;
 
+
+
+    MapTree* T = new MapTree;
+
+    landmark* newLandmark = new landmark;
+    unsigned int i =  22;
+    newLandmark->c = i;
+    newLandmark->lhat = Vector3f::Constant(i);
+    cout << i << endl;
+    T->insertLandmark(newLandmark);
+
+    newLandmark = new landmark;
+    i = 10;
+    newLandmark->c = i;
+    newLandmark->lhat = Vector3f::Constant(i);
+    cout << i << endl;
+    T->insertLandmark(newLandmark);
+
+    newLandmark = new landmark;
+    i = 9;
+    newLandmark->c = i;
+    newLandmark->lhat = Vector3f::Constant(i);
+    cout << i << endl;
+    T->insertLandmark(newLandmark);
+
+    newLandmark = new landmark;
+    i = 11;
+    newLandmark->c = i;
+    newLandmark->lhat = Vector3f::Constant(i);
+    cout << i << endl;
+    T->insertLandmark(newLandmark);
+
+    cout << "all landmarks inserted!" << endl;
+    cout << "Root key_value: " << T->root->key_value << endl;
+
+    cout << "identifier: " << T->extractLandmarkNodePointer(9)->c << endl;
+    cout << "identifier: " << T->extractLandmarkNodePointer(11)->c << endl;
+    cout << "identifier: " << T->extractLandmarkNodePointer(10)->c << endl;
+    cout << "identifier: " << T->extractLandmarkNodePointer(22)->c << endl;
+
+    delete newLandmark;
+    delete T;
+/*
     // malte playing with particle Sets
     int Nparticles = 100;
     Vector6f s0 = Vector6f::Constant(0);
@@ -1715,7 +1767,7 @@ int main(int argc, char **argv)
     delete z_Ex;
     delete Pset;
 
-
+*/
 
     // malte playing with particles
 /*
