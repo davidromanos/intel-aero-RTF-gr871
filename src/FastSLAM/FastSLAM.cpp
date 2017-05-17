@@ -577,14 +577,20 @@ int MapTree::countNLayers(){
 }
 
 landmark* MapTree::extractLandmarkNodePointer(unsigned int Landmark_identifier){
+
     mapNode* tmpNodePointer = root;
+
     while(tmpNodePointer->key_value != 0){
+
         if(Landmark_identifier > tmpNodePointer->key_value){ // we go left
+
             tmpNodePointer = tmpNodePointer->right;
         }
         else{
+
             tmpNodePointer = tmpNodePointer->left; // we go rigth
         }
+
     }
 
     return tmpNodePointer->l;
@@ -801,14 +807,14 @@ void Particle::updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New,VectorU
 {    
     Vector6f s_proposale = drawSampleFromProposaleDistribution(s->getPose(),u,z_Ex,Ts);
 
-    s->addPose(s_proposale,k); // we are done estimating our pose and add it to the path!   
-
-    updateLandmarkEstimates(s_proposale,z_Ex,z_New);    
+    s->addPose(s_proposale,k); // we are done estimating our pose and add it to the path!       
 
     // OBS. In this code the importance weight is calculated differently and before the landmark corrections are done: https://github.com/bushuhui/fastslam/blob/master/src/fastslam_2.cpp#L593-L602
     if (z_Ex != NULL && z_Ex->nMeas != 0 ){
         calculateImportanceWeight(z_Ex,s_proposale);
-    }    
+    }
+
+    updateLandmarkEstimates(s_proposale,z_Ex,z_New);
 }
 
 void Particle::updateLandmarkEstimates(Vector6f s_proposale, MeasurementSet* z_Ex, MeasurementSet* z_New){
@@ -1507,8 +1513,9 @@ void ParticleSet::saveData(){
 
     string filename = topDir + "/t_" + to_string(k) + ".m";
 
-    Path::dataFileStream.open(filename);
+    Path::dataFileStream.open(filename, ios::out);
     Path::dataFileStream << "t" << to_string(k) << " = struct('Particles',[],'meanPath',[]);" << endl;
+    Path::dataFileStream.flush();
     Path::dataFileStream.close();
 
     sMean->saveData(filename);
@@ -1519,34 +1526,37 @@ void ParticleSet::saveData(){
     Path::dataFileStream.close();
 
     for(int i = 1; i<=nParticles; i++){
-        Parray[i]->saveData(filename);
+        Parray[i]->saveData(filename,KnownMarkers);
 
         if (i == 1){
-            Path::dataFileStream.open(filename,ios::in | ios::ate);
+            Path::dataFileStream.open(filename,ios::out | ios::app);
             Path::dataFileStream << "t" << to_string(k) << ".Particles = particle;" << endl;
             Path::dataFileStream << "clear particle Path map" << endl;
+            Path::dataFileStream.flush();
             Path::dataFileStream.close();
         }
         else {
-            Path::dataFileStream.open(filename,ios::in | ios::ate);
+            Path::dataFileStream.open(filename,ios::out | ios::app);
             Path::dataFileStream << "t" << to_string(k) << ".Particles(" << to_string(i) << ") = particle;" << endl;
             Path::dataFileStream << "clear particle Path map" << endl;
+            Path::dataFileStream.flush();
             Path::dataFileStream.close();
         }
 
     }
 }
 
-void Particle::saveData(string filename){
+void Particle::saveData(string filename,std::vector<unsigned int> LandmarksToSave){
     s->saveData(filename);
-    map->saveData(filename);
-    Path::dataFileStream.open(filename,ios::in | ios::ate);
+    map->saveData(filename, LandmarksToSave);
+    Path::dataFileStream.open(filename,ios::out | ios::app);
     Path::dataFileStream << "particle = struct('Path',Path,'map',map);" << endl;
+    Path::dataFileStream.flush();
     Path::dataFileStream.close();
 }
 
 void Path::saveData(string filename){
-    Path::dataFileStream.open(filename,ios::in | ios::ate);
+    Path::dataFileStream.open(filename,ios::out | ios::app);
     Path::dataFileStream << "Path = struct('PathLength',[],'Path',[]);" << endl;
     Path::dataFileStream << "Path.PathLength = " << PathLength << ";" << endl;
 
@@ -1560,27 +1570,28 @@ void Path::saveData(string filename){
             j++;
         }
     }
-
+    Path::dataFileStream.flush();
     Path::dataFileStream.close();
 }
 
-void MapTree::saveData(string filename){
-    Path::dataFileStream.open(filename,ios::in | ios::ate);
+void MapTree::saveData(string filename,std::vector<unsigned int> LandmarksToSave){
+    Path::dataFileStream.open(filename,ios::out | ios::app);
     Path::dataFileStream << "map = struct('nLandmarks',[],'mean',[],'cov',[]);" << endl;
     Path::dataFileStream << "map.nLandmarks = " << N_Landmarks << ";" << endl;
 
-    unsigned int j = 1;
 
-    for(unsigned int i = 1;i<=N_Landmarks;i++){
-        if (extractLandmarkNodePointer(i) != NULL){
-             Path::dataFileStream << "map.mean(:," << i << ") = " << extractLandmarkNodePointer(i)->lhat.format(Path::OctaveFmt) << ";" << endl;
-             Path::dataFileStream << "map.cov(:,:," << i << ") = " << extractLandmarkNodePointer(i)->lCov.format(Path::OctaveFmt) << ";" << endl;
+    for(unsigned int i = 0;i<LandmarksToSave.size();i++){
+        unsigned int j = LandmarksToSave[i];
+        if (extractLandmarkNodePointer(j) != NULL){
+             Path::dataFileStream << "map.mean(:," << i+1 << ") = " << extractLandmarkNodePointer(j)->lhat.format(Path::OctaveFmt) << ";" << endl;
+             Path::dataFileStream << "map.cov(:,:," << i+1 << ") = " << extractLandmarkNodePointer(j)->lCov.format(Path::OctaveFmt) << ";" << endl;
 
         }
         else{
+            cout << "D4-2" << endl;
             cout<<"Error: NULL pointer!";
         }
     }
-
+    Path::dataFileStream.flush();
     Path::dataFileStream.close();
 }
