@@ -140,15 +140,15 @@ Eigen::VectorXf ImgMeasurement::MeasurementModel(Vector6f pose, Eigen::Vector3f 
     float c_phi = cos(pose(3));
     float s_phi = sin(pose(3));
 
-    cout << "landmark: " << l << endl;
-    cout << "pose: " << pose << endl;
+    //cout << "landmark: " << l << endl;
+    //cout << "pose: " << pose << endl;
 
     // Calculate world coordinate of landmark in the camera frame - Notice we use Roll-Pitch-Yaw angle convention
     float c_xl = (-c_psi*s_theta*s_phi + s_psi*c_phi)*(l(0) - pose(0)) + (-s_psi*s_theta*s_phi-c_psi*c_phi)*(l(1) - pose(1)) - (c_theta*s_phi)*(l(2) - pose(2));
     float c_yl = (-c_psi*s_theta*c_phi-s_psi*s_phi)*(l(0) - pose(0)) + (-s_psi*s_theta*c_phi+c_psi*s_phi)*(l(1) - pose(1)) - (c_theta*s_phi)*(l(2) - pose(2));
     float c_zl = (c_psi*c_theta)*(l(0) - pose(0)) + (s_psi*c_theta)*(l(1) - pose(1)) - s_theta*(l(2) - pose(2));
 
-    cout << "World coordinate: " << c_xl << ", " << c_yl << ", " << c_zl << endl;
+    //cout << "World coordinate: " << c_xl << ", " << c_yl << ", " << c_zl << endl;
 
     // Project world coordinate onto image plane
     float xi = (ax*c_xl + x0*c_zl) / c_zl;
@@ -247,7 +247,7 @@ Eigen::MatrixXf ImgMeasurement::calculateHl(Vector6f pose, Eigen::Vector3f l)
     float den1 = powf((R(2,0)*(pose(0) - l(0)) + R(2,1)*(pose(1) - l(1)) + R(2,2)*(pose(2) - l(2))),2);
     float den2 = (R(2,0)*(pose(0) - l(0)) + R(2,1)*(pose(1) - l(1)) + R(2,2)*(pose(2) - l(2)));
 
-    cout << "den1: " << den1 << " - den2: " << den2 << endl;
+    //cout << "den1: " << den1 << " - den2: " << den2 << endl;
 
     Hl(0,0) = (R(2,0)*ax*(R(0,0)*(pose(0) - l(0)) + R(0,1)*(pose(1) - l(1)) + R(0,2)*(pose(2) - l(2))))/den1 - (R(0,0)*ax)/den2;
     Hl(1,0) = (R(2,0)*ay*(R(1,0)*(pose(0) - l(0)) + R(1,1)*(pose(1) - l(1)) + R(1,2)*(pose(2) - l(2))))/den1 - (R(1,0)*ay)/den2;
@@ -264,9 +264,9 @@ Eigen::MatrixXf ImgMeasurement::calculateHl(Vector6f pose, Eigen::Vector3f l)
 
 Eigen::MatrixXf ImgMeasurement::getzCov(){
 	Eigen::Matrix3f cov;
-	cov << 10, 0, 0,
-			0, 10, 0,
-			0, 0, 0.2;
+    cov << 2, 0, 0,
+            0, 2, 0,
+            0, 0, 0.3;
     return cov;
 }
 
@@ -914,12 +914,12 @@ Vector6f Particle::drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUF
             Measurement* z_tmp = z_Ex->getMeasurement(i);
 
             landmark* li_old = map->extractLandmarkNodePointer(z_tmp->c);
-            cout << "landmark in map: " << li_old->lhat << endl;
+            //cout << "landmark in map: " << li_old->lhat << endl;
 
             Eigen::MatrixXf Hli;
             Hli = z_tmp->calculateHl(s_bar,li_old->lhat); //resizes automatically due to the "=" operator
 
-            cout << "prop Hli" << endl << Hli << endl;
+            //cout << "prop Hli" << endl << Hli << endl;
 
             Eigen::MatrixXf Hsi;
             Hsi = z_tmp->calculateHs(s_bar,li_old->lhat); //resizes automatically due to the "=" operator
@@ -967,7 +967,7 @@ Vector6f Particle::drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUF
             //sMean_proposale = sMean_proposale + sCov_proposale*Hsi.transpose()*Zki.inverse()*(z_tmp->z - zhat); // eq (3.31)
             sMean_proposale = sMean_proposale + Kk*(z_tmp->z - zhat); // eq (3.31)
             sCov_proposale = (Eigen::MatrixXf::Identity(rows,cols) - Kk*Hsi) * sCov_proposale * (Eigen::MatrixXf::Identity(rows,cols) - Kk*Hsi).transpose() + Kk*Zki*Kk.transpose();  // eq (3.30)
-            cout << endl << "--sCov_proposale (method 1)" << endl << sCov_proposale << endl;
+            //cout << endl << "--sCov_proposale (method 1)" << endl << sCov_proposale << endl;
 
             // ==== Implementation according to  https://github.com/bushuhui/fastslam/blob/master/src/fastslam_2.cpp#L575-L577
             Eigen::VectorXf xv = sMean_proposale;
@@ -990,8 +990,8 @@ Vector6f Particle::drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUF
 
             // =================
 
-            cout << endl << "--sCov_proposale (method 2)" << endl << Pv << endl;
-            cout << endl << "--sCov_proposale (method 3)" << endl << P << endl;
+            //cout << endl << "--sCov_proposale (method 2)" << endl << Pv << endl;
+            //cout << endl << "--sCov_proposale (method 3)" << endl << P << endl;
             sMean_proposale = x;
             sCov_proposale = P;
 
@@ -1001,12 +1001,12 @@ Vector6f Particle::drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUF
         }
     }
 
-    cout << endl << "sMean_proposale" << endl << sMean_proposale << endl;
-    cout << endl << "sCov_proposale" << endl << sCov_proposale << endl;
+    //cout << endl << "sMean_proposale" << endl << sMean_proposale << endl;
+    //cout << endl << "sCov_proposale" << endl << sCov_proposale << endl;
 
     Vector6f s_proposale = drawSampleRandomPose(sMean_proposale, sCov_proposale);
 
-    cout << endl << "s_proposale" << endl << s_proposale << endl;
+    //cout << endl << "s_proposale" << endl << s_proposale << endl;
 
     return s_proposale;
 }
@@ -1210,19 +1210,19 @@ void Particle::calculateImportanceWeight(MeasurementSet* z_Ex, Vector6f s_propos
             Measurement* z_tmp = z_Ex->getMeasurement(i);
             landmark* li_old = map->extractLandmarkNodePointer(z_tmp->c);
 
-            cout << "imp s_proposale: " << endl << s_proposale << endl;
-            cout << "old li: " << endl << li_old->lhat << endl;
+            //cout << "imp s_proposale: " << endl << s_proposale << endl;
+            //cout << "old li: " << endl << li_old->lhat << endl;
             Eigen::MatrixXf Hli;
             Hli = z_tmp->calculateHl(s_proposale,li_old->lhat); //resizes automatically due to the "=" operator
-            cout << "imp Hli" << endl << Hli << endl;
+            //cout << "imp Hli" << endl << Hli << endl;
 
             Eigen::MatrixXf Hsi;
             Hsi = z_tmp->calculateHs(s_proposale,li_old->lhat); //resizes automatically due to the "=" operator
-            cout << "imp Hsi" << endl << Hsi << endl;
+            //cout << "imp Hsi" << endl << Hsi << endl;
 
             Eigen::VectorXf zhat;
             zhat = z_tmp->MeasurementModel(s_proposale,li_old->lhat);
-            cout << "imp zhat" << endl << zhat << endl;
+            //cout << "imp zhat" << endl << zhat << endl;
 
             Eigen::VectorXf z_diff;
             z_diff = z_tmp->z - zhat;
@@ -1235,10 +1235,10 @@ void Particle::calculateImportanceWeight(MeasurementSet* z_Ex, Vector6f s_propos
 
             w_tmp = 1/(sqrt( (2*pi*wCov_i).determinant() ))*exp( -0.5*expTerm(0,0) );// (3.46) and  (14.2) on page 459 in IPRP
 
-            cout << "imp calculated weight tmp: " << w_tmp << endl;
+            //cout << "imp calculated weight tmp: " << w_tmp << endl;
 
             if (w_tmp == 0) {
-            	cout << "imp Weight = 0!" << endl;
+                cout << "imp Weight = 0!" << endl;
             }
 
 
@@ -1262,7 +1262,7 @@ double Particle::getWeigth()
     return w;
 }
 
-Matrix6f Particle::sCov = 0.05*Matrix6f::Identity(); // static variable - has to be declared outside class!
+Matrix6f Particle::sCov = 0.2*Matrix6f::Identity(); // static variable - has to be declared outside class!
 
 boost::mt19937 Particle::rng; // Creating a new random number generator every time could be optimized
 //rng.seed(static_cast<unsigned int>(time(0)));
@@ -1320,11 +1320,11 @@ void ParticleSet::updateParticleSet(MeasurementSet* z, VectorUFastSLAMf u, float
         // Traverse all measurements in measurement set
         do {
             markerID = tmp_pointer->meas->c;
-            cout << "Known landmarks: ";
+            //cout << "Known landmarks: ";
             for (std::vector<unsigned int>::const_iterator i = KnownMarkers.begin(); i != KnownMarkers.end(); ++i)
-                cout << *i << ' ';
+                //cout << *i << ' ';
 
-            cout << endl;
+            //cout << endl;
             if (find(KnownMarkers.begin(), KnownMarkers.end(), markerID) == KnownMarkers.end()) {
                 //cout << "New landmark: " << markerID << endl;
                 KnownMarkers.push_back(markerID);
@@ -1368,7 +1368,7 @@ void ParticleSet::resample(){
         }
     }
 
-    cout << endl << "Current best pose estimate" << endl << *(tmpP->s->getPose()) << endl;
+//    cout << endl << "Current best pose estimate" << endl << *(tmpP->s->getPose()) << endl;
 
     // generate random index between 1 and number of particles
     default_random_engine generator;
@@ -1497,7 +1497,7 @@ void ParticleSet::estimateDistribution(){
     sCov_estimate = 1/(1-wSum_squared)*sCov_estimate;
 
     //cout << endl << "sCov_estimate" << endl << sCov_estimate << endl;
-    cout << endl << "sMean_estimate" << endl << sMean_estimate << endl;
+    //cout << endl << "sMean_estimate" << endl << sMean_estimate << endl;
 
     sCov = sCov_estimate;
     sMean->addPose(sMean_estimate,k);
@@ -1523,9 +1523,11 @@ void ParticleSet::saveData(){
     Path::dataFileStream.open(filename,ios::in | ios::ate);
     Path::dataFileStream << "t" << to_string(k) << ".meanPath = Path;" << endl;
     Path::dataFileStream << "clear Path" << endl;
+    Path::dataFileStream.flush();
     Path::dataFileStream.close();
-
-    for(int i = 1; i<=nParticles; i++){
+    int j = 1;
+    int interval = 100;
+    for(int i = 1; i<=nParticles; i = i + interval){
         Parray[i]->saveData(filename,KnownMarkers);
 
         if (i == 1){
@@ -1537,12 +1539,12 @@ void ParticleSet::saveData(){
         }
         else {
             Path::dataFileStream.open(filename,ios::out | ios::app);
-            Path::dataFileStream << "t" << to_string(k) << ".Particles(" << to_string(i) << ") = particle;" << endl;
+            Path::dataFileStream << "t" << to_string(k) << ".Particles(" << to_string(j) << ") = particle;" << endl;
             Path::dataFileStream << "clear particle Path map" << endl;
             Path::dataFileStream.flush();
             Path::dataFileStream.close();
         }
-
+        j++;
     }
 }
 
@@ -1579,7 +1581,7 @@ void MapTree::saveData(string filename,std::vector<unsigned int> LandmarksToSave
     Path::dataFileStream << "map = struct('nLandmarks',[],'mean',[],'cov',[]);" << endl;
     Path::dataFileStream << "map.nLandmarks = " << N_Landmarks << ";" << endl;
 
-
+    cout << "Size of LandmarksToSave:" << LandmarksToSave.size() << endl;
     for(unsigned int i = 0;i<LandmarksToSave.size();i++){
         unsigned int j = LandmarksToSave[i];
         if (extractLandmarkNodePointer(j) != NULL){

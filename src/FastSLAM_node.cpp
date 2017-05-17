@@ -295,7 +295,7 @@ void RGBD_Image_Callback(const sensor_msgs::ImageConstPtr& depth_image, const se
             RGB_Image_New = false;
             Depth_Image_New = false;
 
-            ROS_INFO("New RGBD image ready");
+//            ROS_INFO("New RGBD image ready");
         }
 
     } catch (const cv_bridge::Exception& e) {
@@ -315,7 +315,7 @@ void CameraInfo_RGB_Callback(const sensor_msgs::CameraInfoConstPtr& cameraInfo) 
             ROS_INFO("]");
 
             ROS_INFO("==================================");*/            
-            ROS_INFO("RGB intrinsics received");
+//            ROS_INFO("RGB intrinsics received");
 
             // Convert into intrinsics object - see https://github.com/intel-ros/realsense/blob/17b7279fb0a3bfe11bb162c0413f949d639b7a76/realsense_camera/src/base_nodelet.cpp#L682-L705
             rgb_intrin.width = cameraInfo->width;
@@ -493,7 +493,7 @@ void ProcessRGBDimage(MeasurementSet * MeasSet)
     char str[200];
 
     if (RGBD_Image_Ready) {
-        cout << "Processing RGB data" << endl;
+//        cout << "Processing RGB data" << endl;
         cv::Mat RGB;
         cv::Mat Depth;
         RGB_Image.copyTo(RGB);
@@ -546,7 +546,7 @@ void ProcessRGBDimage(MeasurementSet * MeasSet)
             cv::aruco::detectMarkers(RGB, markerDictionary, markerCorners, markerIds);
             cv::aruco::drawDetectedMarkers(blended, markerCorners, markerIds);
 
-            cout << "Detected markers: " << markerCorners.size() << endl;
+//            cout << "Detected markers: " << markerCorners.size() << endl;
 
             unsigned int ID;
             int dispX,dispY;
@@ -569,7 +569,7 @@ void ProcessRGBDimage(MeasurementSet * MeasSet)
                     ID = (unsigned int)markerIds[i] + 1; // make sure ID go from 1 and up
 
                     cv::Vec3f World = GetWorldCoordinateFromMeasurement(MarkerMeas);
-                    ROS_INFO("Marker ID %u at (%f, %f, %f)", ID, MarkerMeas_(0), MarkerMeas_(1), MarkerMeas_(2));
+//                    ROS_INFO("Marker ID %u at (%f, %f, %f)", ID, MarkerMeas_(0), MarkerMeas_(1), MarkerMeas_(2));
 
                     z_img = new ImgMeasurement(ID, MarkerMeas_);
                     MeasSet->addMeasurement(z_img);
@@ -606,11 +606,12 @@ int main(int argc, char **argv)
     printf("READY to get image\n");
 
     // ===== Configure FastSLAM =====
-    Nparticles = 200;
+    Nparticles = 5000;
     s0 = Vector6f::Constant(0);
     s_0_Cov = 0.01*Matrix6f::Identity();
     ParticleSet Pset(Nparticles,s0,s_0_Cov);
     VectorUFastSLAMf u = VectorUFastSLAMf::Zero();
+
     // ==== End configuration of FastSLAM ====
 
     prepareLogFile(&MocapLog, "Mocap");
