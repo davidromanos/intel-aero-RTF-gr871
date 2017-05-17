@@ -1321,7 +1321,7 @@ void ParticleSet::updateParticleSet(MeasurementSet* z, VectorUFastSLAMf u, float
         do {
             markerID = tmp_pointer->meas->c;
             //cout << "Known landmarks: ";
-            for (std::vector<unsigned int>::const_iterator i = KnownMarkers.begin(); i != KnownMarkers.end(); ++i)
+            //for (std::vector<unsigned int>::const_iterator i = KnownMarkers.begin(); i != KnownMarkers.end(); ++i)
                 //cout << *i << ' ';
 
             //cout << endl;

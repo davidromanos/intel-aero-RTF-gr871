@@ -681,10 +681,10 @@ int main(int argc, char **argv)
     while(ros::ok()){
         ros::spinOnce(); // process the latest measurements in the queue (subscribers) and move these into the RGB_Image and Depth_Image objects
         ProcessRGBDimage(&MeasSet);
-        /*if (MeasSet.getNumberOfMeasurements() > 0) {
+        if (MeasSet.getNumberOfMeasurements() > 0) {
             Pset.updateParticleSet(&MeasSet, u, 0);
             MeasSet.emptyMeasurementSet();
-        }*/
+        }
     }
 
     Pset.saveData();
