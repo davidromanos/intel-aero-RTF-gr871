@@ -177,7 +177,7 @@ add_executable(test_imagesub src/test_imagesub.cpp)
 add_executable(controller src/controller.cpp ${HEADER_FILES})
 
 add_executable(Mtest src/Mtest.cpp ${FASTSLAM_HEADER_FILES}) 
-add_executable(FastSLAM_node src/FastSLAM_node.cpp ${FASTSLAM_HEADER_FILES})
+add_executable(FastSLAM_node src/FastSLAM_node.cpp ${FASTSLAM_HEADER_FILES} ${HEADER_FILES})
 
 
 
@@ -220,7 +220,7 @@ target_link_libraries(controller ${catkin_LIBRARIES} ekf utils)
 #target_link_libraries(controller ${catkin_LIBRARIES})
 
 target_link_libraries(Mtest ${catkin_LIBRARIES} ${Eigen_LIBRARIES} FastSLAM) 
-target_link_libraries(FastSLAM_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${Eigen_LIBRARIES} FastSLAM)
+target_link_libraries(FastSLAM_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${Eigen_LIBRARIES} FastSLAM utils)
 
 
 

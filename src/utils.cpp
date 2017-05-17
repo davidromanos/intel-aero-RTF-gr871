@@ -41,6 +41,66 @@ void logToFile(const char *file, const char *format, ...)
 
 }
 
+void getLogFilePath(char * pathBuffer, const char * suffix) {
+  char logPrefix[50];
+  time_t rawtime = time(0);
+  tm *now = localtime(&rawtime);
+
+  if(rawtime != -1) {
+     strftime(logPrefix, 50, "%y%m%d_%H%M%S",now);
+     strcat(pathBuffer, logPrefix);
+     strcat(pathBuffer, "_");
+     strcat(pathBuffer, suffix);
+     strcat(pathBuffer, ".txt");
+  } else {
+      strcat(pathBuffer, "TimeErr_");
+      strcat(pathBuffer, suffix);
+      strcat(pathBuffer, ".txt");
+  }
+}
+
+/*
+FILE * prepareLogFile(char * pathBuffer, const char * filePrefix)
+{
+    char * home_dir = getenv("HOME");
+    char * log_dir = strcat(home_dir, "/logs/");
+    getLogFilePath(log_dir, pathBuffer, filePrefix);
+
+    FILE * logFile;
+
+    // creates the directory with specified modes
+    mkdir(log_dir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    // used the strcat() to generate the file-path.
+    logFile = fopen(pathBuffer, "a+");
+
+    return logFile;
+}*/
+
+void prepareLogFile(ofstream * fileObject, const char * filePrefix)
+{
+    char pathBuffer[200];
+    strcpy(pathBuffer, getenv("HOME"));
+    strcat(pathBuffer, "/logs/");
+
+    /*creates the directory with specified modes*/
+    mkdir(pathBuffer, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+
+    getLogFilePath(pathBuffer, filePrefix);
+    //ofstream * logFile = new ofstream(pathBuffer, ios::out | ios::app | ios::binary);
+    fileObject->open(pathBuffer, ios::out | ios::ate);
+}
+
+void logAppendTimestamp(ofstream &fileObject, ros::Time time)
+{
+    fileObject << time.sec << "." << setfill('0') << setw(3) << time.nsec / 1000000 << ", ";
+}
+
+void logAppendTimestampNow(ofstream &fileObject)
+{
+    ros::Time now = ros::Time::now();
+    fileObject << now.sec << "." << setfill('0') << setw(3) << now.nsec / 1000000 << ", ";
+}
+
 vector<vector<double> > load_csv (const string &path) {
     ifstream indata;
     indata.open(path.c_str());

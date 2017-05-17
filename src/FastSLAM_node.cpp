@@ -1,5 +1,8 @@
 /* http://answers.ros.org/question/90696/get-depth-from-kinect-sensor-in-gazebo-simulator/ */
 
+#include <string.h>
+#include <inttypes.h>
+
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
 #include <sensor_msgs/CameraInfo.h>
@@ -25,10 +28,14 @@
 #include <opencv2/aruco.hpp>
 
 #include "FastSLAM.h"
+#include "utils.h"
+
+#include <tf/transform_datatypes.h> // for Quaternion transformation
 
 // To be able to use cout
 #include <iostream>
 #include <iomanip>
+
 using namespace std;
 using namespace Eigen;
 
@@ -70,8 +77,18 @@ cv::Mat Depth_Image;
 bool RGB_Image_New = false;
 bool Depth_Image_New = false;
 bool RGBD_Image_Ready = false;
+ros::Time RGBD_Timestamp;
 
 cv::aruco::Dictionary markerDictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
+Eigen::IOFormat OctaveFmt(Eigen::FullPrecision, 0, ", ", ";\n", "", "", "[", "]"); // see https://eigen.tuxfamily.org/dox/structEigen_1_1IOFormat.html#a840cac6401adc4de421260d63dc3d861
+Eigen::IOFormat TSVFmt(Eigen::FullPrecision, Eigen::DontAlignCols, "", "\t", "", "", "", ""); // tab seperated
+Eigen::IOFormat CSVFmt(Eigen::FullPrecision, Eigen::DontAlignCols, "", ", ", "", "", "", ""); // comma seperated
+
+Vector6f MocapPose;
+
+ofstream MocapLog;
+ofstream CameraLog;
+
 
 // ==== FastSLAM variables ====
 int Nparticles;
@@ -87,6 +104,7 @@ static void rs_deproject_pixel_to_point(float point[3], const struct rs_intrinsi
 static void rs_project_point_to_pixel(float pixel[2], const struct rs_intrinsics * intrin, const float point[3], bool undistort);
 static void rs_transform_point_to_point(float to_point[3], const struct rs_extrinsics * extrin, const float from_point[3]);
 
+void MocapPose_Callback(const geometry_msgs::PoseStamped::ConstPtr& pose);
 void Depth_Image_Callback(const sensor_msgs::ImageConstPtr& image);
 void RGB_Image_Callback(const sensor_msgs::ImageConstPtr& image);
 void RGBD_Image_Callback(const sensor_msgs::ImageConstPtr& depth_image, const sensor_msgs::ImageConstPtr& rgb_image);
@@ -156,6 +174,32 @@ static void rs_transform_point_to_point(float to_point[3], const struct rs_extri
     to_point[2] = extrin->rotation[2] * from_point[0] + extrin->rotation[5] * from_point[1] + extrin->rotation[8] * from_point[2] + extrin->translation[2];
 }
 
+void MocapPose_Callback(const geometry_msgs::PoseStamped::ConstPtr& pose) {
+    double roll, pitch, yaw;
+
+    tf::Quaternion q1;
+
+    q1.setW(pose->pose.orientation.w);
+    q1.setX(pose->pose.orientation.x);
+    q1.setY(pose->pose.orientation.y);
+    q1.setZ(pose->pose.orientation.z);
+
+    tf::Matrix3x3 m(q1);
+
+    m.getRPY(roll, pitch, yaw);
+
+    MocapPose << pose->pose.position.x,
+                 pose->pose.position.y,
+                 pose->pose.position.z,
+                 roll,
+                 pitch,
+                 yaw;
+
+
+    logAppendTimestamp(MocapLog, pose->header.stamp);
+    MocapLog << MocapPose.format(CSVFmt) << endl;
+    MocapLog.flush();
+}
 
 // Image Callback
 void Depth_Image_Callback(const sensor_msgs::ImageConstPtr& image) {
@@ -166,6 +210,7 @@ void Depth_Image_Callback(const sensor_msgs::ImageConstPtr& image) {
         Depth_Image_New = true;
 
         if (depth_to_color.initialized && rgb_intrin.initialized && depth_intrin.initialized && RGB_Image_New && Depth_Image_New) {
+            RGBD_Timestamp = image->header.stamp;
             RGBD_Image_Ready = true;
             RGB_Image_New = false;
             Depth_Image_New = false;
@@ -183,6 +228,7 @@ void RGB_Image_Callback(const sensor_msgs::ImageConstPtr& image) { // rgb image
         RGB_Image_New = true;
 
         if (depth_to_color.initialized && rgb_intrin.initialized && depth_intrin.initialized && RGB_Image_New && Depth_Image_New) {
+            RGBD_Timestamp = image->header.stamp;
             RGBD_Image_Ready = true;
             RGB_Image_New = false;
             Depth_Image_New = false;
@@ -203,6 +249,11 @@ void RGBD_Image_Callback(const sensor_msgs::ImageConstPtr& depth_image, const se
         cv_ptr2->image.convertTo(Depth_Image, CV_32FC1);
 
         if (depth_to_color.initialized && rgb_intrin.initialized && depth_intrin.initialized) {
+            if (depth_image->header.stamp > rgb_image->header.stamp) {
+                RGBD_Timestamp = depth_image->header.stamp;
+            } else {
+                RGBD_Timestamp = rgb_image->header.stamp;
+            }
             RGBD_Image_Ready = true;
             RGB_Image_New = false;
             Depth_Image_New = false;
@@ -373,80 +424,6 @@ cv::Vec3f GetWorldCoordinateFromMeasurement(cv::Vec3f meas)
 }
 
 
-
-//*** Main ***//
-int main(int argc, char **argv)
-{
-    ros::init(argc, argv, "FastSLAM_node");
-    ros::NodeHandle n;
-    printf("READY to get image\n");
-
-    // ===== Configure FastSLAM =====
-    Nparticles = 200;
-    s0 = Vector6f::Constant(0);
-    s_0_Cov = 0.01*Matrix6f::Identity();
-    ParticleSet Pset(Nparticles,s0,s_0_Cov);
-    VectorUFastSLAMf u = VectorUFastSLAMf::Zero();
-    // ==== End configuration of FastSLAM ====
-
-
-    image_transport::ImageTransport it(n);
-
-#if USE_IMAGE_SYNCHRONIZER
-    typedef image_transport::SubscriberFilter ImageSubscriber;
-
-    ImageSubscriber depth_image_sub_( it, "/camera/depth/image_raw", 1 );
-    ImageSubscriber rgb_image_sub_( it, "/camera/rgb/image_raw", 1 );
-
-    typedef message_filters::sync_policies::ApproximateTime< // ExactTime
-      sensor_msgs::Image, sensor_msgs::Image
-    > MySyncPolicy;
-
-    message_filters::Synchronizer< MySyncPolicy > sync( MySyncPolicy( 50 ), depth_image_sub_, rgb_image_sub_ );
-
-    sync.registerCallback( boost::bind( &RGBD_Image_Callback, _1, _2 ) );
-#else
-    image_transport::Subscriber sub = it.subscribe("/camera/depth/image_raw", 1, Depth_Image_Callback);
-    image_transport::Subscriber sub2 = it.subscribe("/camera/rgb/image_raw", 1, RGB_Image_Callback);
-#endif
-
-    camerainfo1_sub = n.subscribe<sensor_msgs::CameraInfo>
-            ("/camera/rgb/camera_info", 10, CameraInfo_RGB_Callback);
-
-    camerainfo2_sub = n.subscribe<sensor_msgs::CameraInfo>
-            ("/camera/depth/camera_info", 10, CameraInfo_Depth_Callback);
-
-    ConfigureCamera(true); // use auto exposure
-    InitHardcodedExtrinsics(); // Hardcoded initialization of Extrinsics, taken from the R200 camera on our Intel Aero drone
-
-    // Wait for intrinsics to arrive
-    while(ros::ok() && (!depth_to_color.initialized || !rgb_intrin.initialized || !depth_intrin.initialized)) {
-        ros::spinOnce();
-    }
-
-    cv::namedWindow("view", CV_WINDOW_KEEPRATIO);    
-    cv::startWindowThread();
-
-    MeasurementSet MeasSet;
-
-    while(ros::ok()){
-        ros::spinOnce(); // process the latest measurements in the queue (subscribers) and move these into the RGB_Image and Depth_Image objects
-        ProcessRGBDimage(&MeasSet);
-        if (MeasSet.getNumberOfMeasurements() > 0) {
-            Pset.updateParticleSet(&MeasSet, u, 0);
-            MeasSet.emptyMeasurementSet();
-        }
-    }
-
-    Pset.saveData();
-
-    cv::destroyWindow("view");
-    return 0;
-}
-
-
-
-
 void ProcessRGBDimage(MeasurementSet * MeasSet)
 {
     int x, y;
@@ -540,12 +517,107 @@ void ProcessRGBDimage(MeasurementSet * MeasSet)
                     cv::putText(blended, str, cv::Point(dispX+4, dispY+4), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255));
                     sprintf(str, "Z=%1.3f", World[2]);
                     cv::putText(blended, str, cv::Point(dispX+4, dispY+12+4), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255));
+
+                    logAppendTimestamp(CameraLog, RGBD_Timestamp);
+                    CameraLog << ID << ", " << MarkerMeas_.format(CSVFmt) << endl;
                 }
             }
+
+            CameraLog.flush();
 
             cv::imshow("view", blended);
 
             cv::waitKey(1); // this is necessary to show the image in the view from OpenCV 3
         }
     }
+}
+
+
+
+
+//*** Main ***//
+int main(int argc, char **argv)
+{
+    ros::init(argc, argv, "FastSLAM_node");
+    ros::NodeHandle n;
+    printf("READY to get image\n");
+
+    // ===== Configure FastSLAM =====
+    Nparticles = 200;
+    s0 = Vector6f::Constant(0);
+    s_0_Cov = 0.01*Matrix6f::Identity();
+    ParticleSet Pset(Nparticles,s0,s_0_Cov);
+    VectorUFastSLAMf u = VectorUFastSLAMf::Zero();
+    // ==== End configuration of FastSLAM ====
+
+    prepareLogFile(&MocapLog, "Mocap");
+    if (!MocapLog.is_open()) {
+        ROS_ERROR("Error opening Mocap log file");
+        return -1;
+    }
+
+    prepareLogFile(&CameraLog, "Camera");
+    if (!CameraLog.is_open()) {
+        ROS_ERROR("Error opening Camera log file");
+        return -1;
+    }
+
+    image_transport::ImageTransport it(n);
+
+#if USE_IMAGE_SYNCHRONIZER
+    typedef image_transport::SubscriberFilter ImageSubscriber;
+
+    ImageSubscriber depth_image_sub_( it, "/camera/depth/image_raw", 1 );
+    ImageSubscriber rgb_image_sub_( it, "/camera/rgb/image_raw", 1 );
+
+    typedef message_filters::sync_policies::ApproximateTime< // ExactTime
+      sensor_msgs::Image, sensor_msgs::Image
+    > MySyncPolicy;
+
+    message_filters::Synchronizer< MySyncPolicy > sync( MySyncPolicy( 50 ), depth_image_sub_, rgb_image_sub_ );
+
+    sync.registerCallback( boost::bind( &RGBD_Image_Callback, _1, _2 ) );
+#else
+    image_transport::Subscriber sub = it.subscribe("/camera/depth/image_raw", 1, Depth_Image_Callback);
+    image_transport::Subscriber sub2 = it.subscribe("/camera/rgb/image_raw", 1, RGB_Image_Callback);
+#endif
+
+    camerainfo1_sub = n.subscribe<sensor_msgs::CameraInfo>
+            ("/camera/rgb/camera_info", 10, CameraInfo_RGB_Callback);
+
+    camerainfo2_sub = n.subscribe<sensor_msgs::CameraInfo>
+            ("/camera/depth/camera_info", 10, CameraInfo_Depth_Callback);
+
+    ros::Subscriber position_sub = n.subscribe<geometry_msgs::PoseStamped>
+            ("mavros/mocap/pose", 100, MocapPose_Callback);
+
+    ConfigureCamera(true); // use auto exposure
+    InitHardcodedExtrinsics(); // Hardcoded initialization of Extrinsics, taken from the R200 camera on our Intel Aero drone
+
+    // Wait for intrinsics to arrive
+    while(ros::ok() && (!depth_to_color.initialized || !rgb_intrin.initialized || !depth_intrin.initialized)) {
+        ros::spinOnce();
+    }
+
+    cv::namedWindow("view", CV_WINDOW_KEEPRATIO);    
+    cv::startWindowThread();
+
+    MeasurementSet MeasSet;
+
+    while(ros::ok()){
+        ros::spinOnce(); // process the latest measurements in the queue (subscribers) and move these into the RGB_Image and Depth_Image objects
+        ProcessRGBDimage(&MeasSet);
+        if (MeasSet.getNumberOfMeasurements() > 0) {
+            Pset.updateParticleSet(&MeasSet, u, 0);
+            MeasSet.emptyMeasurementSet();
+        }
+    }
+
+    Pset.saveData();
+
+    MocapLog.close();
+    CameraLog.close();
+
+    cv::destroyWindow("view");
+    return 0;
 }

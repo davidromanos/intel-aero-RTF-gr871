@@ -1508,7 +1508,14 @@ void ParticleSet::saveData(){
     string filename = topDir + "/t_" + to_string(k) + ".m";
 
     Path::dataFileStream.open(filename);
-    Path::dataFileStream << "t" << to_string(k) << " = struct('Particles',[]);" << endl;
+    Path::dataFileStream << "t" << to_string(k) << " = struct('Particles',[],'meanPath',[]);" << endl;
+    Path::dataFileStream.close();
+
+    sMean->saveData(filename);
+
+    Path::dataFileStream.open(filename,ios::in | ios::ate);
+    Path::dataFileStream << "t" << to_string(k) << ".meanPath = Path;" << endl;
+    Path::dataFileStream << "clear Path" << endl;
     Path::dataFileStream.close();
 
     for(int i = 1; i<=nParticles; i++){
