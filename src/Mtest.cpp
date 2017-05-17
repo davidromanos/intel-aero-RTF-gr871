@@ -103,10 +103,10 @@ int main(int argc, char **argv)
     int Nlandmarks = 4;
     int Nk = 40;
 
-    MeasurementSet* z_Ex = new MeasurementSet;
-    MeasurementSet* z_New = new MeasurementSet;
+    MeasurementSet* z = new MeasurementSet;
     GOTMeasurement* z_tmp;
     Vector3f V_tmp;
+    vector<int> PreviousIDs;
     bool toggle = true;
 
     float measNoise = 0.0;
@@ -115,12 +115,10 @@ int main(int argc, char **argv)
 
     while (k<=Nk){
         cout << "#################################### k=" << k << " ####################################" << endl;
-        delete z_New;
-        z_New = new MeasurementSet;
-        delete z_Ex;
-        z_Ex = new MeasurementSet;
+        delete z;
+        z = new MeasurementSet;
 
-        if(j+2<Nlandmarks){
+        /*if(j+2<Nlandmarks){
             if(toggle){
                 for(unsigned int i = 1; i<=2; i++){
                     V_tmp = Vector3f::Constant(i)+measNoise*Vector3f::Random();
@@ -162,8 +160,32 @@ int main(int argc, char **argv)
                 z_tmp = new GOTMeasurement(i,measSign*V_tmp); //generate random numbers...
                 z_Ex->addMeasurement(z_tmp);
             }
+        }*/
+
+        unsigned int rand1 = (int)(((float)rand()/(float)RAND_MAX)*(float)Nlandmarks);
+        unsigned int rand2 = (int)(((float)rand()/(float)RAND_MAX)*(float)Nlandmarks);
+
+        if(rand1>Nlandmarks){rand1=Nlandmarks;}
+        if(rand2>Nlandmarks){rand2=Nlandmarks;}
+        if(rand2<rand1){
+            unsigned int tmp = rand2;
+            rand2=rand1;
+            rand1=tmp;
         }
-    Pset->updateParticleSet(z_Ex,z_New,u,0);
+
+        cout << "random numbers: "<< rand1 << ", " << rand2 << endl;
+
+        for(unsigned int i = rand1; i<=rand2; i++){
+            int markerID = i;
+            V_tmp = Vector3f::Constant(i)+measNoise*Vector3f::Random();
+            z_tmp = new GOTMeasurement(markerID, measSign*V_tmp); //generate random numbers...            
+            z->addMeasurement(z_tmp);
+        }
+
+        cout << "Running filter" << endl;
+
+
+    Pset->updateParticleSet(z,u,0);
     //cout << endl << "latest pose" << endl << *(Pset->getLatestPoseEstimate()) << endl << endl;
 
     cout << "globalLandmarkCounter: " << landmark::globalLandmarkCounter << endl;
@@ -174,8 +196,7 @@ int main(int argc, char **argv)
 
     Pset->saveData();
 
-    delete z_New;
-    delete z_Ex;
+    delete z;
     delete Pset;
 
 

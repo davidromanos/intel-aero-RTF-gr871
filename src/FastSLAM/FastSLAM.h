@@ -113,14 +113,14 @@ public:
     MeasurementSet();
     MeasurementSet(Measurement *meas);
     ~MeasurementSet();
-    void deleteMeasurementSet();
+    void emptyMeasurementSet();
     void addMeasurement(Measurement *meas);
     int countNumberOfMeasurements();
     int getNumberOfMeasurements();
     Measurement* getMeasurement(int i);
 
 private:
-    void deleteMeasurementSet(Node_MeasurementSet *MeasNode);
+    void emptyMeasurementSet(Node_MeasurementSet *MeasNode);
 };
 
 
@@ -269,11 +269,12 @@ public:
     std::vector<Particle*> Parray;
     Matrix6f sCov;
     unsigned int k; // number of interations since time zero
+    std::vector<unsigned int> KnownMarkers;
 
     /* functions */
     ParticleSet(int Nparticles = 10,Vector6f s0 = Vector6f::Constant(0), Matrix6f s_0_Cov = 0.1*Matrix6f::Identity()); 		/* Initialize a standard particle set with 100 particles */
     ~ParticleSet();
-    void updateParticleSet(MeasurementSet* z_Ex, MeasurementSet* z_New, VectorUFastSLAMf u, float Ts);
+    void updateParticleSet(MeasurementSet* z, VectorUFastSLAMf u, float Ts);
     Vector6f* getLatestPoseEstimate();
     int getNParticles();
     void saveData();

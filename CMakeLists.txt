@@ -177,6 +177,7 @@ add_executable(test_imagesub src/test_imagesub.cpp)
 add_executable(controller src/controller.cpp ${HEADER_FILES})
 
 add_executable(Mtest src/Mtest.cpp ${FASTSLAM_HEADER_FILES}) 
+add_executable(FastSLAM_node src/FastSLAM_node.cpp ${FASTSLAM_HEADER_FILES})
 
 
 
@@ -202,7 +203,7 @@ add_dependencies(test_imagesub ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPOR
 add_dependencies(controller ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS} intel_aero_rtf_gr871_generate_messages_cpp)
 
 add_dependencies(Mtest ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS}) 
-
+add_dependencies(FastSLAM_node ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
 
 
 
@@ -210,7 +211,7 @@ add_dependencies(Mtest ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARG
 target_link_libraries(offb_node ${catkin_LIBRARIES})
 target_link_libraries(true_position ${catkin_LIBRARIES})
 
-target_link_libraries(depthgrab ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
+target_link_libraries(depthgrab ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 target_link_libraries(markers ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
 target_link_libraries(test_imagepub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
 target_link_libraries(test_imagesub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
@@ -219,6 +220,7 @@ target_link_libraries(controller ${catkin_LIBRARIES} ekf utils)
 #target_link_libraries(controller ${catkin_LIBRARIES})
 
 target_link_libraries(Mtest ${catkin_LIBRARIES} ${Eigen_LIBRARIES} FastSLAM) 
+target_link_libraries(FastSLAM_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${Eigen_LIBRARIES} FastSLAM)
 
 
 

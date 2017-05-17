@@ -26,6 +26,56 @@
 
 using namespace std;
 
+float pi_to_pi(float ang)
+{
+    int n;
+
+    if ( (ang < -2*M_PI) || (ang > 2*M_PI) ) {
+        n   = floor(ang/(2*M_PI));
+        ang = ang - n*(2*M_PI);
+    }
+
+    if (ang > M_PI)
+        ang = ang - (2*M_PI);
+
+    if (ang < -M_PI)
+        ang = ang + (2*M_PI);
+
+    return ang;
+}
+
+float pi_to_pi2(float ang)
+{
+    if (ang > M_PI)
+        ang = ang - (2*M_PI);
+
+    if (ang < -M_PI)
+        ang = ang + (2*M_PI);
+
+    return ang;
+}
+
+void KF_cholesky_update(Eigen::VectorXf &x, Eigen::MatrixXf &P, Eigen::VectorXf &v, Eigen::MatrixXf &R, Eigen::MatrixXf &H)
+{
+	Eigen::MatrixXf PHt = P*H.transpose();
+    Eigen::MatrixXf S = H*PHt + R;
+
+    // FIXME: why use conjugate()?
+    S = (S+S.transpose()) * 0.5; //make symmetric
+    Eigen::MatrixXf SChol = S.llt().matrixU();
+    //SChol.transpose();
+    //SChol.conjugate();
+
+
+    Eigen::MatrixXf SCholInv = SChol.inverse(); //tri matrix
+    Eigen::MatrixXf W1 = PHt * SCholInv;
+    Eigen::MatrixXf W = W1 * SCholInv.transpose();
+
+    x = x + W*v;
+    P = P - W1*W1.transpose();
+}
+
+
 /* ############################## Defines measurement class ##############################  */
 
 /* ############################## Defines GOTMeasurement class ##############################  */
@@ -90,10 +140,15 @@ Eigen::VectorXf ImgMeasurement::MeasurementModel(Vector6f pose, Eigen::Vector3f 
     float c_phi = cos(pose(3));
     float s_phi = sin(pose(3));
 
+    cout << "landmark: " << l << endl;
+    cout << "pose: " << pose << endl;
+
     // Calculate world coordinate of landmark in the camera frame - Notice we use Roll-Pitch-Yaw angle convention
     float c_xl = (-c_psi*s_theta*s_phi + s_psi*c_phi)*(l(0) - pose(0)) + (-s_psi*s_theta*s_phi-c_psi*c_phi)*(l(1) - pose(1)) - (c_theta*s_phi)*(l(2) - pose(2));
     float c_yl = (-c_psi*s_theta*c_phi-s_psi*s_phi)*(l(0) - pose(0)) + (-s_psi*s_theta*c_phi+c_psi*s_phi)*(l(1) - pose(1)) - (c_theta*s_phi)*(l(2) - pose(2));
     float c_zl = (c_psi*c_theta)*(l(0) - pose(0)) + (s_psi*c_theta)*(l(1) - pose(1)) - s_theta*(l(2) - pose(2));
+
+    cout << "World coordinate: " << c_xl << ", " << c_yl << ", " << c_zl << endl;
 
     // Project world coordinate onto image plane
     float xi = (ax*c_xl + x0*c_zl) / c_zl;
@@ -149,7 +204,6 @@ Eigen::MatrixXf ImgMeasurement::calculateHs(Vector6f pose, Eigen::Vector3f l)
     float s_phi = sin(pose(3));
 
     Eigen::MatrixXf Hs(3, 6);
-
     float den = powf((c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1))),2);
 
     Hs(0,0) = (ax*(c_phi*s_psi - c_psi*s_theta*s_phi))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1))) + (ax*c_theta*c_psi*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1)) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0)) + c_theta*s_phi*(pose(2) - l(2))))/den;
@@ -193,6 +247,8 @@ Eigen::MatrixXf ImgMeasurement::calculateHl(Vector6f pose, Eigen::Vector3f l)
     float den1 = powf((R(2,0)*(pose(0) - l(0)) + R(2,1)*(pose(1) - l(1)) + R(2,2)*(pose(2) - l(2))),2);
     float den2 = (R(2,0)*(pose(0) - l(0)) + R(2,1)*(pose(1) - l(1)) + R(2,2)*(pose(2) - l(2)));
 
+    cout << "den1: " << den1 << " - den2: " << den2 << endl;
+
     Hl(0,0) = (R(2,0)*ax*(R(0,0)*(pose(0) - l(0)) + R(0,1)*(pose(1) - l(1)) + R(0,2)*(pose(2) - l(2))))/den1 - (R(0,0)*ax)/den2;
     Hl(1,0) = (R(2,0)*ay*(R(1,0)*(pose(0) - l(0)) + R(1,1)*(pose(1) - l(1)) + R(1,2)*(pose(2) - l(2))))/den1 - (R(1,0)*ay)/den2;
     Hl(2,0) = R(2,0);
@@ -207,10 +263,14 @@ Eigen::MatrixXf ImgMeasurement::calculateHl(Vector6f pose, Eigen::Vector3f l)
 };
 
 Eigen::MatrixXf ImgMeasurement::getzCov(){
-    return zCov;
+	Eigen::Matrix3f cov;
+	cov << 10, 0, 0,
+			0, 10, 0,
+			0, 0, 0.2;
+    return cov;
 }
 
-Eigen::Matrix3f ImgMeasurement::zCov = 5*Eigen::Matrix3f::Identity(); // static variable - has to be declared outside class!
+Eigen::Matrix3f ImgMeasurement::zCov = Eigen::Matrix3f::Identity(); // static variable - has to be declared outside class!
 
 
 
@@ -232,29 +292,34 @@ MeasurementSet::MeasurementSet(Measurement *meas){
 }
 
 MeasurementSet::~MeasurementSet(){
-    deleteMeasurementSet();
+    //deleteMeasurementSet();
 }
 
-void MeasurementSet::deleteMeasurementSet(){
+void MeasurementSet::emptyMeasurementSet(){
     if(firstMeasNode != NULL){
         if(firstMeasNode->nextNode != NULL){
-            deleteMeasurementSet(firstMeasNode->nextNode);
+            emptyMeasurementSet(firstMeasNode->nextNode);
         }
+        if (firstMeasNode->meas != NULL)
+            delete firstMeasNode->meas;
         delete firstMeasNode;
-        nMeas--;
+        nMeas = 0;
+        firstMeasNode = NULL;
     }
 }
 
-void MeasurementSet::deleteMeasurementSet(Node_MeasurementSet *MeasNode){
+void MeasurementSet::emptyMeasurementSet(Node_MeasurementSet *MeasNode){
     if(MeasNode->nextNode != NULL){
-        deleteMeasurementSet(MeasNode->nextNode);
+        emptyMeasurementSet(MeasNode->nextNode);
     }
+    delete MeasNode->meas;
     delete MeasNode;
     nMeas--;
 }
 
 void MeasurementSet::addMeasurement(Measurement *meas){
     if (firstMeasNode == NULL){
+        //cout << "Adding measurement to empty set (firstMeasNode)" << endl;
         firstMeasNode = new Node_MeasurementSet;
         firstMeasNode->meas = meas;
         firstMeasNode->nextNode = NULL;
@@ -262,6 +327,7 @@ void MeasurementSet::addMeasurement(Measurement *meas){
         firstMeasNode->measIdentifier = nMeas;
     }
     else{
+        //cout << "Adding measurement to set" << endl;
         Node_MeasurementSet* tmp_pointer = firstMeasNode;
         while(tmp_pointer->nextNode != NULL){
             tmp_pointer = tmp_pointer->nextNode;
@@ -381,7 +447,7 @@ void MapTree::removeReferenceToSubTree(mapNode* nodeToStartFrom){
 }
 
 void MapTree::insertLandmark(landmark* newLandmark){
-    if(N_Landmarks==0){
+ /*   if(N_Landmarks==0){
         root = new mapNode;
         root->key_value = 0;
         root->left=NULL;
@@ -392,12 +458,21 @@ void MapTree::insertLandmark(landmark* newLandmark){
         N_nodes = 0;
         //cout << "D1: N" << N_nodes << " keyvalue: " << root->key_value << endl;
     }
-    else{
-        float c_tmp = (float)newLandmark->c;
-        int Needed_N_layers = (int)ceil(log2(c_tmp));
+    else{*/
 
-        if (Needed_N_layers>N_layers){
-            creatNewLayers(Needed_N_layers);
+        if (newLandmark->c == 1){ // handle special case
+            int Needed_N_layers = 1;
+            if (Needed_N_layers>N_layers){
+                creatNewLayers(Needed_N_layers);
+            }
+        }
+        else{
+            float c_tmp = (float)newLandmark->c;
+            int Needed_N_layers = (int)ceil(log2(c_tmp));
+
+            if (Needed_N_layers>N_layers){
+                creatNewLayers(Needed_N_layers);
+            }
         }
 
         mapNode* tmpMapNodePointer = root;
@@ -465,9 +540,10 @@ void MapTree::insertLandmark(landmark* newLandmark){
             //cout << "D5: Created new leaf to the left!" << endl;
         }
         else{cout << "Error in insertion of landmark in map" << endl;}
-    }
+    //}
 N_Landmarks++;
 }
+
 
 void MapTree::creatNewLayers(int Needed_N_layers){
      int missinLayers = Needed_N_layers-N_layers;
@@ -530,7 +606,9 @@ mapNode* MapTree::makeNewPath(landmark* newLandmarkData, mapNode* startNode){
 
         if (newLandmarkData->c > startNode->key_value){ // we go right
             pointerForNewMapNode->left = startNode->left; // and do not change the left pointer
-            pointerForNewMapNode->left->referenced++;
+            if(pointerForNewMapNode->left != NULL){
+            	pointerForNewMapNode->left->referenced++;
+            }
             pointerForNewMapNode->key_value = startNode->key_value; // the new node has the same key_value as the old
             pointerForNewMapNode->right = makeNewPath(newLandmarkData,startNode->right);
 
@@ -720,15 +798,17 @@ Particle::~Particle()
 }
 
 void Particle::updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New,VectorUFastSLAMf* u, unsigned int k, float Ts)
-{
-    Vector6f s_proposale = drawSampleFromProposaleDistributionNEW(s->getPose(),u,z_Ex,Ts);
-    s->addPose(s_proposale,k); // we are done estimating our pose and add it to the path!
+{    
+    Vector6f s_proposale = drawSampleFromProposaleDistribution(s->getPose(),u,z_Ex,Ts);
 
-    updateLandmarkEstimates(s_proposale,z_Ex,z_New);
+    s->addPose(s_proposale,k); // we are done estimating our pose and add it to the path!   
 
+    updateLandmarkEstimates(s_proposale,z_Ex,z_New);    
+
+    // OBS. In this code the importance weight is calculated differently and before the landmark corrections are done: https://github.com/bushuhui/fastslam/blob/master/src/fastslam_2.cpp#L593-L602
     if (z_Ex != NULL && z_Ex->nMeas != 0 ){
         calculateImportanceWeight(z_Ex,s_proposale);
-    }
+    }    
 }
 
 void Particle::updateLandmarkEstimates(Vector6f s_proposale, MeasurementSet* z_Ex, MeasurementSet* z_New){
@@ -744,9 +824,33 @@ void Particle::handleExMeas(MeasurementSet* z_Ex, Vector6f s_proposale){
         for( int i = 1; i < z_Ex->nMeas; i = i + 1 ) {
             Measurement* z_tmp = z_Ex->getMeasurement(i);
             landmark* li_old = map->extractLandmarkNodePointer(z_tmp->c);
+
             Eigen::VectorXf z_hat = z_tmp->MeasurementModel(s_proposale,li_old->lhat); // (3.33)
+            Eigen::VectorXf v = z_tmp->z - z_hat;
+
             Eigen::MatrixXf Hl;
             Hl = z_tmp->calculateHl(s_proposale,li_old->lhat);  // (3.34)
+
+            //li_old->lhat = xfi
+            //li_old->lCov = Pfi
+
+            Eigen::VectorXf x = li_old->lhat;
+            Eigen::MatrixXf P = li_old->lCov;
+            Eigen::MatrixXf H = Hl;
+            Eigen::MatrixXf R = z_tmp->getzCov();
+
+			KF_cholesky_update(x, P, v, R, H);
+
+            landmark* li_update = new landmark;
+            li_update->c = z_tmp->c;
+            li_update->lhat = x;
+            li_update->lCov = P;
+
+            if (li_update->lhat != li_update->lhat) {
+            	cout << "landmark update NaN err, ID: " << z_tmp->c << endl;
+            }
+
+			/*
             Eigen::MatrixXf Zk;
             Zk = z_tmp->getzCov() + Hl*li_old->lCov*Hl.transpose(); // (3.35)
             Eigen::MatrixXf Kk;
@@ -756,9 +860,11 @@ void Particle::handleExMeas(MeasurementSet* z_Ex, Vector6f s_proposale){
             li_update->c = z_tmp->c;
             li_update->lhat = li_old->lhat + Kk*(z_tmp->z - z_hat); // (3.37)
 
+            cout << "Correct landmark lhat: " << li_old->lhat << endl;
+
             Eigen::MatrixXf tmpMatrix;
             tmpMatrix = Kk*Hl;
-            li_update->lCov = (Eigen::MatrixXf::Identity(tmpMatrix.rows(),tmpMatrix.cols())-tmpMatrix)*li_old->lCov;// (3.38)
+            li_update->lCov = (Eigen::MatrixXf::Identity(tmpMatrix.rows(),tmpMatrix.cols())-tmpMatrix)*li_old->lCov;// (3.38)*/
 
             map->correctLandmark(li_update);
         }
@@ -780,7 +886,7 @@ void Particle::handleNewMeas(MeasurementSet* z_New, Vector6f s_proposale){
 
             Eigen::MatrixXf zCov_tmp = z_tmp->getzCov();
 
-            li->lCov = (Hl.transpose()*zCov_tmp.inverse()*Hl).inverse();
+            li->lCov = (Hl.transpose()*zCov_tmp.inverse()*Hl).inverse(); // this is different from this line: https://github.com/bushuhui/fastslam/blob/master/src/fastslam_core.cpp#L567
 
             map->insertLandmark(li);
         }
@@ -802,9 +908,12 @@ Vector6f Particle::drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUF
             Measurement* z_tmp = z_Ex->getMeasurement(i);
 
             landmark* li_old = map->extractLandmarkNodePointer(z_tmp->c);
+            cout << "landmark in map: " << li_old->lhat << endl;
 
             Eigen::MatrixXf Hli;
             Hli = z_tmp->calculateHl(s_bar,li_old->lhat); //resizes automatically due to the "=" operator
+
+            cout << "prop Hli" << endl << Hli << endl;
 
             Eigen::MatrixXf Hsi;
             Hsi = z_tmp->calculateHs(s_bar,li_old->lhat); //resizes automatically due to the "=" operator
@@ -819,6 +928,13 @@ Vector6f Particle::drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUF
 */
             Zki = zCov_tmp + Hli*(li_old->lCov)*Hli.transpose();
 
+
+            // Rk = Zki
+            // Hk = Hsi
+            // Pk = sCov_proposale
+            Eigen::MatrixXf Kk;
+            Kk = sCov_proposale*Hsi.transpose() * (Hsi*sCov_proposale*Hsi.transpose() + Zki).inverse();
+
             Eigen::VectorXf zhat;
             zhat = z_tmp->MeasurementModel(s_bar,li_old->lhat);
 
@@ -827,17 +943,64 @@ Vector6f Particle::drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUF
             //cout << "li_old->lhat: " << endl << li_old->lhat << endl << endl;
             //cout << "z_tmp->MeasurementModel: " << endl << zhat << endl << endl;
 
-            sCov_proposale = (Hsi.transpose()*Zki.inverse()*Hsi + sCov_proposale.inverse()).inverse();  // eq (3.30)
-            sMean_proposale = sMean_proposale + sCov_proposale*Hsi.transpose()*Zki.inverse()*(z_tmp->z - zhat); // eq (3.31)
+            Eigen::MatrixXf tmp;
+            tmp = Kk * Hsi;
+            int rows, cols;
+            rows = tmp.rows();
+            cols = tmp.cols();
+
+            Eigen::VectorXf x = sMean_proposale;
+            Eigen::MatrixXf P = sCov_proposale;
+            Eigen::VectorXf v = (z_tmp->z - zhat);
+            Eigen::MatrixXf R = Zki;
+            Eigen::MatrixXf H = Hsi;
+
+            KF_cholesky_update(x, P, v, R, H);
+
+            //sCov_proposale = (Hsi.transpose()*Zki.inverse()*Hsi + sCov_proposale.inverse()).inverse();  // eq (3.30)
+            //sMean_proposale = sMean_proposale + sCov_proposale*Hsi.transpose()*Zki.inverse()*(z_tmp->z - zhat); // eq (3.31)
+            sMean_proposale = sMean_proposale + Kk*(z_tmp->z - zhat); // eq (3.31)
+            sCov_proposale = (Eigen::MatrixXf::Identity(rows,cols) - Kk*Hsi) * sCov_proposale * (Eigen::MatrixXf::Identity(rows,cols) - Kk*Hsi).transpose() + Kk*Zki*Kk.transpose();  // eq (3.30)
+            cout << endl << "--sCov_proposale (method 1)" << endl << sCov_proposale << endl;
+
+            // ==== Implementation according to  https://github.com/bushuhui/fastslam/blob/master/src/fastslam_2.cpp#L575-L577
+            Eigen::VectorXf xv = sMean_proposale;
+            Eigen::MatrixXf Pv = sCov_proposale;
+
+            Eigen::MatrixXf Hvi = Hsi;
+            Eigen::MatrixXf Hfi = Hli;
+            Eigen::MatrixXf Sf = Zki;
+            Eigen::MatrixXf Sfi = Sf.inverse();
+
+            Eigen::VectorXf vi = v;
+
+            //proposal covariance
+            Eigen::MatrixXf Pv_inv = Pv.llt().solve(Eigen::MatrixXf::Identity(Pv.rows(), Pv.cols()));
+            Pv = Hvi.transpose() * Sfi * Hvi + Pv_inv; //Pv.inverse();
+            Pv = Pv.llt().solve(Eigen::MatrixXf::Identity(Pv.rows(), Pv.cols()));//Pv.inverse();
+
+            //proposal mean
+            xv = xv + Pv * Hvi.transpose() * Sfi *vi;
+
+            // =================
+
+            cout << endl << "--sCov_proposale (method 2)" << endl << Pv << endl;
+            cout << endl << "--sCov_proposale (method 3)" << endl << P << endl;
+            sMean_proposale = x;
+            sCov_proposale = P;
+
+            if (sCov_proposale(0,0) != sCov_proposale(0,0)) {
+            	cout << "sCov NaN err" << endl;
+            }
         }
     }
 
-    //cout << endl << "sMean_proposale" << endl << sMean_proposale << endl;
-    //cout << endl << "sCov_proposale" << endl << sCov_proposale << endl;
+    cout << endl << "sMean_proposale" << endl << sMean_proposale << endl;
+    cout << endl << "sCov_proposale" << endl << sCov_proposale << endl;
 
     Vector6f s_proposale = drawSampleRandomPose(sMean_proposale, sCov_proposale);
 
-    //cout << endl << "s_proposale" << endl << s_proposale << endl;
+    cout << endl << "s_proposale" << endl << s_proposale << endl;
 
     return s_proposale;
 }
@@ -904,16 +1067,104 @@ Vector6f Particle::drawSampleFromProposaleDistributionNEW(Vector6f* s_old, Vecto
     //cout << endl << "sCov_proposale" << endl << sCov_proposale << endl;
     //cout << endl << "s_proposale" << endl << s_proposale << endl;
     Vector6f s_proposale = sMean_proposale;
-    s_k_Cov = sCov_proposale;
+    s_k_Cov = sCov_proposale;    
     return s_proposale;
 }
 
 
-Vector6f Particle::drawSampleRandomPose(Vector6f sMean_proposale, Matrix6f sCov_proposale){
+//http://moby.ihme.washington.edu/bradbell/mat2cpp/randn.cpp.xml
+Eigen::MatrixXf randn(int m, int n)
+{
+    // use formula 30.3 of Statistical Distributions (3rd ed)
+    // Merran Evans, Nicholas Hastings, and Brian Peacock
+    int urows = m * n + 1;
+    Eigen::VectorXf u(urows);
+
+    //u is a random matrix
+#if 1
+    for (int r=0; r<urows; r++) {
+        // FIXME: better way?
+        u(r) = std::rand() * 1.0/RAND_MAX;
+    }
+#else
+    u = ( (VectorXf::Random(urows).array() + 1.0)/2.0 ).matrix();
+#endif
+
+
+    Eigen::MatrixXf x(m,n);
+
+    int     i, j, k;
+    float   square, amp, angle;
+
+    k = 0;
+    for(i = 0; i < m; i++) {
+        for(j = 0; j < n; j++) {
+            if( k % 2 == 0 ) {
+                square = - 2. * std::log( u(k) );
+                if( square < 0. )
+                    square = 0.;
+                amp = sqrt(square);
+                angle = 2. * M_PI * u(k+1);
+                x(i, j) = amp * std::sin( angle );
+            }
+            else
+                x(i, j) = amp * std::cos( angle );
+
+            k++;
+        }
+    }
+
+    return x;
+}
+
+Eigen::MatrixXf rand(int m, int n)
+{
+	Eigen::MatrixXf x(m,n);
+    int i, j;
+    float rand_max = float(RAND_MAX);
+
+    for(i = 0; i < m; i++) {
+        for(j = 0; j < n; j++)
+            x(i, j) = float(std::rand()) / rand_max;
+    }
+    return x;
+}
+
+//add random measurement noise. We assume R is diagnoal matrix
+void add_observation_noise(vector<Eigen::VectorXf> &z, Eigen::MatrixXf &R, int addnoise)
+{
+    if (addnoise == 1) {
+        unsigned long len = z.size();
+        if (len > 0) {
+        	Eigen::MatrixXf randM1 = randn(1,len);
+        	Eigen::MatrixXf randM2 = randn(1,len);
+
+            for (unsigned long c=0; c<len; c++) {
+                z[c][0] = z[c][0] + randM1(0,c)*sqrt(R(0,0));
+                z[c][1] = z[c][1] + randM2(0,c)*sqrt(R(1,1));
+            }
+        }
+    }
+}
+
+
+Vector6f Particle::drawSampleRandomPose(Vector6f sMean_proposale, Matrix6f sCov_proposale)
+{
+	//choleksy decomposition
+	Eigen::MatrixXf S = sCov_proposale.llt().matrixL();
+	Eigen::MatrixXf X = randn(6,1);
+
+    return S*X + sMean_proposale;
+}
+
+// Consider implementing as https://github.com/bushuhui/fastslam/blob/master/src/fastslam_core.cpp#L479-L488
+/*Vector6f Particle::drawSampleRandomPoseOld(Vector6f sMean_proposale, Matrix6f sCov_proposale) {
     boost::normal_distribution<> nd(0.0, 1.0);
     boost::variate_generator<boost::mt19937&, boost::normal_distribution<> > randN(rng, nd); // see http://lost-found-wandering.blogspot.dk/2011/05/sampling-from-multivariate-normal-in-c.html
 
-    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXf> eigenSolver(sCov_proposale);
+    Matrix6f S = (sCov_proposale + sCov_proposale.transpose()) * 0.5; // hack of making it make symmetric
+
+    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXf> eigenSolver(S);
 
     Vector6f normal;
     normal << randN(), randN(), randN(), randN(), randN(), randN(); // generate 6 random numbers in the vector - these are distributed with mean 0 and sigma 1
@@ -921,11 +1172,16 @@ Vector6f Particle::drawSampleRandomPose(Vector6f sMean_proposale, Matrix6f sCov_
     Eigen::MatrixXf U = eigenSolver.eigenvectors();
     Eigen::MatrixXf Lambda = eigenSolver.eigenvalues();
     Eigen::MatrixXf Sigma = Lambda.cwiseSqrt().asDiagonal();
+
+    cout << "U" << endl << U << endl;
+    cout << "Lambda" << endl << Lambda << endl;
+    cout << "Sigma" << endl << Sigma << endl;
+
     Vector6f sample = sMean_proposale + U * Sigma * normal;
 
     return sample;
     //return sMean_proposale;// + 0.000001*Vector6f::Random();
-}
+}*/
 
 Vector6f Particle::motionModel(Vector6f sold, VectorUFastSLAMf* u, float Ts) // Ts == sample time
 {
@@ -948,17 +1204,19 @@ void Particle::calculateImportanceWeight(MeasurementSet* z_Ex, Vector6f s_propos
             Measurement* z_tmp = z_Ex->getMeasurement(i);
             landmark* li_old = map->extractLandmarkNodePointer(z_tmp->c);
 
+            cout << "imp s_proposale: " << endl << s_proposale << endl;
+            cout << "old li: " << endl << li_old->lhat << endl;
             Eigen::MatrixXf Hli;
             Hli = z_tmp->calculateHl(s_proposale,li_old->lhat); //resizes automatically due to the "=" operator
-            //cout << "Hli" << endl << Hli << endl;
+            cout << "imp Hli" << endl << Hli << endl;
 
             Eigen::MatrixXf Hsi;
             Hsi = z_tmp->calculateHs(s_proposale,li_old->lhat); //resizes automatically due to the "=" operator
-            //cout << "Hsi" << endl << Hsi << endl;
+            cout << "imp Hsi" << endl << Hsi << endl;
 
             Eigen::VectorXf zhat;
             zhat = z_tmp->MeasurementModel(s_proposale,li_old->lhat);
-            //cout << "zhat" << endl << zhat << endl;
+            cout << "imp zhat" << endl << zhat << endl;
 
             Eigen::VectorXf z_diff;
             z_diff = z_tmp->z - zhat;
@@ -971,7 +1229,12 @@ void Particle::calculateImportanceWeight(MeasurementSet* z_Ex, Vector6f s_propos
 
             w_tmp = 1/(sqrt( (2*pi*wCov_i).determinant() ))*exp( -0.5*expTerm(0,0) );// (3.46) and  (14.2) on page 459 in IPRP
 
-            //cout << "calculated weigth tmp: " << w_tmp << endl;
+            cout << "imp calculated weight tmp: " << w_tmp << endl;
+
+            if (w_tmp == 0) {
+            	cout << "imp Weight = 0!" << endl;
+            }
+
 
             if (i==1){
                 wi = w_tmp;
@@ -1036,11 +1299,41 @@ int ParticleSet::getNParticles(){
     return nParticles;
 }
 
-void ParticleSet::updateParticleSet(MeasurementSet* z_Ex, MeasurementSet* z_New, VectorUFastSLAMf u, float Ts){
+void ParticleSet::updateParticleSet(MeasurementSet* z, VectorUFastSLAMf u, float Ts){
+    Node_MeasurementSet* tmp_pointer = NULL;
+    MeasurementSet z_New;
+    MeasurementSet z_Ex;
+    unsigned int markerID;
+
     k++;
+
+    if (z != NULL) {
+       tmp_pointer = z->firstMeasNode;
+    }
+    if (tmp_pointer != NULL) { // if we have a non-emtpy measurement set update the particles, otherwise just do resampling
+        // Traverse all measurements in measurement set
+        do {
+            markerID = tmp_pointer->meas->c;
+            cout << "Known landmarks: ";
+            for (std::vector<unsigned int>::const_iterator i = KnownMarkers.begin(); i != KnownMarkers.end(); ++i)
+                cout << *i << ' ';
+
+            cout << endl;
+            if (find(KnownMarkers.begin(), KnownMarkers.end(), markerID) == KnownMarkers.end()) {
+                //cout << "New landmark: " << markerID << endl;
+                KnownMarkers.push_back(markerID);
+                z_New.addMeasurement(tmp_pointer->meas);
+            } else {
+                z_Ex.addMeasurement(tmp_pointer->meas);
+            }
+
+            tmp_pointer = tmp_pointer->nextNode;
+        } while (tmp_pointer != NULL);
+    }
+
     for(int i = 1; i<=nParticles;i++){
         //cout << endl << "updating particle: " << i << endl;
-        Parray[i]->updateParticle(z_Ex,z_New,&u,k,Ts);
+        ((Particle*)Parray[i])->updateParticle(&z_Ex,&z_New,&u,k,Ts);
     }
 
     resample();
@@ -1159,8 +1452,13 @@ void ParticleSet::estimateDistribution(){
     double wNorm = 0;
 
     for(int i = 1; i<=nParticles;i++){
+    	if (Parray[i]->w != Parray[i]->w) {
+    		cout << "Err NaN in Particle: " << i << endl;
+    	}
         wSum = wSum + Parray[i]->w;
     }
+
+    cout << "wSum: " << wSum << endl;
 
     Vector6f sTmp = Vector6f::Zero();
     Vector6f sMean_estimate = Vector6f::Zero();
