@@ -181,7 +181,7 @@ class MapTree
         void correctLandmark(landmark* newLandmarkData);
         landmark* extractLandmarkNodePointer(unsigned int Landmark_identifier);
         void printAllLandmarkPositions();
-        void saveData(std::string filename);
+        void saveData(std::string filename,std::vector<unsigned int> LandmarksToSave);
 
     private:
         mapNode* makeNewPath(landmark* newLandmarkData, mapNode* startNode);
@@ -241,7 +241,7 @@ public:
     ~Particle();
     void updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New, VectorUFastSLAMf* u, unsigned int k, float Ts);
     double getWeigth();
-    void saveData(std::string filename);
+    void saveData(std::string filename,std::vector<unsigned int> LandmarksToSave);
 
 private:
     /* variables */
