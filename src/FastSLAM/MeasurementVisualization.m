@@ -1,10 +1,10 @@
-MocapFiles = dir('*Mocap.txt');
-CameraFiles = dir('*Camera.txt');
-IntrinsicsFiles = dir('*Intrinsics.txt');
+MocapFiles = dir('~/logs/*Mocap.txt');
+CameraFiles = dir('~/logs/*Camera.txt');
+IntrinsicsFiles = dir('~/logs/*Intrinsics.txt');
 
-mocap = csvread(MocapFiles(end).name); % open latest Mocap file
-camera = csvread(CameraFiles(end).name);  % open latest Camera file
-IntrinsicsFilename = IntrinsicsFiles(end).name;
+mocap = csvread(['~/logs/' MocapFiles(end).name]); % open latest Mocap file
+camera = csvread(['~/logs/' CameraFiles(end).name]);  % open latest Camera file
+IntrinsicsFilename = ['~/logs/' IntrinsicsFiles(end).name];
 
 t0 = min(mocap(1,1), camera(1,1));
 mocap(:,1) = mocap(:,1) - t0;
