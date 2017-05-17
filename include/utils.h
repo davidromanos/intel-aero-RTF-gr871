@@ -16,5 +16,5 @@ void logToFile(const char *file, const char *format, ...);
 vector<vector<double> > load_csv (const string &path);
 void getLogFilePath(char * pathBuffer, const char * suffix);
 void prepareLogFile(ofstream * fileObject, const char * filePrefix);
-void logAppendTimestamp(ofstream &fileObject, ros::Time time);
+void logAppendTimestamp(ofstream &fileObject, ros::Duration time);
 void logAppendTimestampNow(ofstream &fileObject);

@@ -90,7 +90,7 @@ void prepareLogFile(ofstream * fileObject, const char * filePrefix)
     fileObject->open(pathBuffer, ios::out | ios::ate);
 }
 
-void logAppendTimestamp(ofstream &fileObject, ros::Time time)
+void logAppendTimestamp(ofstream &fileObject, ros::Duration time)
 {
     fileObject << time.sec << "." << setfill('0') << setw(3) << time.nsec / 1000000 << ", ";
 }

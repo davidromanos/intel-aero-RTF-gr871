@@ -24,6 +24,9 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/sync_policies/exact_time.h>
+#include <message_filters/subscriber.h>
+#include <message_filters/time_synchronizer.h>
+#include <message_filters/sync_policies/approximate_time.h>
 
 #include <opencv2/aruco.hpp>
 
@@ -77,7 +80,10 @@ cv::Mat Depth_Image;
 bool RGB_Image_New = false;
 bool Depth_Image_New = false;
 bool RGBD_Image_Ready = false;
-ros::Time RGBD_Timestamp;
+ros::Time lastPoseTime(0);
+ros::Duration RGBD_Timestamp;
+ros::Time Time0(0);
+ros::Duration DepthToPose_TimeOffset(0);
 
 cv::aruco::Dictionary markerDictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
 Eigen::IOFormat OctaveFmt(Eigen::FullPrecision, 0, ", ", ";\n", "", "", "[", "]"); // see https://eigen.tuxfamily.org/dox/structEigen_1_1IOFormat.html#a840cac6401adc4de421260d63dc3d861
@@ -88,6 +94,7 @@ Vector6f MocapPose;
 
 ofstream MocapLog;
 ofstream CameraLog;
+ofstream IntrinsicsLog;
 
 
 // ==== FastSLAM variables ====
@@ -177,6 +184,8 @@ static void rs_transform_point_to_point(float to_point[3], const struct rs_extri
 void MocapPose_Callback(const geometry_msgs::PoseStamped::ConstPtr& pose) {
     double roll, pitch, yaw;
 
+    lastPoseTime = pose->header.stamp;
+
     tf::Quaternion q1;
 
     q1.setW(pose->pose.orientation.w);
@@ -196,9 +205,11 @@ void MocapPose_Callback(const geometry_msgs::PoseStamped::ConstPtr& pose) {
                  yaw;
 
 
-    logAppendTimestamp(MocapLog, pose->header.stamp);
-    MocapLog << MocapPose.format(CSVFmt) << endl;
-    MocapLog.flush();
+    if (!Time0.isZero()) { // only log if time is synchronized
+        logAppendTimestamp(MocapLog, (pose->header.stamp - Time0));
+        MocapLog << MocapPose.format(CSVFmt) << endl;
+        MocapLog.flush();
+    }
 }
 
 // Image Callback
@@ -209,8 +220,21 @@ void Depth_Image_Callback(const sensor_msgs::ImageConstPtr& image) {
         cv_ptr->image.convertTo(Depth_Image, CV_32FC1);
         Depth_Image_New = true;
 
+        if (!lastPoseTime.isZero() && Time0.isZero()) { // timestamp synchronization hack
+            ros::Time depthTime = image->header.stamp;
+            if (depthTime > lastPoseTime) {
+                Time0 = lastPoseTime;
+            } else {
+                Time0 = depthTime;
+            }
+
+            DepthToPose_TimeOffset = depthTime - lastPoseTime;
+            cout << "depthTime: " << depthTime << " - poseTime: " << lastPoseTime << endl;
+            cout << "delta time (offset): " << DepthToPose_TimeOffset << endl;
+        }
+
         if (depth_to_color.initialized && rgb_intrin.initialized && depth_intrin.initialized && RGB_Image_New && Depth_Image_New) {
-            RGBD_Timestamp = image->header.stamp;
+            RGBD_Timestamp = image->header.stamp - DepthToPose_TimeOffset - Time0; // subtract to get RGBD timestamp into Pose timestamp
             RGBD_Image_Ready = true;
             RGB_Image_New = false;
             Depth_Image_New = false;
@@ -228,7 +252,7 @@ void RGB_Image_Callback(const sensor_msgs::ImageConstPtr& image) { // rgb image
         RGB_Image_New = true;
 
         if (depth_to_color.initialized && rgb_intrin.initialized && depth_intrin.initialized && RGB_Image_New && Depth_Image_New) {
-            RGBD_Timestamp = image->header.stamp;
+            RGBD_Timestamp = image->header.stamp - DepthToPose_TimeOffset - Time0; // subtract to get RGBD timestamp into Pose timestamp
             RGBD_Image_Ready = true;
             RGB_Image_New = false;
             Depth_Image_New = false;
@@ -248,11 +272,24 @@ void RGBD_Image_Callback(const sensor_msgs::ImageConstPtr& depth_image, const se
         cv_ptr2 = cv_bridge::toCvShare(depth_image);
         cv_ptr2->image.convertTo(Depth_Image, CV_32FC1);
 
+        if (!lastPoseTime.isZero() && Time0.isZero()) { // timestamp synchronization hack
+            ros::Time depthTime = depth_image->header.stamp;
+            //if (depthTime > lastPoseTime) {
+                Time0 = lastPoseTime;
+            /*} else {
+                Time0 = depthTime;
+            }*/
+
+            DepthToPose_TimeOffset = depthTime - lastPoseTime;
+            cout << "depthTime: " << depthTime << " - poseTime: " << lastPoseTime << endl;
+            cout << "delta time (offset): " << DepthToPose_TimeOffset << endl;
+        }
+
         if (depth_to_color.initialized && rgb_intrin.initialized && depth_intrin.initialized) {
             if (depth_image->header.stamp > rgb_image->header.stamp) {
-                RGBD_Timestamp = depth_image->header.stamp;
+                RGBD_Timestamp = depth_image->header.stamp - DepthToPose_TimeOffset - Time0; // subtract to get RGBD timestamp into Pose timestamp
             } else {
-                RGBD_Timestamp = rgb_image->header.stamp;
+                RGBD_Timestamp = rgb_image->header.stamp - DepthToPose_TimeOffset - Time0; // subtract to get RGBD timestamp into Pose timestamp
             }
             RGBD_Image_Ready = true;
             RGB_Image_New = false;
@@ -294,6 +331,19 @@ void CameraInfo_RGB_Callback(const sensor_msgs::CameraInfoConstPtr& cameraInfo) 
             rgb_intrin.coeffs[4] = cameraInfo->D[4];
             rgb_intrin.initialized = true;
 
+            IntrinsicsLog << "rgb,";
+            IntrinsicsLog << rgb_intrin.width << ",";
+            IntrinsicsLog << rgb_intrin.height << ",";
+            IntrinsicsLog << rgb_intrin.fx << ",";
+            IntrinsicsLog << rgb_intrin.ppx << ",";
+            IntrinsicsLog << rgb_intrin.fy << ",";
+            IntrinsicsLog << rgb_intrin.ppy << ",";
+            IntrinsicsLog << rgb_intrin.coeffs[0] << ",";
+            IntrinsicsLog << rgb_intrin.coeffs[1] << ",";
+            IntrinsicsLog << rgb_intrin.coeffs[2] << ",";
+            IntrinsicsLog << rgb_intrin.coeffs[3] << ",";
+            IntrinsicsLog << rgb_intrin.coeffs[4] << endl;
+
             camerainfo1_sub.shutdown(); // now that we have received the intrinsics we don't need to subscribe to the topic anymore
     }
 }
@@ -325,6 +375,19 @@ void CameraInfo_Depth_Callback(const sensor_msgs::CameraInfoConstPtr& cameraInfo
             depth_intrin.coeffs[3] = cameraInfo->D[3];
             depth_intrin.coeffs[4] = cameraInfo->D[4];
             depth_intrin.initialized = true;
+
+            IntrinsicsLog << "depth, ";
+            IntrinsicsLog << depth_intrin.width << ",";
+            IntrinsicsLog << depth_intrin.height << ",";
+            IntrinsicsLog << depth_intrin.fx << ",";
+            IntrinsicsLog << depth_intrin.ppx << ",";
+            IntrinsicsLog << depth_intrin.fy << ",";
+            IntrinsicsLog << depth_intrin.ppy << ",";
+            IntrinsicsLog << depth_intrin.coeffs[0] << ",";
+            IntrinsicsLog << depth_intrin.coeffs[1] << ",";
+            IntrinsicsLog << depth_intrin.coeffs[2] << ",";
+            IntrinsicsLog << depth_intrin.coeffs[3] << ",";
+            IntrinsicsLog << depth_intrin.coeffs[4] << endl;
 
             camerainfo2_sub.shutdown(); // now that we have received the intrinsics we don't need to subscribe to the topic anymore
     }
@@ -562,6 +625,12 @@ int main(int argc, char **argv)
         return -1;
     }
 
+    prepareLogFile(&IntrinsicsLog, "Intrinsics");
+    if (!IntrinsicsLog.is_open()) {
+        ROS_ERROR("Error opening Intrinsics log file");
+        return -1;
+    }
+
     image_transport::ImageTransport it(n);
 
 #if USE_IMAGE_SYNCHRONIZER
@@ -589,15 +658,19 @@ int main(int argc, char **argv)
             ("/camera/depth/camera_info", 10, CameraInfo_Depth_Callback);
 
     ros::Subscriber position_sub = n.subscribe<geometry_msgs::PoseStamped>
-            ("mavros/mocap/pose", 100, MocapPose_Callback);
+            ("/mavros/mocap/pose", 100, MocapPose_Callback);
 
     ConfigureCamera(true); // use auto exposure
     InitHardcodedExtrinsics(); // Hardcoded initialization of Extrinsics, taken from the R200 camera on our Intel Aero drone
 
     // Wait for intrinsics to arrive
-    while(ros::ok() && (!depth_to_color.initialized || !rgb_intrin.initialized || !depth_intrin.initialized)) {
+    while(ros::ok() && (!depth_to_color.initialized || !rgb_intrin.initialized || !depth_intrin.initialized) && Time0.isZero()) {
         ros::spinOnce();
     }
+
+    RGB_Image_New = false;
+    Depth_Image_New = false;
+    RGBD_Image_Ready = false;
 
     cv::namedWindow("view", CV_WINDOW_KEEPRATIO);    
     cv::startWindowThread();
@@ -607,16 +680,17 @@ int main(int argc, char **argv)
     while(ros::ok()){
         ros::spinOnce(); // process the latest measurements in the queue (subscribers) and move these into the RGB_Image and Depth_Image objects
         ProcessRGBDimage(&MeasSet);
-        if (MeasSet.getNumberOfMeasurements() > 0) {
+        /*if (MeasSet.getNumberOfMeasurements() > 0) {
             Pset.updateParticleSet(&MeasSet, u, 0);
             MeasSet.emptyMeasurementSet();
-        }
+        }*/
     }
 
     Pset.saveData();
 
     MocapLog.close();
     CameraLog.close();
+    IntrinsicsLog.close();
 
     cv::destroyWindow("view");
     return 0;
