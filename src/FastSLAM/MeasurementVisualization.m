@@ -1,69 +1,5 @@
 format long g;
-
-MocapFiles = dir('~/logs/*Mocap.txt');
-CameraFiles = dir('~/logs/*Camera.txt');
-IntrinsicsFiles = dir('~/logs/*Intrinsics.txt');
-
-mocap = csvread(['~/logs/' MocapFiles(end).name]); % open latest Mocap file
-camera = csvread(['~/logs/' CameraFiles(end).name]);  % open latest Camera file
-IntrinsicsFilename = ['~/logs/' IntrinsicsFiles(end).name];
-
-t0 = min(mocap(1,1), camera(1,1));
-mocap(:,1) = mocap(:,1) - t0;
-camera(:,1) = camera(:,1) - t0;
-
-mocap = mocap(1:2:end,:); % discard every second measurement
-
-tMoc = mocap(:,1);
-tCam = camera(:,1);
-pos = mocap(:,2:4);
-roll = mocap(:,5);
-pitch = mocap(:,6);
-yaw = mocap(:,7);
-
-%% Read markers
-markers = csvread('arucu_positions.txt');
-
-%rowheaders = sprintf('%d ', 1:size(markers,1))
-rowheaders = '-';
-for (i = 1:size(markers,1))
-    rowheaders = [rowheaders ' -'];
-end
-
-printmat(markers, 'My Matrix', rowheaders, 'ID X Y Z' );
-
-header = {'ID', 'X', 'Y', 'Z'};
-markersForDisplay = [header; num2cell(markers)];
-disp(markersForDisplay);
-
-%% Read intrinsics          
-intrinFile = fopen(IntrinsicsFilename);
-while (~feof(intrinFile))
-    line = fgetl(intrinFile);
-    s = split(line, ',');
-    if (length(s) == 12)
-        intrin.width = double(s(2));
-        intrin.height = double(s(3));
-        intrin.fx = double(s(4));
-        intrin.ppx = double(s(5));
-        intrin.fy = double(s(6));
-        intrin.ppy = double(s(7));
-        intrin.coeffs(1) = double(s(8));  
-        intrin.coeffs(2) = double(s(9));  
-        intrin.coeffs(3) = double(s(10));  
-        intrin.coeffs(4) = double(s(11));  
-        intrin.coeffs(5) = double(s(12));  
-    end    
-    if (contains(line, 'rgb'))        
-        RGB = intrin;
-    elseif (contains(line, 'depth'))
-        Depth = intrin;
-    end
-end
-fclose(intrinFile);
-
-%% Pair measurements into measurement packs (pair timestamps)
-tCamReduced = unique(tCam,'stable');
+run('LoadLatestLogs.m');
 
 %% Plot Mocap data
 figure(1);
@@ -149,7 +85,8 @@ end
 
 %% Calculate landmark position in a given frame (inverse measurement model)
 % RGB intrinsics should be used
-i = 10; % pick camera measurement
+clc;
+i = 1000; % pick camera measurement
 t = tCamReduced(i);
 
 iCam = find(tCam == t);
@@ -158,7 +95,28 @@ if (length(iMoc) == 0)
     iMoc = find(tMoc > (t-0.01) & tMoc < (t+0.01));    
 end
 iMoc = iMoc(1);
+measIdx = 1:length(iCam);
 
-pose = mocap(iMoc,2:7);
-z = camera(iCam(1),3:5);
-InverseMeasurementModel(pose, z, RGB)
+pose = mocap(iMoc,2:7)';
+        hold on;
+        R = rpy2tr(pose(4), pose(5), pose(6));
+        R(1:3,4) = pose(1:3);
+        trplot(R, 'color', 'red', 'notext', 'noarrow', 'thick', 3, 'length', 1);
+        hold off;
+
+for (measIdx_ = measIdx)
+    DetectedID = camera(iCam(measIdx_),2)
+    z = camera(iCam(measIdx_),3:5);
+    marker = InverseMeasurementModel(pose, z, RGB);
+
+    err = markers(:,2:4) - marker';
+    errd = err(:,1).^2 + err(:,2).^2 + err(:,3).^2;
+    [e idx] = min(errd);
+    MatchingDistErr = errd(idx)
+    MatchingID = markers(idx,1)
+    if (DetectedID == MatchingID)
+        disp('Detected and Calculated marker ID is matching');
+    else
+        disp('ERROR: Detected and Calculated marker ID does NOT match');
+    end
+end

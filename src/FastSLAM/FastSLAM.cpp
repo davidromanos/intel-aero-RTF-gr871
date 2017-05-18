@@ -240,7 +240,7 @@ Eigen::MatrixXf ImgMeasurement::calculateHl(VectorChiFastSLAMf pose, Eigen::Vect
     float s_phi = sin(roll);
 
     Eigen::Matrix3f R; // Rotation matrix corresponding to: BC_R' * EB_R'
-    R << (-c_psi*s_theta*s_phi + s_psi*c_phi), (-s_psi*s_theta*s_phi-c_psi*c_phi), -(c_theta*s_phi),
+    R  <<   (-c_psi*s_theta*s_phi + s_psi*c_phi),(-s_psi*s_theta*s_phi-c_psi*c_phi), -(c_theta*s_phi),
             (-c_psi*s_theta*c_phi-s_psi*s_phi),  (-s_psi*s_theta*c_phi+c_psi*s_phi), -(c_theta*c_phi),
             (c_psi*c_theta),                     (s_psi*c_theta),                    -(s_theta);
 
@@ -1698,4 +1698,53 @@ void MapTree::saveData(string filename,std::vector<unsigned int> LandmarksToSave
     }
     Path::dataFileStream.flush();
     Path::dataFileStream.close();
+}
+
+
+IIR::IIR(const float * coeff_a, int no_coeff_a, const float * coeff_b, int no_coeff_b)
+{
+    int i;
+
+    oldOutputs.resize(no_coeff_a-1);
+    oldOutputs << Eigen::VectorXf::Zero(no_coeff_a-1);
+    oldInputs.resize(no_coeff_b-1);
+    oldInputs << Eigen::VectorXf::Zero(no_coeff_b-1);
+    a.resize(no_coeff_a,1);
+    b.resize(no_coeff_b,1);
+    for (i = 0; i < no_coeff_b; i++) {
+        a(i) = coeff_a[i];
+    }
+    for (i = 0; i < no_coeff_b; i++) {
+        b(i) = coeff_b[i];
+    }
+
+    aLen = no_coeff_a;
+    bLen = no_coeff_b;
+}
+
+float IIR::Filter(float input)
+{
+    int j;
+    float output;
+    Eigen::MatrixXf oldInputContrib;
+    Eigen::MatrixXf oldOutputContrib;
+    oldInputContrib = oldInputs.transpose()*b.block(1,0,(bLen-1),1); // should just become a scalar
+    oldOutputContrib = oldOutputs.transpose()*a.block(1,0,(aLen-1),1); // should just become a scalar    
+
+    // output = ( b(1)*input + oldInput'*b(2:end)' - oldOutput'*a(2:end)' ) / a(1);
+    output = ( b(0)*input + oldInputContrib(0,0) - oldOutputContrib(0,0) ) / a(0);
+
+    for (j = (aLen-2); j >= 1; j--) {
+        oldOutputs(j) = oldOutputs(j-1);
+    }
+    oldOutputs(0) = output;
+    for (j = (bLen-2); j >= 1; j--) {
+        oldInputs(j) = oldInputs(j-1);
+    }
+    oldInputs(0) = input;
+
+    //cout << "oldOutputs: " << oldOutputs << endl;
+    //cout << "oldInputs: " << oldInputs << endl;
+
+    return output;
 }

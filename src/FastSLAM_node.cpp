@@ -80,7 +80,7 @@ cv::Mat Depth_Image;
 bool RGB_Image_New = false;
 bool Depth_Image_New = false;
 bool RGBD_Image_Ready = false;
-ros::Time lastPoseTime(0);
+ros::Time PoseTimestamp(0);
 ros::Duration RGBD_Timestamp;
 ros::Time Time0(0);
 ros::Duration DepthToPose_TimeOffset(0);
@@ -95,7 +95,7 @@ Vector6f MocapPose;
 ofstream MocapLog;
 ofstream CameraLog;
 ofstream IntrinsicsLog;
-
+ofstream MocapVelocityLog;
 
 // ==== FastSLAM variables ====
 int Nparticles;
@@ -181,10 +181,71 @@ static void rs_transform_point_to_point(float to_point[3], const struct rs_extri
     to_point[2] = extrin->rotation[2] * from_point[0] + extrin->rotation[5] * from_point[1] + extrin->rotation[8] * from_point[2] + extrin->translation[2];
 }
 
+/* 2nd order IIR filter
+          D = designfilt('lowpassiir', 'FilterOrder', 2, ...
+             'PassbandFrequency', 8, 'PassbandRipple', 0.5,...
+             'SampleRate', round(1/mean(diff(td)), 0)); */
+const float LPF_COEFF_A[] = {1.000000000000000,         -1.22790041314432,         0.500627356053467}; // 2nd order IIR filter
+const float LPF_COEFF_B[] = {0.0643677091773966,         0.128735418354793,        0.0643677091773966};
+
+IIR Xdot_Filter(LPF_COEFF_A, 3, LPF_COEFF_B, 3);
+IIR Ydot_Filter(LPF_COEFF_A, 3, LPF_COEFF_B, 3);
+IIR Zdot_Filter(LPF_COEFF_A, 3, LPF_COEFF_B, 3);
+
+Vector6f PreviousPose = Vector6f::Zero();
+ros::Time PreviousTimestamp(0);
+bool SkipMeasurement = false; // used to skip every second measurement
+
+Vector3f MocapVelocity = Vector3f::Zero();
+
+void MocapVelocityFilter()
+{       
+    ros::Duration dt;
+    float dx, dy, dz;
+
+    if (!SkipMeasurement) {
+        dt = PoseTimestamp - PreviousTimestamp;
+        dx = MocapPose(0) - PreviousPose(0);
+        dy = MocapPose(1) - PreviousPose(1);
+        dz = MocapPose(2) - PreviousPose(2);
+
+        //cout << "dt: " << dt.toSec() << endl;
+        //cout << "xdot: " << (dx / dt.toSec()) << endl;
+
+        if (dx != 0)
+            MocapVelocity(0) = Xdot_Filter.Filter(dx / dt.toSec());
+        else
+            MocapVelocity(0) = Xdot_Filter.Filter(MocapVelocity(0)); // velocity can not be zero, so we assume that it is because of no measurement, hence take the previous velocity
+
+        if (dy != 0)
+            MocapVelocity(1) = Ydot_Filter.Filter(dy / dt.toSec());
+        else
+            MocapVelocity(1) = Ydot_Filter.Filter(MocapVelocity(1)); // velocity can not be zero, so we assume that it is because of no measurement, hence take the previous velocity
+
+        if (dz != 0)
+            MocapVelocity(2) = Zdot_Filter.Filter(dz / dt.toSec());
+        else
+            MocapVelocity(2) = Zdot_Filter.Filter(MocapVelocity(2)); // velocity can not be zero, so we assume that it is because of no measurement, hence take the previous velocity
+
+        //cout << "xdot filt: " << MocapVelocity(0) << endl;
+
+        PreviousPose = MocapPose;
+        PreviousTimestamp = PoseTimestamp;
+
+        if (!Time0.isZero()) { // only log if time is synchronized
+            logAppendTimestamp(MocapVelocityLog, (PoseTimestamp - Time0));
+            MocapVelocityLog << MocapVelocity.format(CSVFmt) << endl;
+            MocapVelocityLog.flush();
+        }
+    }
+
+    SkipMeasurement = !SkipMeasurement;
+}
+
 void MocapPose_Callback(const geometry_msgs::PoseStamped::ConstPtr& pose) {
     double roll, pitch, yaw;
 
-    lastPoseTime = pose->header.stamp;
+    PoseTimestamp = pose->header.stamp;
 
     tf::Quaternion q1;
 
@@ -204,6 +265,8 @@ void MocapPose_Callback(const geometry_msgs::PoseStamped::ConstPtr& pose) {
                  pitch,
                  yaw;
 
+    MocapVelocityFilter();
+
 
     if (!Time0.isZero()) { // only log if time is synchronized
         logAppendTimestamp(MocapLog, (pose->header.stamp - Time0));
@@ -220,16 +283,17 @@ void Depth_Image_Callback(const sensor_msgs::ImageConstPtr& image) {
         cv_ptr->image.convertTo(Depth_Image, CV_32FC1);
         Depth_Image_New = true;
 
-        if (!lastPoseTime.isZero() && Time0.isZero()) { // timestamp synchronization hack
+        if (!PoseTimestamp.isZero() && Time0.isZero()) { // timestamp synchronization hack
             ros::Time depthTime = image->header.stamp;
-            if (depthTime > lastPoseTime) {
-                Time0 = lastPoseTime;
+            if (depthTime > PoseTimestamp) {
+                Time0 = PoseTimestamp;
             } else {
                 Time0 = depthTime;
             }
+            PreviousTimestamp = PoseTimestamp;
 
-            DepthToPose_TimeOffset = depthTime - lastPoseTime;
-            cout << "depthTime: " << depthTime << " - poseTime: " << lastPoseTime << endl;
+            DepthToPose_TimeOffset = depthTime - PoseTimestamp;
+            cout << "depthTime: " << depthTime << " - poseTime: " << PoseTimestamp << endl;
             cout << "delta time (offset): " << DepthToPose_TimeOffset << endl;
         }
 
@@ -272,16 +336,17 @@ void RGBD_Image_Callback(const sensor_msgs::ImageConstPtr& depth_image, const se
         cv_ptr2 = cv_bridge::toCvShare(depth_image);
         cv_ptr2->image.convertTo(Depth_Image, CV_32FC1);
 
-        if (!lastPoseTime.isZero() && Time0.isZero()) { // timestamp synchronization hack
+        if (!PoseTimestamp.isZero() && Time0.isZero()) { // timestamp synchronization hack
             ros::Time depthTime = depth_image->header.stamp;
-            //if (depthTime > lastPoseTime) {
-                Time0 = lastPoseTime;
+            //if (depthTime > PoseTimestamp) {
+                Time0 = PoseTimestamp;
             /*} else {
                 Time0 = depthTime;
             }*/
+            PreviousTimestamp = PoseTimestamp;
 
-            DepthToPose_TimeOffset = depthTime - lastPoseTime;
-            cout << "depthTime: " << depthTime << " - poseTime: " << lastPoseTime << endl;
+            DepthToPose_TimeOffset = depthTime - PoseTimestamp;
+            cout << "depthTime: " << depthTime << " - poseTime: " << PoseTimestamp << endl;
             cout << "delta time (offset): " << DepthToPose_TimeOffset << endl;
         }
 
@@ -571,7 +636,7 @@ void ProcessRGBDimage(MeasurementSet * MeasSet)
                     cv::Vec3f World = GetWorldCoordinateFromMeasurement(MarkerMeas);
 //                    ROS_INFO("Marker ID %u at (%f, %f, %f)", ID, MarkerMeas_(0), MarkerMeas_(1), MarkerMeas_(2));
 
-                    z_img = new ImgMeasurement(ID, MarkerMeas_);
+                    z_img = new ImgMeasurement(ID, MarkerMeas_, MocapPose(3), MocapPose(4)); // ID, Marker measurements and include current/latest raw Roll and Pitch measurement (in this case directly from Mocap instead of from the estimator)
                     MeasSet->addMeasurement(z_img);
 
                     sprintf(str, "X=%1.3f", World[0]);
@@ -629,6 +694,13 @@ int main(int argc, char **argv)
         ROS_ERROR("Error opening Mocap log file");
         return -1;
     }
+
+    prepareLogFile(&MocapVelocityLog, "MocapVelocity");
+    if (!MocapVelocityLog.is_open()) {
+        ROS_ERROR("Error opening Mocap Velocity log file");
+        return -1;
+    }
+
 
     prepareLogFile(&CameraLog, "Camera");
     if (!CameraLog.is_open()) {
@@ -691,10 +763,10 @@ int main(int argc, char **argv)
     while(ros::ok()){
         ros::spinOnce(); // process the latest measurements in the queue (subscribers) and move these into the RGB_Image and Depth_Image objects
         ProcessRGBDimage(&MeasSet);
-        if (MeasSet.getNumberOfMeasurements() > 0) {
+        /*if (MeasSet.getNumberOfMeasurements() > 0) {
             Pset.updateParticleSet(&MeasSet, u, 0);
             MeasSet.emptyMeasurementSet();
-        }
+        }*/
     }
 
     Pset.saveData();

@@ -295,3 +295,18 @@ public:
     void estimateDistribution();
     void resampleSimple();
 };
+
+class IIR
+{
+    public:
+        IIR(const float * coeff_a, int no_coeff_a, const float * coeff_b, int no_coeff_b);
+        float Filter(float input);
+
+    private:
+        Eigen::VectorXf a;
+        Eigen::VectorXf b;
+        Eigen::VectorXf oldInputs;
+        Eigen::VectorXf oldOutputs;
+        int aLen;
+        int bLen;
+};
