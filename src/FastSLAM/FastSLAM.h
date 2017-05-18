@@ -84,7 +84,7 @@ class ImgMeasurement : public Measurement
     float pitch;
 
     //ImgMeasurement(unsigned int i, Eigen::Vector3f img_me);
-    ImgMeasurement(unsigned int i, Eigen::Vector3f img_me);
+    ImgMeasurement(unsigned int i, Eigen::Vector3f img_me,float roll_, float pitch_);
     Eigen::VectorXf inverseMeasurementModel(VectorChiFastSLAMf pose);
     Eigen::MatrixXf calculateHs(VectorChiFastSLAMf pose, Eigen::Vector3f l);
     Eigen::MatrixXf calculateHl(VectorChiFastSLAMf pose, Eigen::Vector3f l);

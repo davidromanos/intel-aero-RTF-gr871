@@ -130,9 +130,9 @@ Eigen::MatrixXf GOTMeasurement::zCov = 0.05*Eigen::Matrix3f::Identity(); // stat
     timestamp = ros::Time::now();
 }*/
 
-ImgMeasurement::ImgMeasurement(unsigned int i, Eigen::Vector3f img_meas){
-    pitch = 0;
-    roll = 0;
+ImgMeasurement::ImgMeasurement(unsigned int i, Eigen::Vector3f img_meas,float roll_, float pitch_){
+    pitch = pitch_;
+    roll = roll_;
     c = i;
     z = img_meas;
     timestamp = ros::Time::now();
@@ -142,8 +142,8 @@ Eigen::VectorXf ImgMeasurement::MeasurementModel(VectorChiFastSLAMf pose, Eigen:
 {
     Eigen::Vector3f z;
 
-    float c_psi = cos(pose(5));
-    float s_psi = sin(pose(5));
+    float c_psi = cos(pose(3));
+    float s_psi = sin(pose(3));
     float c_theta = cos(pitch);
     float s_theta = sin(pitch);
     float c_phi = cos(roll);
@@ -174,8 +174,8 @@ Eigen::VectorXf ImgMeasurement::MeasurementModel(VectorChiFastSLAMf pose, Eigen:
 
 Eigen::VectorXf ImgMeasurement::inverseMeasurementModel(VectorChiFastSLAMf pose)
 {
-    float c_psi = cos(pose(5));
-    float s_psi = sin(pose(5));
+    float c_psi = cos(pose(3));
+    float s_psi = sin(pose(3));
     float c_theta = cos(pitch);
     float s_theta = sin(pitch);
     float c_phi = cos(roll);
@@ -205,16 +205,16 @@ Eigen::VectorXf ImgMeasurement::inverseMeasurementModel(VectorChiFastSLAMf pose)
 
 Eigen::MatrixXf ImgMeasurement::calculateHs(VectorChiFastSLAMf pose, Eigen::Vector3f l)
 {
-    float c_psi = cos(pose(5));
-    float s_psi = sin(pose(5));
+    float c_psi = cos(pose(3));
+    float s_psi = sin(pose(3));
     float c_theta = cos(pitch);
     float s_theta = sin(pitch);
     float c_phi = cos(roll);
     float s_phi = sin(roll);
 
-    Eigen::MatrixXf Hs(3, 6);
+    Eigen::MatrixXf Hs(3, 4);
     float den = powf((c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1))),2);
-
+    /*
     Hs(0,0) = (ax*(c_phi*s_psi - c_psi*s_theta*s_phi))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1))) + (ax*c_theta*c_psi*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1)) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0)) + c_theta*s_phi*(pose(2) - l(2))))/den;
     Hs(0,1) = (ax*c_theta*s_psi*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1)) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0)) + c_theta*s_phi*(pose(2) - l(2))))/den - (ax*(c_phi*c_psi + s_theta*s_phi*s_psi))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1)));
     Hs(0,2) = - (ax*s_theta*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1)) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0)) + c_theta*s_phi*(pose(2) - l(2))))/den - (ax*c_theta*s_phi)/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1)));
@@ -233,14 +233,27 @@ Eigen::MatrixXf ImgMeasurement::calculateHs(VectorChiFastSLAMf pose, Eigen::Vect
     Hs(2,3) = 0;
     Hs(2,4) = c_theta*(pose(2) - l(2)) + c_psi*s_theta*(pose(0) - l(0)) + s_theta*s_psi*(pose(1) - l(1));
     Hs(2,5) = c_theta*s_psi*(pose(0) - l(0)) - c_theta*c_psi*(pose(1) - l(1));
+    */
+    Hs(0,0) = (ax*(c_phi*s_psi - c_psi*s_theta*s_phi))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1))) + (ax*c_theta*c_psi*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1)) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0)) + c_theta*s_phi*(pose(2) - l(2))))/den;
+    Hs(0,1) = (ax*c_theta*s_psi*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1)) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0)) + c_theta*s_phi*(pose(2) - l(2))))/den - (ax*(c_phi*c_psi + s_theta*s_phi*s_psi))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1)));
+    Hs(0,2) = - (ax*s_theta*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1)) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0)) + c_theta*s_phi*(pose(2) - l(2))))/den - (ax*c_theta*s_phi)/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1)));
+    Hs(0,3) = (ax*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(0) - l(0)) + (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(1) - l(1))))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1))) + (ax*(c_theta*c_psi*(pose(1) - l(1)) - c_theta*s_psi*(pose(0) - l(0)))*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1)) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0)) + c_theta*s_phi*(pose(2) - l(2))))/den;
+    Hs(1,0) = (ay*c_theta*c_psi*((s_phi*s_psi + c_phi*c_psi*s_theta)*(pose(0) - l(0)) - (c_psi*s_phi - c_phi*s_theta*s_psi)*(pose(1) - l(1)) + c_theta*c_phi*(pose(2) - l(2))))/den - (ay*(s_phi*s_psi + c_phi*c_psi*s_theta))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1)));
+    Hs(1,1) = (ay*(c_psi*s_phi - c_phi*s_theta*s_psi))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1))) + (ay*c_theta*s_psi*((s_phi*s_psi + c_phi*c_psi*s_theta)*(pose(0) - l(0)) - (c_psi*s_phi - c_phi*s_theta*s_psi)*(pose(1) - l(1)) + c_theta*c_phi*(pose(2) - l(2))))/den;
+    Hs(1,2) = - (ay*s_theta*((s_phi*s_psi + c_phi*c_psi*s_theta)*(pose(0) - l(0)) - (c_psi*s_phi - c_phi*s_theta*s_psi)*(pose(1) - l(1)) + c_theta*c_phi*(pose(2) - l(2))))/den - (ay*c_theta*c_phi)/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1)));
+    Hs(1,3) = (ay*(c_theta*c_psi*(pose(1) - l(1)) - c_theta*s_psi*(pose(0) - l(0)))*((s_phi*s_psi + c_phi*c_psi*s_theta)*(pose(0) - l(0)) - (c_psi*s_phi - c_phi*s_theta*s_psi)*(pose(1) - l(1)) + c_theta*c_phi*(pose(2) - l(2))))/den - (ay*((c_psi*s_phi - c_phi*s_theta*s_psi)*(pose(0) - l(0)) + (s_phi*s_psi + c_phi*c_psi*s_theta)*(pose(1) - l(1))))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1)));
+    Hs(2,0) = -c_theta*c_psi;
+    Hs(2,1) = -c_theta*s_psi;
+    Hs(2,2) = s_theta;
+    Hs(2,3) = c_theta*s_psi*(pose(0) - l(0)) - c_theta*c_psi*(pose(1) - l(1));
 
     return Hs;
 }
 
 Eigen::MatrixXf ImgMeasurement::calculateHl(VectorChiFastSLAMf pose, Eigen::Vector3f l)
 {
-    float c_psi = cos(pose(5));
-    float s_psi = sin(pose(5));
+    float c_psi = cos(pose(3));
+    float s_psi = sin(pose(3));
     float c_theta = cos(pitch);
     float s_theta = sin(pitch);
     float c_phi = cos(roll);
@@ -815,41 +828,41 @@ Particle::~Particle()
 void Particle::updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New,VectorUFastSLAMf* u, unsigned int k, float Ts)
 {
     VectorChiFastSLAMf s_proposale;
-    cout << "d4-5-1" << endl;
+
     if (k > 5){
-        cout << "d4-5-2" << endl;
+
         s_proposale = drawSampleFromProposaleDistribution(s->getPose(),u,z_Ex,Ts);
-        cout << "d4-5-3" << endl;
+
         s->addPose(s_proposale,k); // we are done estimating our pose and add it to the path!
-        cout << "d4-5-4" << endl;
+
         // OBS. In this code the importance weight is calculated differently and before the landmark corrections are done: https://github.com/bushuhui/fastslam/blob/master/src/fastslam_2.cpp#L593-L602
         if (z_Ex != NULL && z_Ex->nMeas != 0 ){
-            cout << "d4-5-5" << endl;
+
             calculateImportanceWeight(z_Ex,s_proposale);
         }
 
         updateLandmarkEstimates(s_proposale,z_Ex,z_New);
-        cout << "d4-5-6" << endl;
+
 
     }
     else{
-        cout << "d4-5-7" << endl;
+
         s_proposale = *(s->getPose());
-        cout << "d4-5-8" << endl;
+
         s->addPose(s_proposale,k); // we are done estimating our pose and add it to the path!
-        cout << "d4-5-9" << endl;
+
         updateLandmarkEstimates(s_proposale,NULL,z_New);
-        cout << "d4-5-10" << endl;
+
     }
-    cout << "d4-5-11" << endl;
+
 }
 
 void Particle::updateLandmarkEstimates(VectorChiFastSLAMf s_proposale, MeasurementSet* z_Ex, MeasurementSet* z_New){
-    cout << "d4-5-9-1" << endl;
+
     handleExMeas(z_Ex,s_proposale);
-    cout << "d4-5-9-2" << endl;
+
     handleNewMeas(z_New,s_proposale);
-    cout << "d4-5-9-3" << endl;
+
     //cout << "N_landmarks in map after update: " << map->N_Landmarks << endl;
 }
 
@@ -909,13 +922,19 @@ void Particle::handleExMeas(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale
 
 
 void Particle::handleNewMeas(MeasurementSet* z_New, VectorChiFastSLAMf s_proposale){
+
     if (z_New != NULL && z_New->nMeas != 0 ){
+
         for( int i = 1; i <= z_New->nMeas; i = i + 1 ) {
+
             Measurement* z_tmp = z_New->getMeasurement(i);
 
             landmark* li = new landmark;
-            li->c = z_tmp->c;    
+
+            li->c = z_tmp->c;
+
             li->lhat = z_tmp->inverseMeasurementModel(s_proposale);
+
             cout << "lhat" << li->lhat << endl;
 
             Eigen::MatrixXf Hl;
@@ -933,13 +952,17 @@ void Particle::handleNewMeas(MeasurementSet* z_New, VectorChiFastSLAMf s_proposa
 VectorChiFastSLAMf Particle::drawSampleFromProposaleDistribution(VectorChiFastSLAMf* s_old, VectorUFastSLAMf* u,MeasurementSet* z_Ex, float Ts)
 {
     //cout << "D10" << endl;
+
     VectorChiFastSLAMf s_bar = motionModel(*s_old,u,Ts);
+
 
     //cout << endl << "s_bar" << endl << s_bar << endl;
 
     MatrixChiFastSLAMf sCov_proposale= sCov; // eq (3.28)
     VectorChiFastSLAMf sMean_proposale = s_bar; // eq (3.29)
+
     if (z_Ex != NULL){
+
         for(int i = 1; i <= z_Ex->nMeas; i = i + 1 ) {
 
             Measurement* z_tmp = z_Ex->getMeasurement(i);
@@ -957,6 +980,7 @@ VectorChiFastSLAMf Particle::drawSampleFromProposaleDistribution(VectorChiFastSL
 
             Eigen::MatrixXf Zki;
             Eigen::MatrixXf zCov_tmp = z_tmp->getzCov();
+
 /*
             if(li_old->c == 55){
                 cout << endl << "li_55->lCov" << endl << li_old->lCov << endl;
@@ -1041,6 +1065,7 @@ VectorChiFastSLAMf Particle::drawSampleFromProposaleDistribution(VectorChiFastSL
     cout << endl << "s_proposale" << endl << s_proposale << endl;
 
     return s_proposale;
+
 }
 
 
@@ -1247,7 +1272,7 @@ VectorChiFastSLAMf Particle::drawSampleRandomPose(VectorChiFastSLAMf sMean_propo
 {
 	//choleksy decomposition
 	Eigen::MatrixXf S = sCov_proposale.llt().matrixL();
-	Eigen::MatrixXf X = randn(6,1);
+    Eigen::MatrixXf X = randn(4,1);
 
     return S*X + sMean_proposale;
 }
@@ -1430,13 +1455,13 @@ void ParticleSet::updateParticleSet(MeasurementSet* z, VectorUFastSLAMf u, float
     MeasurementSet z_Ex;
     unsigned int markerID;
 
-    cout << "d4-1" << endl;
+
     k++;
 
     if (z != NULL) {
-        cout << "d4-2" << endl;
+
        tmp_pointer = z->firstMeasNode;
-       cout << "d4-3" << endl;
+
     }
     if (tmp_pointer != NULL) { // if we have a non-emtpy measurement set update the particles, otherwise just do resampling
         // Traverse all measurements in measurement set
@@ -1458,17 +1483,17 @@ void ParticleSet::updateParticleSet(MeasurementSet* z, VectorUFastSLAMf u, float
             tmp_pointer = tmp_pointer->nextNode;
         } while (tmp_pointer != NULL);
     }
-    cout << "d4-4" << endl;
+
     for(int i = 1; i<=nParticles;i++){
         //cout << endl << "updating particle: " << i << endl;
         ((Particle*)Parray[i])->updateParticle(&z_Ex,&z_New,&u,k,Ts);
-        cout << "d4-5" << endl;
+
     }
-    cout << "d4-6" << endl;
+
     estimateDistribution();
-    cout << "d4-7" << endl;
+
     resample();
-    cout << "d4-8" << endl;
+
 }
 
 void ParticleSet::resample(){
@@ -1600,30 +1625,39 @@ void ParticleSet::estimateDistribution(){
     VectorChiFastSLAMf sMean_estimate = VectorChiFastSLAMf::Zero();
     double wSum_squared = 0;
 
+
     for(int i = 1; i<=nParticles;i++){
+
         sTmp = *(Parray[i]->s->getPose());
+
         wNorm = (Parray[i]->w)/wSum;
 
         sMean_estimate = sMean_estimate + wNorm*sTmp; // weighted mean!
+
     }
+
 
     MatrixChiFastSLAMf sCov_estimate = MatrixChiFastSLAMf::Zero();
     MatrixChiFastSLAMf sCov_estimate_tmp = MatrixChiFastSLAMf::Zero();
     VectorChiFastSLAMf sDiff = VectorChiFastSLAMf::Zero();
 
     for(int i = 1; i<=nParticles;i++){
+
         sTmp = *(Parray[i]->s->getPose());
+
         wNorm = (Parray[i]->w)/wSum;
+
         sDiff = sTmp-sMean_estimate;
 
-        for(int j = 0; j<=5;j++){
-            for(int k = 0; k<=5;k++){
+        for(int j = 0; j<sDiff.rows();j++){
+            for(int k = 0; k<sDiff.cols();k++){
                 sCov_estimate_tmp(j,k) = sDiff(j)*sDiff(k)*(float)wNorm; // weighted mean!
             }
         }
         sCov_estimate = sCov_estimate + sCov_estimate_tmp;
         wSum_squared = wSum_squared + wNorm*wNorm;
     }
+
     sCov_estimate = 1/(1-wSum_squared)*sCov_estimate;
 
     //cout << endl << "sCov_estimate" << endl << sCov_estimate << endl;
@@ -1720,7 +1754,6 @@ void MapTree::saveData(string filename,std::vector<unsigned int> LandmarksToSave
 
         }
         else{
-            cout << "D4-2" << endl;
             cout<<"Error: NULL pointer!";
         }
     }

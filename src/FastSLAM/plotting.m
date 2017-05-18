@@ -1,6 +1,6 @@
-run('/home/malte/catkin_ws/Data/t_29.m')
+run('/home/malte/catkin_ws/Data/t_30.m')
 
-t = t29;
+t = t30;
 %%
 figure
 xlabel('x')
