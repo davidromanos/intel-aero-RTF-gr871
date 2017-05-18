@@ -122,10 +122,17 @@ Eigen::MatrixXf GOTMeasurement::zCov = 0.05*Eigen::Matrix3f::Identity(); // stat
 
 
 /* ############################## Defines ImgMeasurement class ##############################  */
-ImgMeasurement::ImgMeasurement(unsigned int i, Eigen::Vector3f img_meas,float pitch_,float roll_)
-{
-    pitch = pitch_;
-    roll = roll_;
+/*ImgMeasurement::ImgMeasurement(unsigned int i, Eigen::Vector3f img_meas){
+    pitch = 0;
+    roll = 0;
+    c = i;
+    z = img_meas;
+    timestamp = ros::Time::now();
+}*/
+
+ImgMeasurement::ImgMeasurement(unsigned int i, Eigen::Vector3f img_meas){
+    pitch = 0;
+    roll = 0;
     c = i;
     z = img_meas;
     timestamp = ros::Time::now();
@@ -272,7 +279,7 @@ Eigen::MatrixXf ImgMeasurement::getzCov(){
     return zCov;
 }
 
-Eigen::Matrix3f ImgMeasurement::zCov = 0.1*Eigen::Matrix3f::Identity(); // static variable - has to be declared outside class!
+Eigen::MatrixXf ImgMeasurement::zCov = 0.1*Eigen::Matrix3f::Identity(); // static variable - has to be declared outside class!
 
 
 
@@ -808,26 +815,41 @@ Particle::~Particle()
 void Particle::updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New,VectorUFastSLAMf* u, unsigned int k, float Ts)
 {
     VectorChiFastSLAMf s_proposale;
+    cout << "d4-5-1" << endl;
     if (k > 5){
+        cout << "d4-5-2" << endl;
         s_proposale = drawSampleFromProposaleDistribution(s->getPose(),u,z_Ex,Ts);
+        cout << "d4-5-3" << endl;
         s->addPose(s_proposale,k); // we are done estimating our pose and add it to the path!
+        cout << "d4-5-4" << endl;
         // OBS. In this code the importance weight is calculated differently and before the landmark corrections are done: https://github.com/bushuhui/fastslam/blob/master/src/fastslam_2.cpp#L593-L602
         if (z_Ex != NULL && z_Ex->nMeas != 0 ){
+            cout << "d4-5-5" << endl;
             calculateImportanceWeight(z_Ex,s_proposale);
         }
+
         updateLandmarkEstimates(s_proposale,z_Ex,z_New);
+        cout << "d4-5-6" << endl;
 
     }
     else{
+        cout << "d4-5-7" << endl;
         s_proposale = *(s->getPose());
+        cout << "d4-5-8" << endl;
         s->addPose(s_proposale,k); // we are done estimating our pose and add it to the path!
+        cout << "d4-5-9" << endl;
         updateLandmarkEstimates(s_proposale,NULL,z_New);
+        cout << "d4-5-10" << endl;
     }
+    cout << "d4-5-11" << endl;
 }
 
 void Particle::updateLandmarkEstimates(VectorChiFastSLAMf s_proposale, MeasurementSet* z_Ex, MeasurementSet* z_New){
+    cout << "d4-5-9-1" << endl;
     handleExMeas(z_Ex,s_proposale);
+    cout << "d4-5-9-2" << endl;
     handleNewMeas(z_New,s_proposale);
+    cout << "d4-5-9-3" << endl;
     //cout << "N_landmarks in map after update: " << map->N_Landmarks << endl;
 }
 
@@ -1408,10 +1430,13 @@ void ParticleSet::updateParticleSet(MeasurementSet* z, VectorUFastSLAMf u, float
     MeasurementSet z_Ex;
     unsigned int markerID;
 
+    cout << "d4-1" << endl;
     k++;
 
     if (z != NULL) {
+        cout << "d4-2" << endl;
        tmp_pointer = z->firstMeasNode;
+       cout << "d4-3" << endl;
     }
     if (tmp_pointer != NULL) { // if we have a non-emtpy measurement set update the particles, otherwise just do resampling
         // Traverse all measurements in measurement set
@@ -1433,14 +1458,17 @@ void ParticleSet::updateParticleSet(MeasurementSet* z, VectorUFastSLAMf u, float
             tmp_pointer = tmp_pointer->nextNode;
         } while (tmp_pointer != NULL);
     }
-
+    cout << "d4-4" << endl;
     for(int i = 1; i<=nParticles;i++){
         //cout << endl << "updating particle: " << i << endl;
         ((Particle*)Parray[i])->updateParticle(&z_Ex,&z_New,&u,k,Ts);
+        cout << "d4-5" << endl;
     }
-
+    cout << "d4-6" << endl;
     estimateDistribution();
+    cout << "d4-7" << endl;
     resample();
+    cout << "d4-8" << endl;
 }
 
 void ParticleSet::resample(){

@@ -758,15 +758,22 @@ int main(int argc, char **argv)
     cv::namedWindow("view", CV_WINDOW_KEEPRATIO);    
     cv::startWindowThread();
 
+    cout << "d0" << endl;
     MeasurementSet MeasSet;
 
     while(ros::ok()){
+        cout << "d1" << endl;
         ros::spinOnce(); // process the latest measurements in the queue (subscribers) and move these into the RGB_Image and Depth_Image objects
+        cout << "d2" << endl;
         ProcessRGBDimage(&MeasSet);
-        /*if (MeasSet.getNumberOfMeasurements() > 0) {
+        cout << "d3" << endl;
+        if (MeasSet.getNumberOfMeasurements() > 0) {
+            cout << "d4" << endl;
             Pset.updateParticleSet(&MeasSet, u, 0);
+            cout << "d5" << endl;
             MeasSet.emptyMeasurementSet();
-        }*/
+            cout << "d6" << endl;
+        }
     }
 
     Pset.saveData();

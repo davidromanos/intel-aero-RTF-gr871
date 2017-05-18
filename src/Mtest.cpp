@@ -78,9 +78,6 @@ vector<vector<double> > load_csv (const string &path) {
 
 
 
-
-
-
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "Mtest");
@@ -90,8 +87,8 @@ int main(int argc, char **argv)
 
     // malte playing with particle Sets
     int Nparticles = 200;
-    Vector6f s0 = Vector6f::Constant(0);
-    Matrix6f s_0_Cov = 0.01*Matrix6f::Identity();
+    VectorChiFastSLAMf s0 = VectorChiFastSLAMf::Constant(0);
+    MatrixChiFastSLAMf s_0_Cov = 0.01*MatrixChiFastSLAMf::Identity();
 
     ParticleSet* Pset = new ParticleSet(Nparticles,s0,s_0_Cov);
 
@@ -381,25 +378,25 @@ int main(int argc, char **argv)
 
     // malte playing with Paths
 /*
-    Path* P = new Path(Vector6f::Constant(1),1);
+    Path* P = new Path(VectorChiFastSLAMf::Constant(1),1);
 
     for(unsigned int i = 1; i < 100;i++){
-        P->addPose(Vector6f::Constant(i),i);
+        P->addPose(VectorChiFastSLAMf::Constant(i),i);
     }
 
     Path* P2 = new Path(*P); //makes copy of P on the heap
     Path* P3 = new Path(*P); //makes copy of P on the heap
 
     for(unsigned int i = 100; i < 200;i++){
-        P2->addPose(Vector6f::Constant(i),i);
+        P2->addPose(VectorChiFastSLAMf::Constant(i),i);
     }
 
     for(unsigned int i = 200; i < 300;i++){
-        P3->addPose(Vector6f::Constant(i),i);
+        P3->addPose(VectorChiFastSLAMf::Constant(i),i);
     }
 
     cout << "references: " << P->PathRoot->nextNode->referenced << endl;
-    Vector6f* S = P->getPose(30);
+    VectorChiFastSLAMf* S = P->getPose(30);
     cout << endl << endl << *S << endl;
     delete P;
     S = P2->getPose(30);

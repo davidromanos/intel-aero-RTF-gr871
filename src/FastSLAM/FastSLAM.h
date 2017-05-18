@@ -79,11 +79,12 @@ private:
 class ImgMeasurement : public Measurement
 {
     public:
-    static Eigen::Matrix3f zCov; 	/* measurement covariance - can take different sizes! static such that only one copy is saved in memory - also why it is placed in the subclass*/    
+    static Eigen::MatrixXf zCov; 	/* measurement covariance - can take different sizes! static such that only one copy is saved in memory - also why it is placed in the subclass*/
     float roll;
     float pitch;
 
-    ImgMeasurement(unsigned int i, Eigen::Vector3f img_me,float roll_,float pitch_);
+    //ImgMeasurement(unsigned int i, Eigen::Vector3f img_me);
+    ImgMeasurement(unsigned int i, Eigen::Vector3f img_me);
     Eigen::VectorXf inverseMeasurementModel(VectorChiFastSLAMf pose);
     Eigen::MatrixXf calculateHs(VectorChiFastSLAMf pose, Eigen::Vector3f l);
     Eigen::MatrixXf calculateHl(VectorChiFastSLAMf pose, Eigen::Vector3f l);
