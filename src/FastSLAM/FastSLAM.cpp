@@ -263,14 +263,14 @@ Eigen::MatrixXf ImgMeasurement::calculateHl(Vector6f pose, Eigen::Vector3f l)
 };
 
 Eigen::MatrixXf ImgMeasurement::getzCov(){
-	Eigen::Matrix3f cov;
-    cov << 2, 0, 0,
-            0, 2, 0,
-            0, 0, 0.3;
-    return cov;
+    /*Eigen::Matrix3f cov;
+    cov << 5, 0, 0,
+            0, 5, 0,
+            0, 0, 0.5;*/
+    return zCov;
 }
 
-Eigen::Matrix3f ImgMeasurement::zCov = Eigen::Matrix3f::Identity(); // static variable - has to be declared outside class!
+Eigen::Matrix3f ImgMeasurement::zCov = 0.1*Eigen::Matrix3f::Identity(); // static variable - has to be declared outside class!
 
 
 
@@ -804,17 +804,23 @@ Particle::~Particle()
 }
 
 void Particle::updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New,VectorUFastSLAMf* u, unsigned int k, float Ts)
-{    
-    Vector6f s_proposale = drawSampleFromProposaleDistribution(s->getPose(),u,z_Ex,Ts);
+{
+    Vector6f s_proposale;
+    if (k > 5){
+        s_proposale = drawSampleFromProposaleDistribution(s->getPose(),u,z_Ex,Ts);
+        s->addPose(s_proposale,k); // we are done estimating our pose and add it to the path!
+        // OBS. In this code the importance weight is calculated differently and before the landmark corrections are done: https://github.com/bushuhui/fastslam/blob/master/src/fastslam_2.cpp#L593-L602
+        if (z_Ex != NULL && z_Ex->nMeas != 0 ){
+            calculateImportanceWeight(z_Ex,s_proposale);
+        }
+        updateLandmarkEstimates(s_proposale,z_Ex,z_New);
 
-    s->addPose(s_proposale,k); // we are done estimating our pose and add it to the path!       
-
-    // OBS. In this code the importance weight is calculated differently and before the landmark corrections are done: https://github.com/bushuhui/fastslam/blob/master/src/fastslam_2.cpp#L593-L602
-    if (z_Ex != NULL && z_Ex->nMeas != 0 ){
-        calculateImportanceWeight(z_Ex,s_proposale);
     }
-
-    updateLandmarkEstimates(s_proposale,z_Ex,z_New);
+    else{
+        s_proposale = *(s->getPose());
+        s->addPose(s_proposale,k); // we are done estimating our pose and add it to the path!
+        updateLandmarkEstimates(s_proposale,NULL,z_New);
+    }
 }
 
 void Particle::updateLandmarkEstimates(Vector6f s_proposale, MeasurementSet* z_Ex, MeasurementSet* z_New){
@@ -884,8 +890,9 @@ void Particle::handleNewMeas(MeasurementSet* z_New, Vector6f s_proposale){
             Measurement* z_tmp = z_New->getMeasurement(i);
 
             landmark* li = new landmark;
-            li->c = z_tmp->c;
+            li->c = z_tmp->c;    
             li->lhat = z_tmp->inverseMeasurementModel(s_proposale);
+            cout << "lhat" << li->lhat << endl;
 
             Eigen::MatrixXf Hl;
             Hl = z_tmp->calculateHl(s_proposale,li->lhat);
@@ -1001,12 +1008,13 @@ Vector6f Particle::drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUF
         }
     }
 
-    //cout << endl << "sMean_proposale" << endl << sMean_proposale << endl;
-    //cout << endl << "sCov_proposale" << endl << sCov_proposale << endl;
+    cout << endl << "##############################" << endl;
+    cout << endl << "sMean_proposale" << endl << sMean_proposale << endl;
+    cout << endl << "sCov_proposale" << endl << sCov_proposale << endl;
 
     Vector6f s_proposale = drawSampleRandomPose(sMean_proposale, sCov_proposale);
 
-    //cout << endl << "s_proposale" << endl << s_proposale << endl;
+    cout << endl << "s_proposale" << endl << s_proposale << endl;
 
     return s_proposale;
 }
@@ -1039,9 +1047,12 @@ Vector6f Particle::drawSampleFromProposaleDistributionNEW(Vector6f* s_old, Vecto
             Measurement* z_tmp = z_Ex->getMeasurement(i);
 
             landmark* li_old = map->extractLandmarkNodePointer(z_tmp->c);
+            //cout << "landmark in map: " << li_old->lhat << endl;
 
             Eigen::MatrixXf Hli;
             Hli = z_tmp->calculateHl(s_bar,li_old->lhat); //resizes automatically due to the "=" operator
+
+            //cout << "prop Hli" << endl << Hli << endl;
 
             Eigen::MatrixXf Hsi;
             Hsi = z_tmp->calculateHs(s_bar,li_old->lhat); //resizes automatically due to the "=" operator
@@ -1056,6 +1067,13 @@ Vector6f Particle::drawSampleFromProposaleDistributionNEW(Vector6f* s_old, Vecto
 */
             Zki = zCov_tmp + Hli*(li_old->lCov)*Hli.transpose();
 
+
+            // Rk = Zki
+            // Hk = Hsi
+            // Pk = sCov_proposale
+            Eigen::MatrixXf Kk;
+            Kk = sCov_proposale*Hsi.transpose() * (Hsi*sCov_proposale*Hsi.transpose() + Zki).inverse();
+
             Eigen::VectorXf zhat;
             zhat = z_tmp->MeasurementModel(s_bar,li_old->lhat);
 
@@ -1064,8 +1082,55 @@ Vector6f Particle::drawSampleFromProposaleDistributionNEW(Vector6f* s_old, Vecto
             //cout << "li_old->lhat: " << endl << li_old->lhat << endl << endl;
             //cout << "z_tmp->MeasurementModel: " << endl << zhat << endl << endl;
 
-            sCov_proposale = (Hsi.transpose()*Zki.inverse()*Hsi + sCov_proposale.inverse()).inverse();  // eq (3.30)
-            sMean_proposale = sMean_proposale + sCov_proposale*Hsi.transpose()*Zki.inverse()*(z_tmp->z - zhat); // eq (3.31)
+            Eigen::MatrixXf tmp;
+            tmp = Kk * Hsi;
+            int rows, cols;
+            rows = tmp.rows();
+            cols = tmp.cols();
+
+            Eigen::VectorXf x = sMean_proposale;
+            Eigen::MatrixXf P = sCov_proposale;
+            Eigen::VectorXf v = (z_tmp->z - zhat);
+            Eigen::MatrixXf R = Zki;
+            Eigen::MatrixXf H = Hsi;
+
+            KF_cholesky_update(x, P, v, R, H);
+
+            //sCov_proposale = (Hsi.transpose()*Zki.inverse()*Hsi + sCov_proposale.inverse()).inverse();  // eq (3.30)
+            //sMean_proposale = sMean_proposale + sCov_proposale*Hsi.transpose()*Zki.inverse()*(z_tmp->z - zhat); // eq (3.31)
+            sMean_proposale = sMean_proposale + Kk*(z_tmp->z - zhat); // eq (3.31)
+            sCov_proposale = (Eigen::MatrixXf::Identity(rows,cols) - Kk*Hsi) * sCov_proposale * (Eigen::MatrixXf::Identity(rows,cols) - Kk*Hsi).transpose() + Kk*Zki*Kk.transpose();  // eq (3.30)
+            //cout << endl << "--sCov_proposale (method 1)" << endl << sCov_proposale << endl;
+
+            // ==== Implementation according to  https://github.com/bushuhui/fastslam/blob/master/src/fastslam_2.cpp#L575-L577
+            Eigen::VectorXf xv = sMean_proposale;
+            Eigen::MatrixXf Pv = sCov_proposale;
+
+            Eigen::MatrixXf Hvi = Hsi;
+            Eigen::MatrixXf Hfi = Hli;
+            Eigen::MatrixXf Sf = Zki;
+            Eigen::MatrixXf Sfi = Sf.inverse();
+
+            Eigen::VectorXf vi = v;
+
+            //proposal covariance
+            Eigen::MatrixXf Pv_inv = Pv.llt().solve(Eigen::MatrixXf::Identity(Pv.rows(), Pv.cols()));
+            Pv = Hvi.transpose() * Sfi * Hvi + Pv_inv; //Pv.inverse();
+            Pv = Pv.llt().solve(Eigen::MatrixXf::Identity(Pv.rows(), Pv.cols()));//Pv.inverse();
+
+            //proposal mean
+            xv = xv + Pv * Hvi.transpose() * Sfi *vi;
+
+            // =================
+
+            //cout << endl << "--sCov_proposale (method 2)" << endl << Pv << endl;
+            //cout << endl << "--sCov_proposale (method 3)" << endl << P << endl;
+            sMean_proposale = x;
+            sCov_proposale = P;
+
+            if (sCov_proposale(0,0) != sCov_proposale(0,0)) {
+                cout << "sCov NaN err" << endl;
+            }
         }
     }
 
@@ -1204,6 +1269,7 @@ void Particle::calculateImportanceWeight(MeasurementSet* z_Ex, Vector6f s_propos
     Eigen::MatrixXf wCov_i;
     double wi;
     double w_tmp;
+    //cout << "imp s_proposale: " << endl << s_proposale << endl;
 
     if (z_Ex != NULL){
         for( int i = 1; i <= z_Ex->nMeas; i = i + 1 ) {
@@ -1211,7 +1277,7 @@ void Particle::calculateImportanceWeight(MeasurementSet* z_Ex, Vector6f s_propos
             landmark* li_old = map->extractLandmarkNodePointer(z_tmp->c);
 
             //cout << "imp s_proposale: " << endl << s_proposale << endl;
-            //cout << "old li: " << endl << li_old->lhat << endl;
+            cout << "old li: " << endl << li_old->lhat << endl;
             Eigen::MatrixXf Hli;
             Hli = z_tmp->calculateHl(s_proposale,li_old->lhat); //resizes automatically due to the "=" operator
             //cout << "imp Hli" << endl << Hli << endl;
@@ -1222,23 +1288,51 @@ void Particle::calculateImportanceWeight(MeasurementSet* z_Ex, Vector6f s_propos
 
             Eigen::VectorXf zhat;
             zhat = z_tmp->MeasurementModel(s_proposale,li_old->lhat);
-            //cout << "imp zhat" << endl << zhat << endl;
+           // cout << "imp zhat" << endl << zhat << endl;
 
             Eigen::VectorXf z_diff;
             z_diff = z_tmp->z - zhat;
+            //cout << "z" << endl << z_tmp->z << endl;
 
             wCov_i = Hsi*sCov*Hsi.transpose() + Hli*li_old->lCov*Hli.transpose() + z_tmp->getzCov(); // (3.45)
-
+//            cout << "imp wCov_i: " << wCov_i << endl;
 
             Eigen::MatrixXf expTerm;
             expTerm = z_diff.transpose()*wCov_i.inverse()*z_diff;
+//            cout << "imp exp: " << expTerm << endl;
 
-            w_tmp = 1/(sqrt( (2*pi*wCov_i).determinant() ))*exp( -0.5*expTerm(0,0) );// (3.46) and  (14.2) on page 459 in IPRP
+            double determinant = (2*pi*wCov_i).determinant();
 
-            //cout << "imp calculated weight tmp: " << w_tmp << endl;
+            w_tmp = 10000000000000*1/(sqrt( determinant ))*exp( -0.5*expTerm(0,0) );// (3.46) and  (14.2) on page 459 in IPRP
+
+            if (w_tmp != w_tmp){
+                cout << "#####################################################" << endl;
+                cout << "imp calculated weight tmp: " << w_tmp << endl;
+                cout << "imp s_proposale: " << endl << s_proposale << endl;
+                cout << "z" << endl << z_tmp->z << endl;
+                cout << "old li: " << endl << li_old->lhat << endl;
+                cout << "imp Hli" << endl << Hli << endl;
+                cout << "imp Hsi" << endl << Hsi << endl;
+                cout << "imp zhat" << endl << zhat << endl;
+                cout << "imp wCov_i: " << endl << wCov_i << endl;
+                cout << "imp determinant: " << determinant << endl;
+                cout << "imp exp: " << expTerm << endl;
+            }
+
 
             if (w_tmp == 0) {
+                cout << "#####################################################" << endl;
                 cout << "imp Weight = 0!" << endl;
+                cout << "imp calculated weight tmp: " << w_tmp << endl;
+                cout << "imp s_proposale: " << endl << s_proposale << endl;
+                cout << "z" << endl << z_tmp->z << endl;
+                cout << "old li: " << endl << li_old->lhat << endl;
+                cout << "imp Hli" << endl << Hli << endl;
+                cout << "imp Hsi" << endl << Hsi << endl;
+                cout << "imp zhat" << endl << zhat << endl;
+                cout << "imp wCov_i: " << endl << wCov_i << endl;
+                cout << "imp determinant: " << determinant << endl;
+                cout << "imp exp: " << expTerm << endl;
             }
 
 
@@ -1262,7 +1356,8 @@ double Particle::getWeigth()
     return w;
 }
 
-Matrix6f Particle::sCov = 0.2*Matrix6f::Identity(); // static variable - has to be declared outside class!
+Matrix6f Particle::sCov = 0.1*Matrix6f::Identity(); // static variable - has to be declared outside class!
+
 
 boost::mt19937 Particle::rng; // Creating a new random number generator every time could be optimized
 //rng.seed(static_cast<unsigned int>(time(0)));
@@ -1342,8 +1437,8 @@ void ParticleSet::updateParticleSet(MeasurementSet* z, VectorUFastSLAMf u, float
         ((Particle*)Parray[i])->updateParticle(&z_Ex,&z_New,&u,k,Ts);
     }
 
-    resample();
     estimateDistribution();
+    resample();
 }
 
 void ParticleSet::resample(){
@@ -1368,43 +1463,48 @@ void ParticleSet::resample(){
         }
     }
 
-//    cout << endl << "Current best pose estimate" << endl << *(tmpP->s->getPose()) << endl;
+    //    cout << endl << "Current best pose estimate" << endl << *(tmpP->s->getPose()) << endl;
+    if (wmax != 0){
+        // generate random index between 1 and number of particles
+        default_random_engine generator;
+        uniform_int_distribution<int> distribution(1,nParticles);
+        uniform_real_distribution<double> distribution2(0,1);
 
-    // generate random index between 1 and number of particles
-    default_random_engine generator;
-    uniform_int_distribution<int> distribution(1,nParticles);
-    uniform_real_distribution<double> distribution2(0,1);
+        int index = distribution(generator); // random index
 
-    int index = distribution(generator); // random index
+        double beta = 0;
 
-    double beta = 0;
+        for (int z = 1; z <= nParticles; z++){
+            // generate random addition to beta
+            double rand = distribution2(generator);
+            beta = beta + rand*2*wmax;
 
-    for (int z = 1; z <= nParticles; z++){
-        // generate random addition to beta
-        double rand = distribution2(generator);
-        beta = beta + rand*2*wmax;
+            double weight = Parray[index]->w;
+            while (beta > weight){
+                beta = beta - weight;
 
-        double weight = Parray[index]->w;
-        while (beta > weight){
-            beta = beta - weight;
-
-            index = index + 1;
-            if (index > nParticles){
-                index = 1;
+                index = index + 1;
+                if (index > nParticles){
+                    index = 1;
+                }
+                weight = Parray[index]->w;
             }
-            weight = Parray[index]->w;
+            cout << "index: " << index << endl;
+            Parraytmp[z] = new Particle(*Parray[index]);
+            //cout << "Parraytmp[" << z << "]:" << endl << *(Parraytmp[z]->s->getPose()) << endl;
         }
 
-        Parraytmp[z] = new Particle(*Parray[index]);
+        for(int i = 1; i<=nParticles; i++){
+            delete Parray[i];
+        }
+        for(int i = 1; i<=nParticles; i++){
+            Parray[i] = Parraytmp[i];
+        }
+        //cout << "Done resampling!" << endl;
     }
-
-    for(int i = 1; i<=nParticles; i++){
-        delete Parray[i];
+    else{
+        cout << "something went wrong, all particles have 0 weight" << endl;
     }
-    for(int i = 1; i<=nParticles; i++){
-        Parray[i] = Parraytmp[i];
-    }
-    //cout << "Done resampling!" << endl;
 }
 
 
@@ -1464,7 +1564,7 @@ void ParticleSet::estimateDistribution(){
         wSum = wSum + Parray[i]->w;
     }
 
-    cout << "wSum: " << wSum << endl;
+    cout << "wSum - 1: " << wSum << endl;
 
     Vector6f sTmp = Vector6f::Zero();
     Vector6f sMean_estimate = Vector6f::Zero();
@@ -1526,7 +1626,7 @@ void ParticleSet::saveData(){
     Path::dataFileStream.flush();
     Path::dataFileStream.close();
     int j = 1;
-    int interval = 100;
+    int interval = 1;
     for(int i = 1; i<=nParticles; i = i + interval){
         Parray[i]->saveData(filename,KnownMarkers);
 

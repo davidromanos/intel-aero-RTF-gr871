@@ -230,6 +230,7 @@ public:
     MapTree* map;
     double w;
     Matrix6f s_k_Cov; // particle covariance
+    static Matrix6f sCov; // motion model covariance - does not change?
 
     static boost::mt19937 rng; // Creating a new random number generator every time could be optimized
     //rng.seed(static_cast<unsigned int>(time(0)));
@@ -245,7 +246,6 @@ public:
 
 private:
     /* variables */
-    static Matrix6f sCov; // motion model covariance - does not change?
 
     /* functions */
     Vector6f drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUFastSLAMf* u, MeasurementSet* z_Ex, float Ts);

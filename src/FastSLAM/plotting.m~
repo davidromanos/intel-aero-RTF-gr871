@@ -1,6 +1,6 @@
-run('/home/malte/catkin_ws/Data/t_29.m')
+run('/home/malte/catkin_ws/Data/t_15.m')
 
-t = t29;
+t = t15;
 %%
 figure
 xlabel('x')
@@ -12,9 +12,9 @@ zlabel('z')
 grid
 for i = 1:length(t.Particles)
     hold on 
-    scatter3(t.Particles(i).map.mean(3,:),...
+    scatter3(t.Particles(i).map.mean(1,:),...
              t.Particles(i).map.mean(2,:),...
-             t.Particles(i).map.mean(1,:),'*');
+             t.Particles(i).map.mean(3,:),'*');
 end
 
 

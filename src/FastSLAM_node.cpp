@@ -606,11 +606,23 @@ int main(int argc, char **argv)
     printf("READY to get image\n");
 
     // ===== Configure FastSLAM =====
-    Nparticles = 5000;
+    Nparticles = 200;
     s0 = Vector6f::Constant(0);
-    s_0_Cov = 0.01*Matrix6f::Identity();
+    s_0_Cov = 0.0*Matrix6f::Identity();
     ParticleSet Pset(Nparticles,s0,s_0_Cov);
     VectorUFastSLAMf u = VectorUFastSLAMf::Zero();
+
+    // motion model covariance
+    Particle::sCov(0,0) = 0.1;
+    Particle::sCov(1,1) = 0.1;
+    Particle::sCov(2,2) = 0.1;
+    Particle::sCov(3,3) = 2*0.0349066; // 2 degrees
+    Particle::sCov(4,4) = 2*0.0349066; // 2 degrees
+    Particle::sCov(5,5) = 0.349066; // 20 degrees
+
+    ImgMeasurement::zCov(0,0) = 1;
+    ImgMeasurement::zCov(1,1) = 1;
+    ImgMeasurement::zCov(2,2) = 0.05;
 
     // ==== End configuration of FastSLAM ====
 
