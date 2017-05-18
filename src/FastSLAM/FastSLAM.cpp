@@ -145,7 +145,7 @@ Eigen::VectorXf ImgMeasurement::MeasurementModel(Vector6f pose, Eigen::Vector3f 
 
     // Calculate world coordinate of landmark in the camera frame - Notice we use Roll-Pitch-Yaw angle convention
     float c_xl = (-c_psi*s_theta*s_phi + s_psi*c_phi)*(l(0) - pose(0)) + (-s_psi*s_theta*s_phi-c_psi*c_phi)*(l(1) - pose(1)) - (c_theta*s_phi)*(l(2) - pose(2));
-    float c_yl = (-c_psi*s_theta*c_phi-s_psi*s_phi)*(l(0) - pose(0)) + (-s_psi*s_theta*c_phi+c_psi*s_phi)*(l(1) - pose(1)) - (c_theta*s_phi)*(l(2) - pose(2));
+    float c_yl = (-c_psi*s_theta*c_phi-s_psi*s_phi)*(l(0) - pose(0)) + (-s_psi*s_theta*c_phi+c_psi*s_phi)*(l(1) - pose(1)) - (c_theta*c_phi)*(l(2) - pose(2));
     float c_zl = (c_psi*c_theta)*(l(0) - pose(0)) + (s_psi*c_theta)*(l(1) - pose(1)) - s_theta*(l(2) - pose(2));
 
     //cout << "World coordinate: " << c_xl << ", " << c_yl << ", " << c_zl << endl;
@@ -173,7 +173,7 @@ Eigen::VectorXf ImgMeasurement::inverseMeasurementModel(Vector6f pose)
     float s_phi = sin(pose(3));
 
     Eigen::Matrix3f R; // Rotation matrix corresponding to: BC_R' * EB_R'
-    R << (-c_psi*s_theta*s_phi + s_psi*c_phi), (-s_psi*s_theta*s_phi-c_psi*c_phi), -(c_theta*s_phi),
+    R  <<   (-c_psi*s_theta*s_phi + s_psi*c_phi),(-s_psi*s_theta*s_phi-c_psi*c_phi), -(c_theta*s_phi),
             (-c_psi*s_theta*c_phi-s_psi*s_phi),  (-s_psi*s_theta*c_phi+c_psi*s_phi), -(c_theta*c_phi),
             (c_psi*c_theta),                     (s_psi*c_theta),                    -(s_theta);
 
