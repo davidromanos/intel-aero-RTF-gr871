@@ -99,8 +99,8 @@ ofstream IntrinsicsLog;
 
 // ==== FastSLAM variables ====
 int Nparticles;
-Vector6f s0 = Vector6f::Constant(0);
-Matrix6f s_0_Cov;
+VectorChiFastSLAMf s0 = VectorChiFastSLAMf::Constant(0);
+Matrix4f s_0_Cov;
 ParticleSet* Pset;
 VectorUFastSLAMf u;
 
@@ -607,8 +607,8 @@ int main(int argc, char **argv)
 
     // ===== Configure FastSLAM =====
     Nparticles = 200;
-    s0 = Vector6f::Constant(0);
-    s_0_Cov = 0.0*Matrix6f::Identity();
+    s0 = VectorChiFastSLAMf::Constant(0);
+    s_0_Cov = 0.0*Matrix4f::Identity();
     ParticleSet Pset(Nparticles,s0,s_0_Cov);
     VectorUFastSLAMf u = VectorUFastSLAMf::Zero();
 
@@ -616,9 +616,7 @@ int main(int argc, char **argv)
     Particle::sCov(0,0) = 0.1;
     Particle::sCov(1,1) = 0.1;
     Particle::sCov(2,2) = 0.1;
-    Particle::sCov(3,3) = 2*0.0349066; // 2 degrees
-    Particle::sCov(4,4) = 2*0.0349066; // 2 degrees
-    Particle::sCov(5,5) = 0.349066; // 20 degrees
+    Particle::sCov(3,3) = 0.349066; // 20 degrees
 
     ImgMeasurement::zCov(0,0) = 1;
     ImgMeasurement::zCov(1,1) = 1;

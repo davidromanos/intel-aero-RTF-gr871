@@ -30,6 +30,8 @@
 typedef Eigen::Matrix<float, 6, 1> Vector6f;
 typedef Eigen::Matrix<float, 6, 6> Matrix6f;
 typedef Eigen::Matrix<float, 6, 1> VectorUFastSLAMf; // velocities in the order: [x_dot, y_dot, z_dot, roll_dot, pitch_dot, yaw_dot]
+typedef Eigen::Matrix<float, 4, 1> VectorChiFastSLAMf; // state vector [x,y,z,yaw]
+typedef Eigen::Matrix<float, 4, 4> MatrixChiFastSLAMf; // used for covariance of state vector
 typedef Eigen::Matrix<float, 6, Eigen::Dynamic> Matrix6kf;
 
 
@@ -47,10 +49,10 @@ public:
     /* functions */
    // Measurement();
    // ~Measurement();
-    virtual Eigen::MatrixXf calculateHl(Vector6f pose, Eigen::Vector3f l) = 0;		/* calculates derivative of measurement model with respect to landmark variable - l */
-    virtual Eigen::MatrixXf calculateHs(Vector6f pose, Eigen::Vector3f l) = 0;		/* calculates derivative of measurement model with respect to pose variable - s */
-    virtual Eigen::VectorXf inverseMeasurementModel(Vector6f pose) = 0;
-    virtual Eigen::VectorXf MeasurementModel(Vector6f pose, Eigen::Vector3f l) = 0;
+    virtual Eigen::MatrixXf calculateHl(VectorChiFastSLAMf pose, Eigen::Vector3f l) = 0;		/* calculates derivative of measurement model with respect to landmark variable - l */
+    virtual Eigen::MatrixXf calculateHs(VectorChiFastSLAMf pose, Eigen::Vector3f l) = 0;		/* calculates derivative of measurement model with respect to pose variable - s */
+    virtual Eigen::VectorXf inverseMeasurementModel(VectorChiFastSLAMf pose) = 0;
+    virtual Eigen::VectorXf MeasurementModel(VectorChiFastSLAMf pose, Eigen::Vector3f l) = 0;
     virtual Eigen::MatrixXf getzCov() = 0;
 private:
 };
@@ -63,10 +65,10 @@ class GOTMeasurement : public Measurement
     static Eigen::MatrixXf zCov; 	/* measurement covariance - can take different sizes! static such that only one copy is saved in memory - also why it is placed in the subclass*/
 
     GOTMeasurement(unsigned int i, Eigen::Vector3f GOT_meas);
-    Eigen::MatrixXf calculateHs(Vector6f pose, Eigen::Vector3f l);
-    Eigen::MatrixXf calculateHl(Vector6f pose, Eigen::Vector3f l);
-    Eigen::VectorXf inverseMeasurementModel(Vector6f pose);
-    Eigen::VectorXf MeasurementModel(Vector6f pose, Eigen::Vector3f l);
+    Eigen::MatrixXf calculateHs(VectorChiFastSLAMf pose, Eigen::Vector3f l);
+    Eigen::MatrixXf calculateHl(VectorChiFastSLAMf pose, Eigen::Vector3f l);
+    Eigen::VectorXf inverseMeasurementModel(VectorChiFastSLAMf pose);
+    Eigen::VectorXf MeasurementModel(VectorChiFastSLAMf pose, Eigen::Vector3f l);
     Eigen::MatrixXf getzCov();
 
 private:
@@ -78,12 +80,14 @@ class ImgMeasurement : public Measurement
 {
     public:
     static Eigen::Matrix3f zCov; 	/* measurement covariance - can take different sizes! static such that only one copy is saved in memory - also why it is placed in the subclass*/    
+    float roll;
+    float pitch;
 
-    ImgMeasurement(unsigned int i, Eigen::Vector3f img_me);
-    Eigen::VectorXf inverseMeasurementModel(Vector6f pose);
-    Eigen::MatrixXf calculateHs(Vector6f pose, Eigen::Vector3f l);
-    Eigen::MatrixXf calculateHl(Vector6f pose, Eigen::Vector3f l);
-    Eigen::VectorXf MeasurementModel(Vector6f pose, Eigen::Vector3f l);
+    ImgMeasurement(unsigned int i, Eigen::Vector3f img_me,float roll_,float pitch_);
+    Eigen::VectorXf inverseMeasurementModel(VectorChiFastSLAMf pose);
+    Eigen::MatrixXf calculateHs(VectorChiFastSLAMf pose, Eigen::Vector3f l);
+    Eigen::MatrixXf calculateHl(VectorChiFastSLAMf pose, Eigen::Vector3f l);
+    Eigen::VectorXf MeasurementModel(VectorChiFastSLAMf pose, Eigen::Vector3f l);
     Eigen::MatrixXf getzCov();
 
 private:
@@ -190,7 +194,7 @@ class MapTree
 
 /* ############################## Defines Path class ##############################  */
 struct Node_Path {
-    Vector6f S;
+    VectorChiFastSLAMf S;
     unsigned int k;
     Node_Path *nextNode;
     unsigned int referenced;
@@ -206,14 +210,14 @@ public:
     unsigned int PathLength;
 
     /* functions */
-    Path(Vector6f S, unsigned int k);
+    Path(VectorChiFastSLAMf S, unsigned int k);
     Path(const Path &PathToCopy); // copy constructer
     ~Path();
     void deletePath();
-    void addPose(Vector6f S, unsigned int k);
+    void addPose(VectorChiFastSLAMf S, unsigned int k);
     unsigned int countLengthOfPath();
-    Vector6f* getPose();
-    Vector6f* getPose(unsigned int k);
+    VectorChiFastSLAMf* getPose();
+    VectorChiFastSLAMf* getPose(unsigned int k);
     void saveData(std::string filename);
 
 private:
@@ -229,15 +233,15 @@ public:
     Path* s;
     MapTree* map;
     double w;
-    Matrix6f s_k_Cov; // particle covariance
-    static Matrix6f sCov; // motion model covariance - does not change?
+    MatrixChiFastSLAMf s_k_Cov; // particle covariance
+    static MatrixChiFastSLAMf sCov; // motion model covariance - does not change?
 
     static boost::mt19937 rng; // Creating a new random number generator every time could be optimized
     //rng.seed(static_cast<unsigned int>(time(0)));
 
 
     /* functions */
-    Particle(Vector6f s0 = Vector6f::Constant(0), Matrix6f s_0_Cov = 0.01*Matrix6f::Identity(), unsigned int k = 0); 		// Initialize a standard particle with "zero-pose" or custom pose
+    Particle(VectorChiFastSLAMf s0 = VectorChiFastSLAMf::Constant(0), MatrixChiFastSLAMf s_0_Cov = 0.01*MatrixChiFastSLAMf::Identity(), unsigned int k = 0); 		// Initialize a standard particle with "zero-pose" or custom pose
     Particle(const Particle &ParticleToCopy);       // Copy constructer used in case where we need to make a copy of a Particle
     ~Particle();
     void updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New, VectorUFastSLAMf* u, unsigned int k, float Ts);
@@ -248,15 +252,15 @@ private:
     /* variables */
 
     /* functions */
-    Vector6f drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUFastSLAMf* u, MeasurementSet* z_Ex, float Ts);
-    Vector6f drawSampleFromProposaleDistributionNEW(Vector6f* s_old, VectorUFastSLAMf* u,MeasurementSet* z_Ex, float Ts);
-    Vector6f motionModel(Vector6f sold, VectorUFastSLAMf* u, float Ts);
-    void handleExMeas(MeasurementSet* z_Ex, Vector6f s_proposale);
-    void handleNewMeas(MeasurementSet* z_New, Vector6f s_proposale);
-    void updateLandmarkEstimates(Vector6f s_proposale, MeasurementSet* z_Ex, MeasurementSet* z_New);
-    Vector6f drawSampleRandomPose(Vector6f sMean_proposale, Matrix6f sCov_proposale);
-    void calculateImportanceWeight(MeasurementSet* z_Ex, Vector6f s_proposale);
-    Matrix6f calculateFs(Vector6f *s_k_minor_1);
+    VectorChiFastSLAMf drawSampleFromProposaleDistribution(VectorChiFastSLAMf* s_old, VectorUFastSLAMf* u, MeasurementSet* z_Ex, float Ts);
+    VectorChiFastSLAMf drawSampleFromProposaleDistributionNEW(VectorChiFastSLAMf* s_old, VectorUFastSLAMf* u,MeasurementSet* z_Ex, float Ts);
+    VectorChiFastSLAMf motionModel(VectorChiFastSLAMf sold, VectorUFastSLAMf* u, float Ts);
+    void handleExMeas(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale);
+    void handleNewMeas(MeasurementSet* z_New, VectorChiFastSLAMf s_proposale);
+    void updateLandmarkEstimates(VectorChiFastSLAMf s_proposale, MeasurementSet* z_Ex, MeasurementSet* z_New);
+    VectorChiFastSLAMf drawSampleRandomPose(VectorChiFastSLAMf sMean_proposale, MatrixChiFastSLAMf sCov_proposale);
+    void calculateImportanceWeight(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale);
+    MatrixChiFastSLAMf calculateFs(VectorChiFastSLAMf *s_k_minor_1);
 };
 
 
@@ -267,15 +271,15 @@ class ParticleSet
 public:
     /* variables */
     std::vector<Particle*> Parray;
-    Matrix6f sCov;
+    MatrixChiFastSLAMf sCov;
     unsigned int k; // number of interations since time zero
     std::vector<unsigned int> KnownMarkers;
 
     /* functions */
-    ParticleSet(int Nparticles = 10,Vector6f s0 = Vector6f::Constant(0), Matrix6f s_0_Cov = 0.1*Matrix6f::Identity()); 		/* Initialize a standard particle set with 100 particles */
+    ParticleSet(int Nparticles = 10,VectorChiFastSLAMf s0 = VectorChiFastSLAMf::Constant(0), MatrixChiFastSLAMf s_0_Cov = 0.1*MatrixChiFastSLAMf::Identity()); 		/* Initialize a standard particle set with 100 particles */
     ~ParticleSet();
     void updateParticleSet(MeasurementSet* z, VectorUFastSLAMf u, float Ts);
-    Vector6f* getLatestPoseEstimate();
+    VectorChiFastSLAMf* getLatestPoseEstimate();
     int getNParticles();
     void saveData();
 

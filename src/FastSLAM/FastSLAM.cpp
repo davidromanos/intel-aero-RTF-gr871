@@ -86,20 +86,20 @@ GOTMeasurement::GOTMeasurement(unsigned int i, Eigen::Vector3f GOT_meas)
     timestamp = ros::Time::now();
 }
 
-Eigen::VectorXf GOTMeasurement::MeasurementModel(Vector6f pose, Eigen::Vector3f l)
+Eigen::VectorXf GOTMeasurement::MeasurementModel(VectorChiFastSLAMf pose, Eigen::Vector3f l)
 {
     Eigen::Vector3f z = l - pose.topRows<3>();
     return z;
 }
 
-Eigen::VectorXf GOTMeasurement::inverseMeasurementModel(Vector6f pose)
+Eigen::VectorXf GOTMeasurement::inverseMeasurementModel(VectorChiFastSLAMf pose)
 {
-    Vector6f s = pose; // temp variable to make it look like equations
+    VectorChiFastSLAMf s = pose; // temp variable to make it look like equations
     Eigen::Vector3f l = s.topRows<3>() + z;
     return l;
 }
 
-Eigen::MatrixXf GOTMeasurement::calculateHs(Vector6f pose, Eigen::Vector3f l)
+Eigen::MatrixXf GOTMeasurement::calculateHs(VectorChiFastSLAMf pose, Eigen::Vector3f l)
 {    
     Eigen::MatrixXf Hs(3, 6);
     Hs << -1.0*Eigen::Matrix3f::Identity(3,3), Eigen::Matrix3f::Zero(3,3);
@@ -107,7 +107,7 @@ Eigen::MatrixXf GOTMeasurement::calculateHs(Vector6f pose, Eigen::Vector3f l)
     return Hs;
 }
 
-Eigen::MatrixXf GOTMeasurement::calculateHl(Vector6f pose, Eigen::Vector3f l)
+Eigen::MatrixXf GOTMeasurement::calculateHl(VectorChiFastSLAMf pose, Eigen::Vector3f l)
 {
     //s = pose; // temp variable to make it look like equations
     Eigen::Matrix3f Hl = Eigen::Matrix3f::Identity();
@@ -122,23 +122,25 @@ Eigen::MatrixXf GOTMeasurement::zCov = 0.05*Eigen::Matrix3f::Identity(); // stat
 
 
 /* ############################## Defines ImgMeasurement class ##############################  */
-ImgMeasurement::ImgMeasurement(unsigned int i, Eigen::Vector3f img_meas)
+ImgMeasurement::ImgMeasurement(unsigned int i, Eigen::Vector3f img_meas,float pitch_,float roll_)
 {
+    pitch = pitch_;
+    roll = roll_;
     c = i;
     z = img_meas;
     timestamp = ros::Time::now();
 }
 
-Eigen::VectorXf ImgMeasurement::MeasurementModel(Vector6f pose, Eigen::Vector3f l)
+Eigen::VectorXf ImgMeasurement::MeasurementModel(VectorChiFastSLAMf pose, Eigen::Vector3f l)
 {
     Eigen::Vector3f z;
 
     float c_psi = cos(pose(5));
     float s_psi = sin(pose(5));
-    float c_theta = cos(pose(4));
-    float s_theta = sin(pose(4));
-    float c_phi = cos(pose(3));
-    float s_phi = sin(pose(3));
+    float c_theta = cos(pitch);
+    float s_theta = sin(pitch);
+    float c_phi = cos(roll);
+    float s_phi = sin(roll);
 
     //cout << "landmark: " << l << endl;
     //cout << "pose: " << pose << endl;
@@ -163,14 +165,14 @@ Eigen::VectorXf ImgMeasurement::MeasurementModel(Vector6f pose, Eigen::Vector3f 
     return z;
 }
 
-Eigen::VectorXf ImgMeasurement::inverseMeasurementModel(Vector6f pose)
+Eigen::VectorXf ImgMeasurement::inverseMeasurementModel(VectorChiFastSLAMf pose)
 {
     float c_psi = cos(pose(5));
     float s_psi = sin(pose(5));
-    float c_theta = cos(pose(4));
-    float s_theta = sin(pose(4));
-    float c_phi = cos(pose(3));
-    float s_phi = sin(pose(3));
+    float c_theta = cos(pitch);
+    float s_theta = sin(pitch);
+    float c_phi = cos(roll);
+    float s_phi = sin(roll);
 
     Eigen::Matrix3f R; // Rotation matrix corresponding to: BC_R' * EB_R'
     R  <<   (-c_psi*s_theta*s_phi + s_psi*c_phi),(-s_psi*s_theta*s_phi-c_psi*c_phi), -(c_theta*s_phi),
@@ -194,14 +196,14 @@ Eigen::VectorXf ImgMeasurement::inverseMeasurementModel(Vector6f pose)
     return WorldLandmark;
 }
 
-Eigen::MatrixXf ImgMeasurement::calculateHs(Vector6f pose, Eigen::Vector3f l)
+Eigen::MatrixXf ImgMeasurement::calculateHs(VectorChiFastSLAMf pose, Eigen::Vector3f l)
 {
     float c_psi = cos(pose(5));
     float s_psi = sin(pose(5));
-    float c_theta = cos(pose(4));
-    float s_theta = sin(pose(4));
-    float c_phi = cos(pose(3));
-    float s_phi = sin(pose(3));
+    float c_theta = cos(pitch);
+    float s_theta = sin(pitch);
+    float c_phi = cos(roll);
+    float s_phi = sin(roll);
 
     Eigen::MatrixXf Hs(3, 6);
     float den = powf((c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1))),2);
@@ -228,14 +230,14 @@ Eigen::MatrixXf ImgMeasurement::calculateHs(Vector6f pose, Eigen::Vector3f l)
     return Hs;
 }
 
-Eigen::MatrixXf ImgMeasurement::calculateHl(Vector6f pose, Eigen::Vector3f l)
+Eigen::MatrixXf ImgMeasurement::calculateHl(VectorChiFastSLAMf pose, Eigen::Vector3f l)
 {
     float c_psi = cos(pose(5));
     float s_psi = sin(pose(5));
-    float c_theta = cos(pose(4));
-    float s_theta = sin(pose(4));
-    float c_phi = cos(pose(3));
-    float s_phi = sin(pose(3));
+    float c_theta = cos(pitch);
+    float s_theta = sin(pitch);
+    float c_phi = cos(roll);
+    float s_phi = sin(roll);
 
     Eigen::Matrix3f R; // Rotation matrix corresponding to: BC_R' * EB_R'
     R << (-c_psi*s_theta*s_phi + s_psi*c_phi), (-s_psi*s_theta*s_phi-c_psi*c_phi), -(c_theta*s_phi),
@@ -672,7 +674,7 @@ void MapTree::printAllLandmarkPositions(){
 Eigen::IOFormat Path::OctaveFmt(Eigen::FullPrecision, 0, ", ", ";\n", "", "", "[", "]");
 std::ofstream Path::dataFileStream;
 
-Path::Path(Vector6f S, unsigned int k){
+Path::Path(VectorChiFastSLAMf S, unsigned int k){
     Node_Path* firstPathNode = new Node_Path;
     firstPathNode->S = S;
     firstPathNode->k = k;
@@ -715,7 +717,7 @@ void Path::deletePath(Node_Path *PathNode){
     PathLength--;
 }
 
-void Path::addPose(Vector6f S, unsigned int k){
+void Path::addPose(VectorChiFastSLAMf S, unsigned int k){
 
     Node_Path* tmpPathNode = new Node_Path;
     tmpPathNode->S = S;
@@ -747,12 +749,12 @@ unsigned int Path::countLengthOfPath(){
     }
 }
 
-Vector6f* Path::getPose(){
+VectorChiFastSLAMf* Path::getPose(){
     // return latest pose!
     return &(PathRoot->nextNode->S);
 }
 
-Vector6f* Path::getPose(unsigned int k){
+VectorChiFastSLAMf* Path::getPose(unsigned int k){
     // returns specific pose!
     //cout << "D10" << endl;
     if (PathRoot==NULL){
@@ -779,7 +781,7 @@ Vector6f* Path::getPose(unsigned int k){
 
 
 /* ############################## Defines particle class ##############################  */
-Particle::Particle(Vector6f s0, Matrix6f s_0_Cov, unsigned int k)   // default Constructor definition
+Particle::Particle(VectorChiFastSLAMf s0, MatrixChiFastSLAMf s_0_Cov, unsigned int k)   // default Constructor definition
 {
     s = new Path(s0,k); // makes new path!
     map = new MapTree; // makes new mapTree
@@ -805,7 +807,7 @@ Particle::~Particle()
 
 void Particle::updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New,VectorUFastSLAMf* u, unsigned int k, float Ts)
 {
-    Vector6f s_proposale;
+    VectorChiFastSLAMf s_proposale;
     if (k > 5){
         s_proposale = drawSampleFromProposaleDistribution(s->getPose(),u,z_Ex,Ts);
         s->addPose(s_proposale,k); // we are done estimating our pose and add it to the path!
@@ -823,13 +825,13 @@ void Particle::updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New,VectorU
     }
 }
 
-void Particle::updateLandmarkEstimates(Vector6f s_proposale, MeasurementSet* z_Ex, MeasurementSet* z_New){
+void Particle::updateLandmarkEstimates(VectorChiFastSLAMf s_proposale, MeasurementSet* z_Ex, MeasurementSet* z_New){
     handleExMeas(z_Ex,s_proposale);
     handleNewMeas(z_New,s_proposale);
     //cout << "N_landmarks in map after update: " << map->N_Landmarks << endl;
 }
 
-void Particle::handleExMeas(MeasurementSet* z_Ex, Vector6f s_proposale){
+void Particle::handleExMeas(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale){
     if (z_Ex != NULL && z_Ex->nMeas != 0 ){
         //cout << "nMeas in z_Ex: " << z_Ex->nMeas << endl;
 
@@ -884,7 +886,7 @@ void Particle::handleExMeas(MeasurementSet* z_Ex, Vector6f s_proposale){
 }
 
 
-void Particle::handleNewMeas(MeasurementSet* z_New, Vector6f s_proposale){
+void Particle::handleNewMeas(MeasurementSet* z_New, VectorChiFastSLAMf s_proposale){
     if (z_New != NULL && z_New->nMeas != 0 ){
         for( int i = 1; i <= z_New->nMeas; i = i + 1 ) {
             Measurement* z_tmp = z_New->getMeasurement(i);
@@ -906,15 +908,15 @@ void Particle::handleNewMeas(MeasurementSet* z_New, Vector6f s_proposale){
     }
 }
 
-Vector6f Particle::drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUFastSLAMf* u,MeasurementSet* z_Ex, float Ts)
+VectorChiFastSLAMf Particle::drawSampleFromProposaleDistribution(VectorChiFastSLAMf* s_old, VectorUFastSLAMf* u,MeasurementSet* z_Ex, float Ts)
 {
     //cout << "D10" << endl;
-    Vector6f s_bar = motionModel(*s_old,u,Ts);
+    VectorChiFastSLAMf s_bar = motionModel(*s_old,u,Ts);
 
     //cout << endl << "s_bar" << endl << s_bar << endl;
 
-    Matrix6f sCov_proposale= sCov; // eq (3.28)
-    Vector6f sMean_proposale = s_bar; // eq (3.29)
+    MatrixChiFastSLAMf sCov_proposale= sCov; // eq (3.28)
+    VectorChiFastSLAMf sMean_proposale = s_bar; // eq (3.29)
     if (z_Ex != NULL){
         for(int i = 1; i <= z_Ex->nMeas; i = i + 1 ) {
 
@@ -1012,7 +1014,7 @@ Vector6f Particle::drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUF
     cout << endl << "sMean_proposale" << endl << sMean_proposale << endl;
     cout << endl << "sCov_proposale" << endl << sCov_proposale << endl;
 
-    Vector6f s_proposale = drawSampleRandomPose(sMean_proposale, sCov_proposale);
+    VectorChiFastSLAMf s_proposale = drawSampleRandomPose(sMean_proposale, sCov_proposale);
 
     cout << endl << "s_proposale" << endl << s_proposale << endl;
 
@@ -1021,26 +1023,26 @@ Vector6f Particle::drawSampleFromProposaleDistribution(Vector6f* s_old, VectorUF
 
 
 
-Matrix6f Particle::calculateFs(Vector6f *s_k_minor_1){
-    return Matrix6f::Identity();
+MatrixChiFastSLAMf Particle::calculateFs(VectorChiFastSLAMf *s_k_minor_1){
+    return MatrixChiFastSLAMf::Identity();
 }
 
 
-Vector6f Particle::drawSampleFromProposaleDistributionNEW(Vector6f* s_old, VectorUFastSLAMf* u,MeasurementSet* z_Ex, float Ts)
+VectorChiFastSLAMf Particle::drawSampleFromProposaleDistributionNEW(VectorChiFastSLAMf* s_old, VectorUFastSLAMf* u,MeasurementSet* z_Ex, float Ts)
 {
     //cout << "D10" << endl;
     //generate random noise with zero mean and the known model noise covariance
-    Vector6f wk = drawSampleRandomPose(Vector6f::Zero(), sCov); // draw random noise
+    VectorChiFastSLAMf wk = drawSampleRandomPose(VectorChiFastSLAMf::Zero(), sCov); // draw random noise
 
     // prediction step
-    Vector6f s_bar = motionModel(*s_old,u,Ts) + wk;
+    VectorChiFastSLAMf s_bar = motionModel(*s_old,u,Ts) + wk;
 
-    Matrix6f Fs = calculateFs(s_old);
-    Matrix6f sCov_proposale =  Fs.transpose()*s_k_Cov*Fs + sCov;
+    MatrixChiFastSLAMf Fs = calculateFs(s_old);
+    MatrixChiFastSLAMf sCov_proposale =  Fs.transpose()*s_k_Cov*Fs + sCov;
 
-    //cout << endl << "s_bar" << endl << s_bar << endl;
+    //MatrixChiFastSLAMf << endl << "s_bar" << endl << s_bar << endl;
     //prediction step
-    Vector6f sMean_proposale = s_bar;
+    VectorChiFastSLAMf sMean_proposale = s_bar;
     if (z_Ex != NULL){
         for(int i = 1; i <= z_Ex->nMeas; i = i + 1 ) {
 
@@ -1137,7 +1139,7 @@ Vector6f Particle::drawSampleFromProposaleDistributionNEW(Vector6f* s_old, Vecto
     //cout << endl << "sMean_proposale" << endl << sMean_proposale << endl;
     //cout << endl << "sCov_proposale" << endl << sCov_proposale << endl;
     //cout << endl << "s_proposale" << endl << s_proposale << endl;
-    Vector6f s_proposale = sMean_proposale;
+    VectorChiFastSLAMf s_proposale = sMean_proposale;
     s_k_Cov = sCov_proposale;    
     return s_proposale;
 }
@@ -1219,7 +1221,7 @@ void add_observation_noise(vector<Eigen::VectorXf> &z, Eigen::MatrixXf &R, int a
 }
 
 
-Vector6f Particle::drawSampleRandomPose(Vector6f sMean_proposale, Matrix6f sCov_proposale)
+VectorChiFastSLAMf Particle::drawSampleRandomPose(VectorChiFastSLAMf sMean_proposale, MatrixChiFastSLAMf sCov_proposale)
 {
 	//choleksy decomposition
 	Eigen::MatrixXf S = sCov_proposale.llt().matrixL();
@@ -1229,7 +1231,7 @@ Vector6f Particle::drawSampleRandomPose(Vector6f sMean_proposale, Matrix6f sCov_
 }
 
 // Consider implementing as https://github.com/bushuhui/fastslam/blob/master/src/fastslam_core.cpp#L479-L488
-/*Vector6f Particle::drawSampleRandomPoseOld(Vector6f sMean_proposale, Matrix6f sCov_proposale) {
+/*VectorChiFastSLAMf Particle::drawSampleRandomPoseOld(VectorChiFastSLAMf sMean_proposale, Matrix6f sCov_proposale) {
     boost::normal_distribution<> nd(0.0, 1.0);
     boost::variate_generator<boost::mt19937&, boost::normal_distribution<> > randN(rng, nd); // see http://lost-found-wandering.blogspot.dk/2011/05/sampling-from-multivariate-normal-in-c.html
 
@@ -1237,7 +1239,7 @@ Vector6f Particle::drawSampleRandomPose(Vector6f sMean_proposale, Matrix6f sCov_
 
     Eigen::SelfAdjointEigenSolver<Eigen::MatrixXf> eigenSolver(S);
 
-    Vector6f normal;
+    VectorChiFastSLAMf normal;
     normal << randN(), randN(), randN(), randN(), randN(), randN(); // generate 6 random numbers in the vector - these are distributed with mean 0 and sigma 1
 
     Eigen::MatrixXf U = eigenSolver.eigenvectors();
@@ -1248,15 +1250,15 @@ Vector6f Particle::drawSampleRandomPose(Vector6f sMean_proposale, Matrix6f sCov_
     cout << "Lambda" << endl << Lambda << endl;
     cout << "Sigma" << endl << Sigma << endl;
 
-    Vector6f sample = sMean_proposale + U * Sigma * normal;
+    VectorChiFastSLAMf sample = sMean_proposale + U * Sigma * normal;
 
     return sample;
-    //return sMean_proposale;// + 0.000001*Vector6f::Random();
+    //return sMean_proposale;// + 0.000001*VectorChiFastSLAMf::Random();
 }*/
 
-Vector6f Particle::motionModel(Vector6f sold, VectorUFastSLAMf* u, float Ts) // Ts == sample time
+VectorChiFastSLAMf Particle::motionModel(VectorChiFastSLAMf sold, VectorUFastSLAMf* u, float Ts) // Ts == sample time
 {
-    Vector6f s_k = sold; // s(k) = f(s(k-1),u(k))
+    VectorChiFastSLAMf s_k = sold; // s(k) = f(s(k-1),u(k))
 
     // Kinematic motion model where u=[x_dot, y_dot, z_dot, roll_dot, pitch_dot, yaw_dot]
     //s_k += Ts*u;
@@ -1265,7 +1267,7 @@ Vector6f Particle::motionModel(Vector6f sold, VectorUFastSLAMf* u, float Ts) // 
 }
 
 
-void Particle::calculateImportanceWeight(MeasurementSet* z_Ex, Vector6f s_proposale){
+void Particle::calculateImportanceWeight(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale){
     Eigen::MatrixXf wCov_i;
     double wi;
     double w_tmp;
@@ -1356,7 +1358,7 @@ double Particle::getWeigth()
     return w;
 }
 
-Matrix6f Particle::sCov = 0.1*Matrix6f::Identity(); // static variable - has to be declared outside class!
+MatrixChiFastSLAMf Particle::sCov = 0.1*MatrixChiFastSLAMf::Identity(); // static variable - has to be declared outside class!
 
 
 boost::mt19937 Particle::rng; // Creating a new random number generator every time could be optimized
@@ -1372,7 +1374,7 @@ boost::mt19937 Particle::rng; // Creating a new random number generator every ti
 
 
 /* ############################## Defines ParticleSet class ##############################  */
-ParticleSet::ParticleSet(int Nparticles,Vector6f s0,Matrix6f s_0_Cov){
+ParticleSet::ParticleSet(int Nparticles,VectorChiFastSLAMf s0,MatrixChiFastSLAMf s_0_Cov){
     k=0;
     sMean = new Path(s0,k); // makes new path to keep track of the estimated mean of the Particle filter!
 
@@ -1549,7 +1551,7 @@ void ParticleSet::resampleSimple(){
     }
 }
 
-Vector6f* ParticleSet::getLatestPoseEstimate(){
+VectorChiFastSLAMf* ParticleSet::getLatestPoseEstimate(){
     return sMean->getPose();
 }
 
@@ -1566,8 +1568,8 @@ void ParticleSet::estimateDistribution(){
 
     cout << "wSum - 1: " << wSum << endl;
 
-    Vector6f sTmp = Vector6f::Zero();
-    Vector6f sMean_estimate = Vector6f::Zero();
+    VectorChiFastSLAMf sTmp = VectorChiFastSLAMf::Zero();
+    VectorChiFastSLAMf sMean_estimate = VectorChiFastSLAMf::Zero();
     double wSum_squared = 0;
 
     for(int i = 1; i<=nParticles;i++){
@@ -1577,9 +1579,9 @@ void ParticleSet::estimateDistribution(){
         sMean_estimate = sMean_estimate + wNorm*sTmp; // weighted mean!
     }
 
-    Matrix6f sCov_estimate = Matrix6f::Zero();
-    Matrix6f sCov_estimate_tmp = Matrix6f::Zero();
-    Vector6f sDiff = Vector6f::Zero();
+    MatrixChiFastSLAMf sCov_estimate = MatrixChiFastSLAMf::Zero();
+    MatrixChiFastSLAMf sCov_estimate_tmp = MatrixChiFastSLAMf::Zero();
+    VectorChiFastSLAMf sDiff = VectorChiFastSLAMf::Zero();
 
     for(int i = 1; i<=nParticles;i++){
         sTmp = *(Parray[i]->s->getPose());
