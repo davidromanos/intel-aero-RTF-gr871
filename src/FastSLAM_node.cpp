@@ -100,7 +100,7 @@ ofstream IntrinsicsLog;
 // ==== FastSLAM variables ====
 int Nparticles;
 VectorChiFastSLAMf s0 = VectorChiFastSLAMf::Constant(0);
-Matrix4f s_0_Cov;
+MatrixChiFastSLAMf s_0_Cov;
 ParticleSet* Pset;
 VectorUFastSLAMf u;
 
@@ -608,7 +608,7 @@ int main(int argc, char **argv)
     // ===== Configure FastSLAM =====
     Nparticles = 200;
     s0 = VectorChiFastSLAMf::Constant(0);
-    s_0_Cov = 0.0*Matrix4f::Identity();
+    s_0_Cov = 0.0*MatrixChiFastSLAMf::Identity();
     ParticleSet Pset(Nparticles,s0,s_0_Cov);
     VectorUFastSLAMf u = VectorUFastSLAMf::Zero();
 
