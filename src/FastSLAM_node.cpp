@@ -191,19 +191,24 @@ const float LPF_COEFF_B[] = {0.0643677091773966,         0.128735418354793,     
 IIR Xdot_Filter(LPF_COEFF_A, 3, LPF_COEFF_B, 3);
 IIR Ydot_Filter(LPF_COEFF_A, 3, LPF_COEFF_B, 3);
 IIR Zdot_Filter(LPF_COEFF_A, 3, LPF_COEFF_B, 3);
+IIR Roll_Filter(LPF_COEFF_A, 3, LPF_COEFF_B, 3);
+IIR Pitch_Filter(LPF_COEFF_A, 3, LPF_COEFF_B, 3);
+IIR Yaw_Filter(LPF_COEFF_A, 3, LPF_COEFF_B, 3);
 
 Vector6f PreviousPose = Vector6f::Zero();
 ros::Time PreviousTimestamp(0);
 bool SkipMeasurement = false; // used to skip every second measurement
 
 Vector3f MocapVelocity = Vector3f::Zero();
+Vector3f DroneVelocity = Vector3f::Zero();
 
 void MocapVelocityFilter()
 {       
     ros::Duration dt;
-    float dx, dy, dz;
+    float dx, dy, dz;    
 
     if (!SkipMeasurement) {
+        SkipMeasurement = true;
         dt = PoseTimestamp - PreviousTimestamp;
         dx = MocapPose(0) - PreviousPose(0);
         dy = MocapPose(1) - PreviousPose(1);
@@ -212,38 +217,64 @@ void MocapVelocityFilter()
         //cout << "dt: " << dt.toSec() << endl;
         //cout << "xdot: " << (dx / dt.toSec()) << endl;
 
+        if (dt.toSec() < 0.005) {
+            SkipMeasurement = false;
+            return;
+        }
+
         if (dx != 0)
             MocapVelocity(0) = Xdot_Filter.Filter(dx / dt.toSec());
-        else
-            MocapVelocity(0) = Xdot_Filter.Filter(MocapVelocity(0)); // velocity can not be zero, so we assume that it is because of no measurement, hence take the previous velocity
+        else {
+            //MocapVelocity(0) = Xdot_Filter.Filter(MocapVelocity(0)); // velocity can not be zero, so we assume that it is because of no measurement, hence take the previous velocity
+            MocapVelocity(0) = MocapVelocity(0); // velocity can not be zero, so we assume that it is because of no measurement, hence take the previous velocity
+            SkipMeasurement = false;
+        }
 
         if (dy != 0)
             MocapVelocity(1) = Ydot_Filter.Filter(dy / dt.toSec());
-        else
-            MocapVelocity(1) = Ydot_Filter.Filter(MocapVelocity(1)); // velocity can not be zero, so we assume that it is because of no measurement, hence take the previous velocity
+        else {
+            //MocapVelocity(1) = Ydot_Filter.Filter(MocapVelocity(1)); // velocity can not be zero, so we assume that it is because of no measurement, hence take the previous velocity
+            MocapVelocity(1) = MocapVelocity(1); // velocity can not be zero, so we assume that it is because of no measurement, hence take the previous velocity
+            SkipMeasurement = false;
+        }
 
         if (dz != 0)
             MocapVelocity(2) = Zdot_Filter.Filter(dz / dt.toSec());
-        else
-            MocapVelocity(2) = Zdot_Filter.Filter(MocapVelocity(2)); // velocity can not be zero, so we assume that it is because of no measurement, hence take the previous velocity
+        else {
+            //MocapVelocity(2) = Zdot_Filter.Filter(MocapVelocity(2)); // velocity can not be zero, so we assume that it is because of no measurement, hence take the previous velocity
+            MocapVelocity(2) = MocapVelocity(2); // velocity can not be zero, so we assume that it is because of no measurement, hence take the previous velocity
+            SkipMeasurement = false;
+        }
 
         //cout << "xdot filt: " << MocapVelocity(0) << endl;
+
+        // Convert MocapVelocity into Drone velocity by applying Yaw rotation from previous pose
+        // R = [cos(psi)  sin(psi);        % For rotation from world velocity into drone velocity
+        //      -sin(psi) cos(psi)]
+        // DroneVel = R * MocapVel
+
+        DroneVelocity(0) = cos(PreviousPose(5))*MocapVelocity(0) + sin(PreviousPose(5))*MocapVelocity(1);
+        DroneVelocity(1) = -sin(PreviousPose(5))*MocapVelocity(0) + cos(PreviousPose(5))*MocapVelocity(1);
+        DroneVelocity(2) = MocapVelocity(2);
+
+        //cout << "DroneVelocity: " << endl << DroneVelocity << endl;
 
         PreviousPose = MocapPose;
         PreviousTimestamp = PoseTimestamp;
 
         if (!Time0.isZero()) { // only log if time is synchronized
             logAppendTimestamp(MocapVelocityLog, (PoseTimestamp - Time0));
-            MocapVelocityLog << MocapVelocity.format(CSVFmt) << endl;
+            MocapVelocityLog << MocapVelocity.format(CSVFmt) << ", " << DroneVelocity.format(CSVFmt) << endl;
             MocapVelocityLog.flush();
         }
+    } else {
+        SkipMeasurement = false;
     }
-
-    SkipMeasurement = !SkipMeasurement;
 }
 
 void MocapPose_Callback(const geometry_msgs::PoseStamped::ConstPtr& pose) {
     double roll, pitch, yaw;
+    float rollFilt, pitchFilt, yawFilt;
 
     PoseTimestamp = pose->header.stamp;
 
@@ -258,12 +289,16 @@ void MocapPose_Callback(const geometry_msgs::PoseStamped::ConstPtr& pose) {
 
     m.getRPY(roll, pitch, yaw);
 
+    rollFilt = Roll_Filter.Filter(roll);
+    pitchFilt = Pitch_Filter.Filter(pitch);
+    yawFilt = Yaw_Filter.Filter(yaw);
+
     MocapPose << pose->pose.position.x,
                  pose->pose.position.y,
                  pose->pose.position.z,
-                 roll,
-                 pitch,
-                 yaw;
+                 rollFilt,
+                 pitchFilt,
+                 yawFilt;
 
     MocapVelocityFilter();
 
@@ -758,8 +793,11 @@ int main(int argc, char **argv)
     cv::namedWindow("view", CV_WINDOW_KEEPRATIO);    
     cv::startWindowThread();
 
-
     MeasurementSet MeasSet;
+    ros::Time PreviousMeasurementTimestamp;
+    ros::Duration dt;
+    float PreviousYaw = MocapPose(5);
+    float YawDifference = 0.f;
 
     while(ros::ok()){
 
@@ -767,13 +805,20 @@ int main(int argc, char **argv)
 
         ProcessRGBDimage(&MeasSet);
 
-        if (MeasSet.getNumberOfMeasurements() > 0) {
+        //if (MeasSet.getNumberOfMeasurements() > 0) {
+            YawDifference = MocapPose(5) - PreviousYaw;
+            dt = PoseTimestamp - PreviousMeasurementTimestamp;
 
-            Pset.updateParticleSet(&MeasSet, u, 0);
+            u << DroneVelocity, YawDifference;
+            //cout << "Motion input: " << endl << u << endl;
+
+            Pset.updateParticleSet(&MeasSet, u, dt.toSec());
 
             MeasSet.emptyMeasurementSet();
 
-        }
+            PreviousYaw = MocapPose(5);
+            PreviousMeasurementTimestamp = PoseTimestamp;
+        //}
     }
 
     Pset.saveData();

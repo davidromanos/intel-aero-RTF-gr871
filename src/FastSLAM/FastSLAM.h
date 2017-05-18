@@ -29,7 +29,7 @@
 
 typedef Eigen::Matrix<float, 6, 1> Vector6f;
 typedef Eigen::Matrix<float, 6, 6> Matrix6f;
-typedef Eigen::Matrix<float, 6, 1> VectorUFastSLAMf; // velocities in the order: [x_dot, y_dot, z_dot, roll_dot, pitch_dot, yaw_dot]
+typedef Eigen::Matrix<float, 4, 1> VectorUFastSLAMf; // velocities in the order: [x_dot, y_dot, z_dot, yaw_difference]
 typedef Eigen::Matrix<float, 4, 1> VectorChiFastSLAMf; // state vector [x,y,z,yaw]
 typedef Eigen::Matrix<float, 4, 4> MatrixChiFastSLAMf; // used for covariance of state vector
 typedef Eigen::Matrix<float, 6, Eigen::Dynamic> Matrix6kf;

@@ -39,13 +39,13 @@ zdot_ = smooth(zdot);
 D = designfilt('lowpassiir', 'FilterOrder', 2, ...
              'PassbandFrequency', 8, 'PassbandRipple', 0.5,...
              'SampleRate', round(1/mean(diff(td)), 0));
-fvtool(D);
+%fvtool(D);
 
 if (size(D.Coefficients,1) == 1)
     b = D.Coefficients(1,1:3);
     a = D.Coefficients(1,4:6);
     lpf = tf(b,a);
-    bode(lpf);
+    %bode(lpf);
 elseif (size(D.Coefficients,1) == 2)
     b1 = D.Coefficients(1,1:3);
     a1 = D.Coefficients(1,4:6);
@@ -57,15 +57,15 @@ elseif (size(D.Coefficients,1) == 2)
     lpf = lpf1*lpf2;
 end
 
-figure(11);
-bode(lpf);
+%figure(11);
+%bode(lpf);
 
 [b,a] = tfdata(minreal(lpf));
 a = a{1};
 b = b{1};
 
 %figure(10);
-grpdelay(D,2048);         
+%grpdelay(D,2048);         
 
 xdotFilt1 = filter(D, xdot);
 %[b a] = tfdata(lpf);
@@ -116,11 +116,6 @@ plot(td, zdot, 'k', td, zdot_, 'b')
 title('Zdot');
 ylim([-1.5 1.5]);
 
-%plot(tMoc(1:end-1), xdot, 'r', tMoc(1:end-1), ydot, 'g', tMoc(1:end-1), zdot, 'b')
-%title('Mocap diffentiated (velocity)');
-%legend('Xdot', 'Ydot', 'Zdot');
-%ylim([-2 2]);
-
 figure(9);
 plot(td, xdot, td, xdotFilt2, mocapVelocity(:,1), mocapVelocity(:,2));
 
@@ -137,4 +132,21 @@ legend('Roll', 'Pitch', 'Yaw');
 
 %% Generate x, y, z velocity in Drone frame
 i = 1;
-%R = rpy2tr(roll(i), pitch(i), yaw(i));
+XYvel = [xdot_, ydot_, zdot_];
+DroneVel = zeros(size(XYvel));
+for (i = 1:size(XYvel,1))
+    vel = XYvel(i,:)';
+    R = rotz(yaw(i))';
+    DroneVel(i,:) = (R*vel)';
+end
+
+figure(5);
+subplot(3,1,1);
+plot(tMoc, yaw);
+title('Yaw angle');
+subplot(3,1,2);
+plot(td, xdot_, td, DroneVel(:,1), mocapVelocity(:,1), mocapVelocity(:,5));
+legend('Xdot Mocap', 'Xdot Drone', 'Xdot Drone ROS');
+subplot(3,1,3);
+plot(td, ydot_, td, DroneVel(:,2), mocapVelocity(:,1), mocapVelocity(:,6));
+legend('Ydot Mocap', 'Ydot Drone', 'Ydot Drone ROS');
