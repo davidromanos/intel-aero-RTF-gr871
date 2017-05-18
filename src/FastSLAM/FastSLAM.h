@@ -88,10 +88,10 @@ class ImgMeasurement : public Measurement
 
 private:
     /* Camera coefficients */
-    static constexpr float ax = 617.85888671875;
-    static constexpr float ay = 623.442626953125;
-    static constexpr float x0 = 321.3709716796875;
-    static constexpr float y0 = 253.7631072998047;
+    static constexpr float ax = 308.92944335938; // also known as fx
+    static constexpr float ay = 311.72131347656; // also known as fy
+    static constexpr float x0 = 160.68548583984; // also known as ppx
+    static constexpr float y0 = 126.8815536499; // also known as ppy
 };
 
 

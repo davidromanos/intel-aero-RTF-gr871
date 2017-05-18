@@ -285,12 +285,12 @@ void RGBD_Image_Callback(const sensor_msgs::ImageConstPtr& depth_image, const se
             cout << "delta time (offset): " << DepthToPose_TimeOffset << endl;
         }
 
-        if (depth_to_color.initialized && rgb_intrin.initialized && depth_intrin.initialized) {
-            if (depth_image->header.stamp > rgb_image->header.stamp) {
+        else if (depth_to_color.initialized && rgb_intrin.initialized && depth_intrin.initialized) {
+            //if (depth_image->header.stamp > rgb_image->header.stamp) {
                 RGBD_Timestamp = depth_image->header.stamp - DepthToPose_TimeOffset - Time0; // subtract to get RGBD timestamp into Pose timestamp
-            } else {
+            /*} else {
                 RGBD_Timestamp = rgb_image->header.stamp - DepthToPose_TimeOffset - Time0; // subtract to get RGBD timestamp into Pose timestamp
-            }
+            }*/
             RGBD_Image_Ready = true;
             RGB_Image_New = false;
             Depth_Image_New = false;
@@ -334,15 +334,15 @@ void CameraInfo_RGB_Callback(const sensor_msgs::CameraInfoConstPtr& cameraInfo) 
             IntrinsicsLog << "rgb,";
             IntrinsicsLog << rgb_intrin.width << ",";
             IntrinsicsLog << rgb_intrin.height << ",";
-            IntrinsicsLog << rgb_intrin.fx << ",";
-            IntrinsicsLog << rgb_intrin.ppx << ",";
-            IntrinsicsLog << rgb_intrin.fy << ",";
-            IntrinsicsLog << rgb_intrin.ppy << ",";
-            IntrinsicsLog << rgb_intrin.coeffs[0] << ",";
-            IntrinsicsLog << rgb_intrin.coeffs[1] << ",";
-            IntrinsicsLog << rgb_intrin.coeffs[2] << ",";
-            IntrinsicsLog << rgb_intrin.coeffs[3] << ",";
-            IntrinsicsLog << rgb_intrin.coeffs[4] << endl;
+            IntrinsicsLog << setprecision(14) << rgb_intrin.fx << ",";
+            IntrinsicsLog << setprecision(14) << rgb_intrin.ppx << ",";
+            IntrinsicsLog << setprecision(14) << rgb_intrin.fy << ",";
+            IntrinsicsLog << setprecision(14) << rgb_intrin.ppy << ",";
+            IntrinsicsLog << setprecision(14) << rgb_intrin.coeffs[0] << ",";
+            IntrinsicsLog << setprecision(14) << rgb_intrin.coeffs[1] << ",";
+            IntrinsicsLog << setprecision(14) << rgb_intrin.coeffs[2] << ",";
+            IntrinsicsLog << setprecision(14) << rgb_intrin.coeffs[3] << ",";
+            IntrinsicsLog << setprecision(14) << rgb_intrin.coeffs[4] << endl;
 
             camerainfo1_sub.shutdown(); // now that we have received the intrinsics we don't need to subscribe to the topic anymore
     }
@@ -376,18 +376,18 @@ void CameraInfo_Depth_Callback(const sensor_msgs::CameraInfoConstPtr& cameraInfo
             depth_intrin.coeffs[4] = cameraInfo->D[4];
             depth_intrin.initialized = true;
 
-            IntrinsicsLog << "depth, ";
+            IntrinsicsLog << "depth,";
             IntrinsicsLog << depth_intrin.width << ",";
             IntrinsicsLog << depth_intrin.height << ",";
-            IntrinsicsLog << depth_intrin.fx << ",";
-            IntrinsicsLog << depth_intrin.ppx << ",";
-            IntrinsicsLog << depth_intrin.fy << ",";
-            IntrinsicsLog << depth_intrin.ppy << ",";
-            IntrinsicsLog << depth_intrin.coeffs[0] << ",";
-            IntrinsicsLog << depth_intrin.coeffs[1] << ",";
-            IntrinsicsLog << depth_intrin.coeffs[2] << ",";
-            IntrinsicsLog << depth_intrin.coeffs[3] << ",";
-            IntrinsicsLog << depth_intrin.coeffs[4] << endl;
+            IntrinsicsLog << setprecision(14) << depth_intrin.fx << ",";
+            IntrinsicsLog << setprecision(14) << depth_intrin.ppx << ",";
+            IntrinsicsLog << setprecision(14) << depth_intrin.fy << ",";
+            IntrinsicsLog << setprecision(14) << depth_intrin.ppy << ",";
+            IntrinsicsLog << setprecision(14) << depth_intrin.coeffs[0] << ",";
+            IntrinsicsLog << setprecision(14) << depth_intrin.coeffs[1] << ",";
+            IntrinsicsLog << setprecision(14) << depth_intrin.coeffs[2] << ",";
+            IntrinsicsLog << setprecision(14) << depth_intrin.coeffs[3] << ",";
+            IntrinsicsLog << setprecision(14) << depth_intrin.coeffs[4] << endl;
 
             camerainfo2_sub.shutdown(); // now that we have received the intrinsics we don't need to subscribe to the topic anymore
     }
