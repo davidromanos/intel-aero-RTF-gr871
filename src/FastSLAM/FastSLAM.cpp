@@ -57,7 +57,7 @@ float pi_to_pi2(float ang)
 
 void KF_cholesky_update(Eigen::VectorXf &x, Eigen::MatrixXf &P, Eigen::VectorXf &v, Eigen::MatrixXf &R, Eigen::MatrixXf &H)
 {
-	Eigen::MatrixXf PHt = P*H.transpose();
+    Eigen::MatrixXf PHt = P*H.transpose();
     Eigen::MatrixXf S = H*PHt + R;
 
     // FIXME: why use conjugate()?
@@ -100,9 +100,9 @@ Eigen::VectorXf GOTMeasurement::inverseMeasurementModel(VectorChiFastSLAMf pose)
 }
 
 Eigen::MatrixXf GOTMeasurement::calculateHs(VectorChiFastSLAMf pose, Eigen::Vector3f l)
-{    
-    Eigen::MatrixXf Hs(3, 6);
-    Hs << -1.0*Eigen::Matrix3f::Identity(3,3), Eigen::Matrix3f::Zero(3,3);
+{
+    Eigen::MatrixXf Hs(3, 4);
+    Hs << -1.0*Eigen::Matrix3f::Identity(3,3), Eigen::MatrixXf::Zero(3,1);
     //cout << " Hs" << Hs << endl;
     return Hs;
 }
@@ -205,6 +205,8 @@ Eigen::VectorXf ImgMeasurement::inverseMeasurementModel(VectorChiFastSLAMf pose)
 
 Eigen::MatrixXf ImgMeasurement::calculateHs(VectorChiFastSLAMf pose, Eigen::Vector3f l)
 {
+    Eigen::MatrixXf Hs(3, 4);
+
     float c_psi = cos(pose(3));
     float s_psi = sin(pose(3));
     float c_theta = cos(pitch);
@@ -212,7 +214,6 @@ Eigen::MatrixXf ImgMeasurement::calculateHs(VectorChiFastSLAMf pose, Eigen::Vect
     float c_phi = cos(roll);
     float s_phi = sin(roll);
 
-    Eigen::MatrixXf Hs(3, 4);
     float den = powf((c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1))),2);
     /*
     Hs(0,0) = (ax*(c_phi*s_psi - c_psi*s_theta*s_phi))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1))) + (ax*c_theta*c_psi*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1)) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0)) + c_theta*s_phi*(pose(2) - l(2))))/den;
@@ -431,7 +432,7 @@ MapTree::MapTree()
 }
 
 MapTree::~MapTree()
-{  
+{
     if (root != NULL){
         //cout << "deleting MapTree: " << mapTreeIdentifier << " References to root: " << root->referenced << " Debugging: ";
         removeReferenceToSubTree(root);
@@ -635,7 +636,7 @@ mapNode* MapTree::makeNewPath(landmark* newLandmarkData, mapNode* startNode){
         if (newLandmarkData->c > startNode->key_value){ // we go right
             pointerForNewMapNode->left = startNode->left; // and do not change the left pointer
             if(pointerForNewMapNode->left != NULL){
-            	pointerForNewMapNode->left->referenced++;
+                pointerForNewMapNode->left->referenced++;
             }
             pointerForNewMapNode->key_value = startNode->key_value; // the new node has the same key_value as the old
             pointerForNewMapNode->right = makeNewPath(newLandmarkData,startNode->right);
@@ -819,7 +820,7 @@ Particle::Particle(const Particle &ParticleToCopy)   // Copy Constructor
 }
 
 Particle::~Particle()
-{    
+{
     //cout << "Deleting particle" << endl;
     delete s; // call destructor of s
     delete map; // call destructor of map
@@ -888,7 +889,7 @@ void Particle::handleExMeas(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale
             Eigen::MatrixXf H = Hl;
             Eigen::MatrixXf R = z_tmp->getzCov();
 
-			KF_cholesky_update(x, P, v, R, H);
+            KF_cholesky_update(x, P, v, R, H);
 
             landmark* li_update = new landmark;
             li_update->c = z_tmp->c;
@@ -896,10 +897,10 @@ void Particle::handleExMeas(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale
             li_update->lCov = P;
 
             if (li_update->lhat != li_update->lhat) {
-            	cout << "landmark update NaN err, ID: " << z_tmp->c << endl;
+                cout << "landmark update NaN err, ID: " << z_tmp->c << endl;
             }
 
-			/*
+            /*
             Eigen::MatrixXf Zk;
             Zk = z_tmp->getzCov() + Hl*li_old->lCov*Hl.transpose(); // (3.35)
             Eigen::MatrixXf Kk;
@@ -1051,7 +1052,7 @@ VectorChiFastSLAMf Particle::drawSampleFromProposaleDistribution(VectorChiFastSL
             sCov_proposale = P;
 
             if (sCov_proposale(0,0) != sCov_proposale(0,0)) {
-            	cout << "sCov NaN err" << endl;
+                cout << "sCov NaN err" << endl;
             }
         }
     }
@@ -1187,7 +1188,7 @@ VectorChiFastSLAMf Particle::drawSampleFromProposaleDistributionNEW(VectorChiFas
     //cout << endl << "sCov_proposale" << endl << sCov_proposale << endl;
     //cout << endl << "s_proposale" << endl << s_proposale << endl;
     VectorChiFastSLAMf s_proposale = sMean_proposale;
-    s_k_Cov = sCov_proposale;    
+    s_k_Cov = sCov_proposale;
     return s_proposale;
 }
 
@@ -1239,7 +1240,7 @@ Eigen::MatrixXf randn(int m, int n)
 
 Eigen::MatrixXf rand(int m, int n)
 {
-	Eigen::MatrixXf x(m,n);
+    Eigen::MatrixXf x(m,n);
     int i, j;
     float rand_max = float(RAND_MAX);
 
@@ -1256,8 +1257,8 @@ void add_observation_noise(vector<Eigen::VectorXf> &z, Eigen::MatrixXf &R, int a
     if (addnoise == 1) {
         unsigned long len = z.size();
         if (len > 0) {
-        	Eigen::MatrixXf randM1 = randn(1,len);
-        	Eigen::MatrixXf randM2 = randn(1,len);
+            Eigen::MatrixXf randM1 = randn(1,len);
+            Eigen::MatrixXf randM2 = randn(1,len);
 
             for (unsigned long c=0; c<len; c++) {
                 z[c][0] = z[c][0] + randM1(0,c)*sqrt(R(0,0));
@@ -1270,8 +1271,8 @@ void add_observation_noise(vector<Eigen::VectorXf> &z, Eigen::MatrixXf &R, int a
 
 VectorChiFastSLAMf Particle::drawSampleRandomPose(VectorChiFastSLAMf sMean_proposale, MatrixChiFastSLAMf sCov_proposale)
 {
-	//choleksy decomposition
-	Eigen::MatrixXf S = sCov_proposale.llt().matrixL();
+    //choleksy decomposition
+    Eigen::MatrixXf S = sCov_proposale.llt().matrixL();
     Eigen::MatrixXf X = randn(4,1);
 
     return S*X + sMean_proposale;
@@ -1471,13 +1472,10 @@ void ParticleSet::updateParticleSet(MeasurementSet* z, VectorUFastSLAMf u, float
     MeasurementSet z_Ex;
     unsigned int markerID;
 
-
     k++;
 
     if (z != NULL) {
-
        tmp_pointer = z->firstMeasNode;
-
     }
     if (tmp_pointer != NULL) { // if we have a non-emtpy measurement set update the particles, otherwise just do resampling
         // Traverse all measurements in measurement set
@@ -1503,7 +1501,6 @@ void ParticleSet::updateParticleSet(MeasurementSet* z, VectorUFastSLAMf u, float
     for(int i = 1; i<=nParticles;i++){
         //cout << endl << "updating particle: " << i << endl;
         ((Particle*)Parray[i])->updateParticle(&z_Ex,&z_New,&u,k,Ts);
-
     }
 
     estimateDistribution();
@@ -1629,9 +1626,9 @@ void ParticleSet::estimateDistribution(){
     double wNorm = 0;
 
     for(int i = 1; i<=nParticles;i++){
-    	if (Parray[i]->w != Parray[i]->w) {
-    		cout << "Err NaN in Particle: " << i << endl;
-    	}
+        if (Parray[i]->w != Parray[i]->w) {
+            cout << "Err NaN in Particle: " << i << endl;
+        }
         wSum = wSum + Parray[i]->w;
     }
 
@@ -1806,7 +1803,7 @@ float IIR::Filter(float input)
     Eigen::MatrixXf oldInputContrib;
     Eigen::MatrixXf oldOutputContrib;
     oldInputContrib = oldInputs.transpose()*b.block(1,0,(bLen-1),1); // should just become a scalar
-    oldOutputContrib = oldOutputs.transpose()*a.block(1,0,(aLen-1),1); // should just become a scalar    
+    oldOutputContrib = oldOutputs.transpose()*a.block(1,0,(aLen-1),1); // should just become a scalar
 
     // output = ( b(1)*input + oldInput'*b(2:end)' - oldOutput'*a(2:end)' ) / a(1);
     output = ( b(0)*input + oldInputContrib(0,0) - oldOutputContrib(0,0) ) / a(0);

@@ -96,6 +96,7 @@ ofstream MocapLog;
 ofstream CameraLog;
 ofstream IntrinsicsLog;
 ofstream MocapVelocityLog;
+ofstream MotionModelLog;
 
 // ==== FastSLAM variables ====
 int Nparticles;
@@ -696,31 +697,40 @@ void ProcessRGBDimage(MeasurementSet * MeasSet)
 }
 
 
+VectorChiFastSLAMf motionModel(VectorChiFastSLAMf sold, VectorUFastSLAMf* u, float Ts) // Ts == sample time
+{
+    VectorChiFastSLAMf s_k = sold; // s(k) = f(s(k-1),u(k))
+
+    if (Ts > 10) {
+        return s_k; // error with the sampling time, just return old pose estimate
+    }
+
+    // Kinematic motion model where u=[x_dot, y_dot, z_dot, yaw_difference]  with x_dot and y_dot being in heading frame
+    //cout << "dt: " << Ts << endl;
+    //cout << "Motion input: " << endl << (*u) << endl;
+
+    // Convert Drone velocity into World velocity by applying Yaw rotation from old pose
+    // R = [cos(psi)  -sin(psi);        % For rotation from drone velocity into world velocity
+    //      sin(psi) cos(psi)]
+    // WorldVel = R * DroneVel
+    s_k(0) = s_k(0) + Ts * (cos(sold(3))* (*u)(0) - sin(sold(3))* (*u)(1));
+    s_k(1) = s_k(1) + Ts * (sin(sold(3))* (*u)(0) + cos(sold(3))* (*u)(1));
+
+    s_k(2) = s_k(2) + Ts * (*u)(2); // add integrated zdot contribution
+
+    s_k(3) = s_k(3) + (*u)(3); // add yaw difference
+
+    return s_k;
+}
+
+
+
 //*** Main ***//
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "FastSLAM_node");
     ros::NodeHandle n;
     printf("READY to get image\n");
-
-    // ===== Configure FastSLAM =====
-    Nparticles = 200;
-    s0 = VectorChiFastSLAMf::Constant(0);
-    s_0_Cov = 0.0*MatrixChiFastSLAMf::Identity();
-    ParticleSet Pset(Nparticles,s0,s_0_Cov);
-    VectorUFastSLAMf u = VectorUFastSLAMf::Zero();
-
-    // motion model covariance
-    Particle::sCov(0,0) = 0.1;
-    Particle::sCov(1,1) = 0.1;
-    Particle::sCov(2,2) = 0.1;
-    Particle::sCov(3,3) = 0.349066; // 20 degrees
-
-    ImgMeasurement::zCov(0,0) = 1;
-    ImgMeasurement::zCov(1,1) = 1;
-    ImgMeasurement::zCov(2,2) = 0.05;
-
-    // ==== End configuration of FastSLAM ====
 
     prepareLogFile(&MocapLog, "Mocap");
     if (!MocapLog.is_open()) {
@@ -733,6 +743,13 @@ int main(int argc, char **argv)
         ROS_ERROR("Error opening Mocap Velocity log file");
         return -1;
     }
+
+    prepareLogFile(&MotionModelLog, "MotionModel");
+    if (!MotionModelLog.is_open()) {
+        ROS_ERROR("Error opening Motion Model log file");
+        return -1;
+    }
+
 
     prepareLogFile(&CameraLog, "Camera");
     if (!CameraLog.is_open()) {
@@ -767,13 +784,13 @@ int main(int argc, char **argv)
 #endif
 
     camerainfo1_sub = n.subscribe<sensor_msgs::CameraInfo>
-            ("/camera/rgb/camera_info", 10, CameraInfo_RGB_Callback);
+            ("/camera/rgb/camera_info", 20, CameraInfo_RGB_Callback);
 
     camerainfo2_sub = n.subscribe<sensor_msgs::CameraInfo>
-            ("/camera/depth/camera_info", 10, CameraInfo_Depth_Callback);
+            ("/camera/depth/camera_info", 20, CameraInfo_Depth_Callback);
 
     ros::Subscriber position_sub = n.subscribe<geometry_msgs::PoseStamped>
-            ("/mavros/mocap/pose", 100, MocapPose_Callback);
+            ("/mavros/mocap/pose", 1000, MocapPose_Callback);
 
     ConfigureCamera(true); // use auto exposure
     InitHardcodedExtrinsics(); // Hardcoded initialization of Extrinsics, taken from the R200 camera on our Intel Aero drone
@@ -807,9 +824,19 @@ int main(int argc, char **argv)
 
         //if (MeasSet.getNumberOfMeasurements() > 0 && dt.toSec() > 0) {
         if (dt.toSec() > 0) {
+            GOT_meas << MocapPose(0), MocapPose(1), MocapPose(2);
+            z_GOT = new GOTMeasurement(40, GOT_meas); // ID, Marker measurements and include current/latest raw Roll and Pitch measurement (in this case directly from Mocap instead of from the estimator)
+            MeasSet.addMeasurement(z_GOT);
+
             u << DroneVelocity, YawDifference;
             //cout << "dt: " << dt.toSec() << endl;
             //cout << "Motion input: " << endl << u << endl;
+
+            s_k = motionModel(s_k, &u, dt.toSec());
+
+            logAppendTimestamp(MotionModelLog, (PoseTimestamp - Time0));
+            MotionModelLog << dt.toSec() << ", " << u.format(CSVFmt) << ", " << s_k.format(CSVFmt) << endl;
+            MotionModelLog.flush();
 
             Pset.updateParticleSet(&MeasSet, u, dt.toSec());
 
@@ -826,6 +853,7 @@ int main(int argc, char **argv)
     CameraLog.close();
     IntrinsicsLog.close();
     MocapVelocityLog.close();
+    MotionModelLog.close();
 
     cv::destroyWindow("view");
     return 0;
