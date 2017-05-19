@@ -696,8 +696,6 @@ void ProcessRGBDimage(MeasurementSet * MeasSet)
 }
 
 
-
-
 //*** Main ***//
 int main(int argc, char **argv)
 {
@@ -735,7 +733,6 @@ int main(int argc, char **argv)
         ROS_ERROR("Error opening Mocap Velocity log file");
         return -1;
     }
-
 
     prepareLogFile(&CameraLog, "Camera");
     if (!CameraLog.is_open()) {
@@ -782,7 +779,7 @@ int main(int argc, char **argv)
     InitHardcodedExtrinsics(); // Hardcoded initialization of Extrinsics, taken from the R200 camera on our Intel Aero drone
 
     // Wait for intrinsics to arrive
-    while(ros::ok() && (!depth_to_color.initialized || !rgb_intrin.initialized || !depth_intrin.initialized) && Time0.isZero()) {
+    while(ros::ok() && (!depth_to_color.initialized || !rgb_intrin.initialized || !depth_intrin.initialized || Time0.isZero() || ((PoseTimestamp - Time0).toSec() <= 0))) {
         ros::spinOnce();
     }
 
@@ -793,9 +790,9 @@ int main(int argc, char **argv)
     cv::namedWindow("view", CV_WINDOW_KEEPRATIO);    
     cv::startWindowThread();
 
-    MeasurementSet MeasSet;
-    ros::Time PreviousMeasurementTimestamp;
+    MeasurementSet MeasSet;    
     ros::Duration dt;
+    ros::Time PreviousMeasurementTimestamp = PoseTimestamp;
     float PreviousYaw = MocapPose(5);
     float YawDifference = 0.f;
 
@@ -805,11 +802,13 @@ int main(int argc, char **argv)
 
         ProcessRGBDimage(&MeasSet);
 
-        //if (MeasSet.getNumberOfMeasurements() > 0) {
-            YawDifference = MocapPose(5) - PreviousYaw;
-            dt = PoseTimestamp - PreviousMeasurementTimestamp;
+        YawDifference = MocapPose(5) - PreviousYaw;
+        dt = PoseTimestamp - PreviousMeasurementTimestamp;
 
+        //if (MeasSet.getNumberOfMeasurements() > 0 && dt.toSec() > 0) {
+        if (dt.toSec() > 0) {
             u << DroneVelocity, YawDifference;
+            //cout << "dt: " << dt.toSec() << endl;
             //cout << "Motion input: " << endl << u << endl;
 
             Pset.updateParticleSet(&MeasSet, u, dt.toSec());
@@ -818,7 +817,7 @@ int main(int argc, char **argv)
 
             PreviousYaw = MocapPose(5);
             PreviousMeasurementTimestamp = PoseTimestamp;
-        //}
+        }
     }
 
     Pset.saveData();
@@ -826,6 +825,7 @@ int main(int argc, char **argv)
     MocapLog.close();
     CameraLog.close();
     IntrinsicsLog.close();
+    MocapVelocityLog.close();
 
     cv::destroyWindow("view");
     return 0;

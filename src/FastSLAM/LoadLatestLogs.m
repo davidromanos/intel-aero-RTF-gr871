@@ -4,7 +4,7 @@ CameraFiles = dir('~/logs/*Camera.txt');
 IntrinsicsFiles = dir('~/logs/*Intrinsics.txt');
 
 mocap = csvread(['~/logs/' MocapFiles(end).name]); % open latest Mocap file
-mocapVelocity = csvread(['~/logs/' MocapVelocityFiles(end).name]); % open latest Mocap file
+mocapVelocity = csvread(['~/logs/' MocapVelocityFiles(end).name]); % open latest Mocap Velocity file
 camera = csvread(['~/logs/' CameraFiles(end).name]);  % open latest Camera file
 IntrinsicsFilename = ['~/logs/' IntrinsicsFiles(end).name];
 

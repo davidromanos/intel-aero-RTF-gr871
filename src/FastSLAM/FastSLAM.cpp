@@ -1307,18 +1307,24 @@ VectorChiFastSLAMf Particle::motionModel(VectorChiFastSLAMf sold, VectorUFastSLA
 {
     VectorChiFastSLAMf s_k = sold; // s(k) = f(s(k-1),u(k))
 
+    if (Ts > 3) {
+        return s_k; // error with the sampling time, just return old pose estimate
+    }
+
     // Kinematic motion model where u=[x_dot, y_dot, z_dot, yaw_difference]  with x_dot and y_dot being in heading frame
+    //cout << "dt: " << Ts << endl;
+    //cout << "Motion input: " << endl << (*u) << endl;
 
     // Convert Drone velocity into World velocity by applying Yaw rotation from old pose
     // R = [cos(psi)  -sin(psi);        % For rotation from drone velocity into world velocity
     //      sin(psi) cos(psi)]
     // WorldVel = R * DroneVel
-    s_k(0) += Ts * (cos(sold(3))* (*u)(0) - sin(sold(3))* (*u)(1));
-    s_k(1) += Ts * (sin(sold(3))* (*u)(0) + cos(sold(3))* (*u)(1));
+    s_k(0) = s_k(0) + Ts * (cos(sold(3))* (*u)(0) - sin(sold(3))* (*u)(1));
+    s_k(1) = s_k(1) + Ts * (sin(sold(3))* (*u)(0) + cos(sold(3))* (*u)(1));
 
-    s_k(2) += Ts * (*u)(2); // add integrated zdot contribution
+    s_k(2) = s_k(2) + Ts * (*u)(2); // add integrated zdot contribution
 
-    s_k(3) += (*u)(3); // add yaw difference
+    s_k(3) = s_k(3) + (*u)(3); // add yaw difference
 
     return s_k;
 }
