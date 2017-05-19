@@ -155,15 +155,16 @@ Eigen::VectorXf ImgMeasurement::MeasurementModel(VectorChiFastSLAMf pose, Eigen:
                (-s_theta),      (c_theta*s_phi),                     (c_theta*c_phi);
 
     Eigen::Vector3f CamCenter; // Camera center location in world coordinate
-    CamCenter = pose.topRows<3>() + EB_R * CameraOffset;
+    CamCenter << pose(0), pose(1), pose(2);
+    CamCenter = CamCenter + EB_R * CameraOffset;
 
     //cout << "landmark: " << l << endl;
     //cout << "pose: " << pose << endl;
 
     // Calculate world coordinate of landmark in the camera frame - Notice we use Roll-Pitch-Yaw angle convention
-    float c_zl = (-c_psi*s_theta*s_phi + s_psi*c_phi)*(l(0) - CamCenter(0)) + (-s_psi*s_theta*s_phi-c_psi*c_phi)*(l(1) - CamCenter(1)) - (c_theta*s_phi)*(l(2) - CamCenter(2));
-    float c_xl = (-c_psi*s_theta*c_phi-s_psi*s_phi)*(l(0) - CamCenter(0)) + (-s_psi*s_theta*c_phi+c_psi*s_phi)*(l(1) - CamCenter(1)) - (c_theta*c_phi)*(l(2) - CamCenter(2));
-    float c_yl = (c_psi*c_theta)*(l(0) - CamCenter(0)) + (s_psi*c_theta)*(l(1) - CamCenter(1)) - s_theta*(l(2) - CamCenter(2));
+    float c_xl = (-c_psi*s_theta*s_phi + s_psi*c_phi)*(l(0) - CamCenter(0)) + (-s_psi*s_theta*s_phi-c_psi*c_phi)*(l(1) - CamCenter(1)) - (c_theta*s_phi)*(l(2) - CamCenter(2));
+    float c_yl = (-c_psi*s_theta*c_phi-s_psi*s_phi)*(l(0) - CamCenter(0)) + (-s_psi*s_theta*c_phi+c_psi*s_phi)*(l(1) - CamCenter(1)) - (c_theta*c_phi)*(l(2) - CamCenter(2));
+    float c_zl = (c_psi*c_theta)*(l(0) - CamCenter(0)) + (s_psi*c_theta)*(l(1) - CamCenter(1)) - s_theta*(l(2) - CamCenter(2));
 
     //cout << "World coordinate: " << c_xl << ", " << c_yl << ", " << c_zl << endl;
 
