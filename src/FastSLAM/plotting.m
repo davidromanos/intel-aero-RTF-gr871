@@ -1,8 +1,8 @@
 close all
 clear all
-run('/home/malte/catkin_ws/Data/t_196.m')
+run('/home/malte/catkin_ws/Data/t_106.m')
 
-t = t196;
+t = t106;
 %%
 figure
 xlabel('x')
@@ -15,9 +15,15 @@ grid
 %%
 for i = 1:length(t.Particles)
     hold on 
-    scatter3(t.Particles(i).map.mean(1,:),...
-             t.Particles(i).map.mean(2,:),...
-             t.Particles(i).map.mean(3,:),'*');
+    for j = 1:length(t.Particles(i).map.mean(1,:))
+        text(t.Particles(i).map.mean(1,j),...
+             t.Particles(i).map.mean(2,j),...
+             t.Particles(i).map.mean(3,j),...
+             num2str(t.Particles(i).map.identifier(j)));
+        scatter3(t.Particles(i).map.mean(1,j),...
+                 t.Particles(i).map.mean(2,j),...
+                 t.Particles(i).map.mean(3,j),'*');
+    end
 end
 
 
@@ -31,3 +37,12 @@ end
 %%
 hold on 
 plot3(t.meanPath.Path(1,:),t.meanPath.Path(2,:),t.meanPath.Path(3,:),'r')
+
+
+%% plot x,y,z
+figure
+plot(t.meanPath.Ts(1:end-1),t.meanPath.Path(1,1:end-1))
+figure
+plot(t.meanPath.Ts(1:end-1),t.meanPath.Path(2,1:end-1))
+figure
+plot(t.meanPath.Ts(1:end-1),t.meanPath.Path(3,1:end-1))

@@ -699,6 +699,7 @@ Path::Path(VectorChiFastSLAMf S, unsigned int k){
     Node_Path* firstPathNode = new Node_Path;
     firstPathNode->S = S;
     firstPathNode->k = k;
+    firstPathNode->Ts = 0;
     firstPathNode->nextNode = NULL;
 
     PathRoot = new Node_Path;
@@ -738,11 +739,12 @@ void Path::deletePath(Node_Path *PathNode){
     PathLength--;
 }
 
-void Path::addPose(VectorChiFastSLAMf S, unsigned int k){
+void Path::addPose(VectorChiFastSLAMf S, unsigned int k, float Ts){
 
     Node_Path* tmpPathNode = new Node_Path;
     tmpPathNode->S = S;
     tmpPathNode->k = k;
+    tmpPathNode->Ts = Ts + PathRoot->nextNode->Ts;
     tmpPathNode->referenced = 0;
     tmpPathNode->nextNode = PathRoot->nextNode;
 
@@ -834,7 +836,7 @@ void Particle::updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New,VectorU
 
         s_proposale = drawSampleFromProposaleDistribution(s->getPose(),u,z_Ex,Ts);
 
-        s->addPose(s_proposale,k); // we are done estimating our pose and add it to the path!
+        s->addPose(s_proposale,k, Ts); // we are done estimating our pose and add it to the path!
 
         // OBS. In this code the importance weight is calculated differently and before the landmark corrections are done: https://github.com/bushuhui/fastslam/blob/master/src/fastslam_2.cpp#L593-L602
         if (z_Ex != NULL && z_Ex->nMeas != 0 ){
@@ -850,7 +852,7 @@ void Particle::updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New,VectorU
 
         s_proposale = *(s->getPose());
 
-        s->addPose(s_proposale,k); // we are done estimating our pose and add it to the path!
+        s->addPose(s_proposale,k, Ts); // we are done estimating our pose and add it to the path!
 
         updateLandmarkEstimates(s_proposale,NULL,z_New);
 
@@ -1508,7 +1510,7 @@ void ParticleSet::updateParticleSet(MeasurementSet* z, VectorUFastSLAMf u, float
         ((Particle*)Parray[i])->updateParticle(&z_Ex,&z_New,&u,k,Ts);
     }
 
-    estimateDistribution();
+    estimateDistribution(Ts);
 
     resample();
 
@@ -1626,7 +1628,7 @@ VectorChiFastSLAMf* ParticleSet::getLatestPoseEstimate(){
     return sMean->getPose();
 }
 
-void ParticleSet::estimateDistribution(){
+void ParticleSet::estimateDistribution(float Ts){
     double wSum = 0;
     double wNorm = 0;
 
@@ -1682,7 +1684,7 @@ void ParticleSet::estimateDistribution(){
     //cout << endl << "sMean_estimate" << endl << sMean_estimate << endl;
 
     sCov = sCov_estimate;
-    sMean->addPose(sMean_estimate,k);
+    sMean->addPose(sMean_estimate,k,Ts);
 }
 
 
@@ -1741,7 +1743,7 @@ void Particle::saveData(string filename,std::vector<unsigned int> LandmarksToSav
 
 void Path::saveData(string filename){
     Path::dataFileStream.open(filename,ios::out | ios::app);
-    Path::dataFileStream << "Path = struct('PathLength',[],'Path',[]);" << endl;
+    Path::dataFileStream << "Path = struct('PathLength',[],'Path',[],'Ts',[]);" << endl;
     Path::dataFileStream << "Path.PathLength = " << PathLength << ";" << endl;
 
     unsigned int j = 1;
@@ -1751,6 +1753,7 @@ void Path::saveData(string filename){
             tmp_pointer = tmp_pointer->nextNode;
 
             Path::dataFileStream << "Path.Path(:," << j << ") = " << tmp_pointer->S.format(Path::OctaveFmt) << ";" << endl;
+            Path::dataFileStream << "Path.Ts(:," << j << ") = " << tmp_pointer->Ts << ";" << endl;
             j++;
         }
     }
@@ -1760,7 +1763,7 @@ void Path::saveData(string filename){
 
 void MapTree::saveData(string filename,std::vector<unsigned int> LandmarksToSave){
     Path::dataFileStream.open(filename,ios::out | ios::app);
-    Path::dataFileStream << "map = struct('nLandmarks',[],'mean',[],'cov',[]);" << endl;
+    Path::dataFileStream << "map = struct('nLandmarks',[],'mean',[],'cov',[],'identifier',[]);" << endl;
     Path::dataFileStream << "map.nLandmarks = " << N_Landmarks << ";" << endl;
 
     cout << "Size of LandmarksToSave:" << LandmarksToSave.size() << endl;
@@ -1769,7 +1772,7 @@ void MapTree::saveData(string filename,std::vector<unsigned int> LandmarksToSave
         if (extractLandmarkNodePointer(j) != NULL){
              Path::dataFileStream << "map.mean(:," << i+1 << ") = " << extractLandmarkNodePointer(j)->lhat.format(Path::OctaveFmt) << ";" << endl;
              Path::dataFileStream << "map.cov(:,:," << i+1 << ") = " << extractLandmarkNodePointer(j)->lCov.format(Path::OctaveFmt) << ";" << endl;
-
+             Path::dataFileStream << "map.identifier(" << i+1 << ") = " << extractLandmarkNodePointer(j)->c << ";" << endl;
         }
         else{
             cout<<"Error: NULL pointer!";

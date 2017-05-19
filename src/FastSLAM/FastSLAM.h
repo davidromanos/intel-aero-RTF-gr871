@@ -198,6 +198,7 @@ struct Node_Path {
     VectorChiFastSLAMf S;
     unsigned int k;
     Node_Path *nextNode;
+    float Ts;
     unsigned int referenced;
 };
 
@@ -215,7 +216,7 @@ public:
     Path(const Path &PathToCopy); // copy constructer
     ~Path();
     void deletePath();
-    void addPose(VectorChiFastSLAMf S, unsigned int k);
+    void addPose(VectorChiFastSLAMf S, unsigned int k, float Ts);
     unsigned int countLengthOfPath();
     VectorChiFastSLAMf* getPose();
     VectorChiFastSLAMf* getPose(unsigned int k);
@@ -293,7 +294,7 @@ public:
 
     /* functions */
     void resample();
-    void estimateDistribution();
+    void estimateDistribution(float Ts);
     void resampleSimple();
 };
 
