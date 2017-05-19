@@ -103,20 +103,25 @@ void logAppendTimestampNow(ofstream &fileObject)
 
 vector<vector<double> > load_csv (const string &path) {
     ifstream indata;
-    indata.open(path.c_str());
     string line;
     vector<vector<double> > rowVectors;
     vector<double> values;
     uint rows = 0;
-    while (getline(indata, line)) {
-        stringstream lineStream(line);
-        string cell;
-        while (getline(lineStream, cell, ',')) {
-            values.insert(values.end(), stod(cell));
+
+    indata.open(path.c_str());
+
+    if (indata.is_open()) {
+        while (getline(indata, line)) {
+            stringstream lineStream(line);
+            string cell;
+            while (getline(lineStream, cell, ',')) {
+                values.insert(values.end(), stod(cell));
+            }
+            rowVectors.insert(rowVectors.end(), values);
+            values.clear();
+            ++rows;
         }
-        rowVectors.insert(rowVectors.end(), values);
-        values.clear();
-        ++rows;
     }
+
     return rowVectors;
 }

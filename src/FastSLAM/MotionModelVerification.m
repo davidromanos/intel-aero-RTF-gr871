@@ -1,19 +1,19 @@
 MocapFiles = dir('~/logs/*Mocap.txt');
 MocapVelocityFiles = dir('~/logs/*MocapVelocity.txt');
 MotionModelFiles = dir('~/logs/*MotionModel.txt');
-%CameraFiles = dir('~/logs/*Camera.txt');
+CameraFiles = dir('~/logs/*Camera.txt');
 IntrinsicsFiles = dir('~/logs/*Intrinsics.txt');
 
 mocap = csvread(['~/logs/' MocapFiles(end).name]); % open latest Mocap file
 mocapVelocity = csvread(['~/logs/' MocapVelocityFiles(end).name]); % open latest Mocap Velocity file
 motionModel = csvread(['~/logs/' MotionModelFiles(end).name]); % open latest Mocap Velocity file
-%camera = csvread(['~/logs/' CameraFiles(end).name]);  % open latest Camera file
+camera = csvread(['~/logs/' CameraFiles(end).name]);  % open latest Camera file
 IntrinsicsFilename = ['~/logs/' IntrinsicsFiles(end).name];
 
 t0 = min(mocap(1,1), camera(1,1));
 mocap(:,1) = mocap(:,1) - t0;
 mocapVelocity(:,1) = mocapVelocity(:,1) - t0;
-%camera(:,1) = camera(:,1) - t0;
+camera(:,1) = camera(:,1) - t0;
 
 mocap = mocap(1:2:end,:); % discard every second measurement
 

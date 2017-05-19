@@ -87,10 +87,11 @@ int main(int argc, char **argv)
 
     // malte playing with particle Sets
     int Nparticles = 200;
+    unsigned int GOT_ID = 49;
     VectorChiFastSLAMf s0 = VectorChiFastSLAMf::Constant(0);
     MatrixChiFastSLAMf s_0_Cov = 0.01*MatrixChiFastSLAMf::Identity();
 
-    ParticleSet* Pset = new ParticleSet(Nparticles,s0,s_0_Cov);
+    ParticleSet* Pset = new ParticleSet(Nparticles,GOT_ID,s0,s_0_Cov);
 
 
     VectorUFastSLAMf u = VectorUFastSLAMf::Zero();

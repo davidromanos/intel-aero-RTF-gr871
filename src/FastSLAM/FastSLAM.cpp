@@ -149,13 +149,22 @@ Eigen::VectorXf ImgMeasurement::MeasurementModel(VectorChiFastSLAMf pose, Eigen:
     float c_phi = cos(roll);
     float s_phi = sin(roll);
 
+    Eigen::Matrix3f EB_R; // Rotation matrix corresponding to: EB_R    (transforming from drone to body frame)
+    EB_R  <<   (c_theta*c_psi), (c_psi*s_theta*s_phi - c_phi*s_psi), (s_phi*s_psi + c_phi*c_psi*s_theta),
+               (c_theta*s_psi), (c_phi*c_psi + s_theta*s_phi*s_psi), (c_phi*s_theta*s_psi - c_psi*s_phi),
+               (-s_theta),      (c_theta*s_phi),                     (c_theta*c_phi);
+
+    Eigen::Vector3f CamCenter; // Camera center location in world coordinate
+    CamCenter << pose(0), pose(1), pose(2);
+    CamCenter = CamCenter + EB_R * CameraOffset;
+
     //cout << "landmark: " << l << endl;
     //cout << "pose: " << pose << endl;
 
     // Calculate world coordinate of landmark in the camera frame - Notice we use Roll-Pitch-Yaw angle convention
-    float c_xl = (-c_psi*s_theta*s_phi + s_psi*c_phi)*(l(0) - pose(0)) + (-s_psi*s_theta*s_phi-c_psi*c_phi)*(l(1) - pose(1)) - (c_theta*s_phi)*(l(2) - pose(2));
-    float c_yl = (-c_psi*s_theta*c_phi-s_psi*s_phi)*(l(0) - pose(0)) + (-s_psi*s_theta*c_phi+c_psi*s_phi)*(l(1) - pose(1)) - (c_theta*c_phi)*(l(2) - pose(2));
-    float c_zl = (c_psi*c_theta)*(l(0) - pose(0)) + (s_psi*c_theta)*(l(1) - pose(1)) - s_theta*(l(2) - pose(2));
+    float c_xl = (-c_psi*s_theta*s_phi + s_psi*c_phi)*(l(0) - CamCenter(0)) + (-s_psi*s_theta*s_phi-c_psi*c_phi)*(l(1) - CamCenter(1)) - (c_theta*s_phi)*(l(2) - CamCenter(2));
+    float c_yl = (-c_psi*s_theta*c_phi-s_psi*s_phi)*(l(0) - CamCenter(0)) + (-s_psi*s_theta*c_phi+c_psi*s_phi)*(l(1) - CamCenter(1)) - (c_theta*c_phi)*(l(2) - CamCenter(2));
+    float c_zl = (c_psi*c_theta)*(l(0) - CamCenter(0)) + (s_psi*c_theta)*(l(1) - CamCenter(1)) - s_theta*(l(2) - CamCenter(2));
 
     //cout << "World coordinate: " << c_xl << ", " << c_yl << ", " << c_zl << endl;
 
@@ -181,10 +190,15 @@ Eigen::VectorXf ImgMeasurement::inverseMeasurementModel(VectorChiFastSLAMf pose)
     float c_phi = cos(roll);
     float s_phi = sin(roll);
 
-    Eigen::Matrix3f R; // Rotation matrix corresponding to: BC_R' * EB_R'
+    Eigen::Matrix3f R; // Rotation matrix corresponding to: BC_R' * EB_R'    (transforming from earth to drone/camera frame)
     R  <<   (-c_psi*s_theta*s_phi + s_psi*c_phi),(-s_psi*s_theta*s_phi-c_psi*c_phi), -(c_theta*s_phi),
             (-c_psi*s_theta*c_phi-s_psi*s_phi),  (-s_psi*s_theta*c_phi+c_psi*s_phi), -(c_theta*c_phi),
             (c_psi*c_theta),                     (s_psi*c_theta),                    -(s_theta);
+
+    Eigen::Matrix3f EB_R; // Rotation matrix corresponding to: EB_R    (transforming from drone to body frame)
+    EB_R  <<   (c_theta*c_psi), (c_psi*s_theta*s_phi - c_phi*s_psi), (s_phi*s_psi + c_phi*c_psi*s_theta),
+               (c_theta*s_psi), (c_phi*c_psi + s_theta*s_phi*s_psi), (c_phi*s_theta*s_psi - c_psi*s_phi),
+               (-s_theta),      (c_theta*s_phi),                     (c_theta*c_phi);
 
     float c_zl = z(2);
     float c_xl = (z(0)*c_zl - x0*c_zl) / ax;
@@ -198,7 +212,7 @@ Eigen::VectorXf ImgMeasurement::inverseMeasurementModel(VectorChiFastSLAMf pose)
 
     Eigen::Vector3f TempLandmark = CamLandmark + R*pose_xyz;
 
-    Eigen::Vector3f WorldLandmark = R.transpose() * TempLandmark; // rot.transpose() corresponds to EB_R * BC_R
+    Eigen::Vector3f WorldLandmark = R.transpose() * TempLandmark + EB_R * CameraOffset; // rot.transpose() corresponds to EB_R * BC_R     (transforming from drone/camera to earth frame)
 
     return WorldLandmark;
 }
@@ -214,8 +228,8 @@ Eigen::MatrixXf ImgMeasurement::calculateHs(VectorChiFastSLAMf pose, Eigen::Vect
     float c_phi = cos(roll);
     float s_phi = sin(roll);
 
-    float den = powf((c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1))),2);
-    /*
+    /*float den = powf((c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1))),2);
+
     Hs(0,0) = (ax*(c_phi*s_psi - c_psi*s_theta*s_phi))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1))) + (ax*c_theta*c_psi*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1)) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0)) + c_theta*s_phi*(pose(2) - l(2))))/den;
     Hs(0,1) = (ax*c_theta*s_psi*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1)) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0)) + c_theta*s_phi*(pose(2) - l(2))))/den - (ax*(c_phi*c_psi + s_theta*s_phi*s_psi))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1)));
     Hs(0,2) = - (ax*s_theta*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1)) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0)) + c_theta*s_phi*(pose(2) - l(2))))/den - (ax*c_theta*s_phi)/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1)));
@@ -235,7 +249,8 @@ Eigen::MatrixXf ImgMeasurement::calculateHs(VectorChiFastSLAMf pose, Eigen::Vect
     Hs(2,4) = c_theta*(pose(2) - l(2)) + c_psi*s_theta*(pose(0) - l(0)) + s_theta*s_psi*(pose(1) - l(1));
     Hs(2,5) = c_theta*s_psi*(pose(0) - l(0)) - c_theta*c_psi*(pose(1) - l(1));
     */
-    Hs(0,0) = (ax*(c_phi*s_psi - c_psi*s_theta*s_phi))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1))) + (ax*c_theta*c_psi*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1)) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0)) + c_theta*s_phi*(pose(2) - l(2))))/den;
+
+    /*Hs(0,0) = (ax*(c_phi*s_psi - c_psi*s_theta*s_phi))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1))) + (ax*c_theta*c_psi*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1)) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0)) + c_theta*s_phi*(pose(2) - l(2))))/den;
     Hs(0,1) = (ax*c_theta*s_psi*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1)) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0)) + c_theta*s_phi*(pose(2) - l(2))))/den - (ax*(c_phi*c_psi + s_theta*s_phi*s_psi))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1)));
     Hs(0,2) = - (ax*s_theta*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1)) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0)) + c_theta*s_phi*(pose(2) - l(2))))/den - (ax*c_theta*s_phi)/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1)));
     Hs(0,3) = (ax*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(0) - l(0)) + (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(1) - l(1))))/(c_theta*c_psi*(pose(0) - l(0)) - s_theta*(pose(2) - l(2)) + c_theta*s_psi*(pose(1) - l(1))) + (ax*(c_theta*c_psi*(pose(1) - l(1)) - c_theta*s_psi*(pose(0) - l(0)))*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1)) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0)) + c_theta*s_phi*(pose(2) - l(2))))/den;
@@ -246,7 +261,31 @@ Eigen::MatrixXf ImgMeasurement::calculateHs(VectorChiFastSLAMf pose, Eigen::Vect
     Hs(2,0) = -c_theta*c_psi;
     Hs(2,1) = -c_theta*s_psi;
     Hs(2,2) = s_theta;
-    Hs(2,3) = c_theta*s_psi*(pose(0) - l(0)) - c_theta*c_psi*(pose(1) - l(1));
+    Hs(2,3) = c_theta*s_psi*(pose(0) - l(0)) - c_theta*c_psi*(pose(1) - l(1));*/
+
+    float nom = (c_theta*s_psi*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi) - s_theta*(pose(2) - l(2) - CameraOffset(0)*s_theta + CameraOffset(2)*c_theta*c_phi + CameraOffset(1)*c_theta*s_phi) + c_theta*c_psi*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi));
+    float den1 = powf(nom,2);
+
+    Hs(0,0) = (ax*(c_phi*s_psi - c_psi*s_theta*s_phi))/nom + (ax*c_theta*c_psi*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi) + c_theta*s_phi*(pose(2) - l(2) - CameraOffset(0)*s_theta + CameraOffset(2)*c_theta*c_phi + CameraOffset(1)*c_theta*s_phi)))/den1;
+    Hs(0,1) = (ax*c_theta*s_psi*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi) + c_theta*s_phi*(pose(2) - l(2) - CameraOffset(0)*s_theta + CameraOffset(2)*c_theta*c_phi + CameraOffset(1)*c_theta*s_phi)))/den1 - (ax*(c_phi*c_psi + s_theta*s_phi*s_psi))/nom;
+    Hs(0,2) = - (ax*s_theta*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi) + c_theta*s_phi*(pose(2) - l(2) - CameraOffset(0)*s_theta + CameraOffset(2)*c_theta*c_phi + CameraOffset(1)*c_theta*s_phi)))/den1 - (ax*c_theta*s_phi)/nom;
+    //Hs(0,3) = - (ax*((s_phi*s_psi + c_phi*c_psi*s_theta)*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi) - (c_psi*s_phi - c_phi*s_theta*s_psi)*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi) - (CameraOffset(1)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(2)*(c_phi*c_psi + s_theta*s_phi*s_psi))*(c_phi*c_psi + s_theta*s_phi*s_psi) - (CameraOffset(1)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(2)*(c_phi*s_psi - c_psi*s_theta*s_phi))*(c_phi*s_psi - c_psi*s_theta*s_phi) + c_theta*c_phi*(pose(2) - l(2) - CameraOffset(0)*s_theta + CameraOffset(2)*c_theta*c_phi + CameraOffset(1)*c_theta*s_phi) + c_theta*s_phi*(CameraOffset(1)*c_theta*c_phi - CameraOffset(2)*c_theta*s_phi)))/nom - (ax*(s_theta*(CameraOffset(1)*c_theta*c_phi - CameraOffset(2)*c_theta*s_phi) - c_theta*c_psi*(CameraOffset(1)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(2)*(c_phi*s_psi - c_psi*s_theta*s_phi)) + c_theta*s_psi*(CameraOffset(1)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(2)*(c_phi*c_psi + s_theta*s_phi*s_psi)))*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi) + c_theta*s_phi*(pose(2) - l(2) - CameraOffset(0)*s_theta + CameraOffset(2)*c_theta*c_phi + CameraOffset(1)*c_theta*s_phi)))/den1;
+    //Hs(0,4) = (ax*((c_phi*s_psi - c_psi*s_theta*s_phi)*(CameraOffset(2)*c_theta*c_phi*c_psi - CameraOffset(0)*c_psi*s_theta + CameraOffset(1)*c_theta*c_psi*s_phi) - (c_phi*c_psi + s_theta*s_phi*s_psi)*(CameraOffset(2)*c_theta*c_phi*s_psi - CameraOffset(0)*s_theta*s_psi + CameraOffset(1)*c_theta*s_phi*s_psi) + c_theta*s_phi*(CameraOffset(0)*c_theta + CameraOffset(2)*c_phi*s_theta + CameraOffset(1)*s_theta*s_phi) + s_theta*s_phi*(pose(2) - l(2) - CameraOffset(0)*s_theta + CameraOffset(2)*c_theta*c_phi + CameraOffset(1)*c_theta*s_phi) - c_theta*c_psi*s_phi*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi) - c_theta*s_phi*s_psi*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi)))/nom + (ax*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi) + c_theta*s_phi*(pose(2) - l(2) - CameraOffset(0)*s_theta + CameraOffset(2)*c_theta*c_phi + CameraOffset(1)*c_theta*s_phi))*(s_theta*(CameraOffset(0)*c_theta + CameraOffset(2)*c_phi*s_theta + CameraOffset(1)*s_theta*s_phi) - c_theta*(pose(2) - l(2) - CameraOffset(0)*s_theta + CameraOffset(2)*c_theta*c_phi + CameraOffset(1)*c_theta*s_phi) - s_theta*s_psi*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi) + c_theta*c_psi*(CameraOffset(2)*c_theta*c_phi*c_psi - CameraOffset(0)*c_psi*s_theta + CameraOffset(1)*c_theta*c_psi*s_phi) + c_theta*s_psi*(CameraOffset(2)*c_theta*c_phi*s_psi - CameraOffset(0)*s_theta*s_psi + CameraOffset(1)*c_theta*s_phi*s_psi) - c_psi*s_theta*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi)))/den1;
+    Hs(0,3) = - (ax*((c_phi*c_psi + s_theta*s_phi*s_psi)*(CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(0)*c_theta*c_psi) + (c_phi*s_psi - c_psi*s_theta*s_phi)*(CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi) - (c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi)))/nom - (ax*((c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi) - (c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi) + c_theta*s_phi*(pose(2) - l(2) - CameraOffset(0)*s_theta + CameraOffset(2)*c_theta*c_phi + CameraOffset(1)*c_theta*s_phi))*(c_theta*c_psi*(CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi) - c_theta*s_psi*(CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(0)*c_theta*c_psi) + c_theta*s_psi*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi) - c_theta*c_psi*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi)))/den1;
+
+    Hs(1,0) = (ay*c_theta*c_psi*((s_phi*s_psi + c_phi*c_psi*s_theta)*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi) - (c_psi*s_phi - c_phi*s_theta*s_psi)*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi) + c_theta*c_phi*(pose(2) - l(2) - CameraOffset(0)*s_theta + CameraOffset(2)*c_theta*c_phi + CameraOffset(1)*c_theta*s_phi)))/den1 - (ay*(s_phi*s_psi + c_phi*c_psi*s_theta))/nom;
+    Hs(1,1) = (ay*(c_psi*s_phi - c_phi*s_theta*s_psi))/nom + (ay*c_theta*s_psi*((s_phi*s_psi + c_phi*c_psi*s_theta)*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi) - (c_psi*s_phi - c_phi*s_theta*s_psi)*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi) + c_theta*c_phi*(pose(2) - l(2) - CameraOffset(0)*s_theta + CameraOffset(2)*c_theta*c_phi + CameraOffset(1)*c_theta*s_phi)))/den1;
+    Hs(1,2) = - (ay*s_theta*((s_phi*s_psi + c_phi*c_psi*s_theta)*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi) - (c_psi*s_phi - c_phi*s_theta*s_psi)*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi) + c_theta*c_phi*(pose(2) - l(2) - CameraOffset(0)*s_theta + CameraOffset(2)*c_theta*c_phi + CameraOffset(1)*c_theta*s_phi)))/den1 - (ay*c_theta*c_phi)/nom;
+    //Hs(1,3) = - (ay*((c_phi*s_psi - c_psi*s_theta*s_phi)*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi) - (c_phi*c_psi + s_theta*s_phi*s_psi)*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi) + (CameraOffset(1)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(2)*(c_phi*s_psi - c_psi*s_theta*s_phi))*(s_phi*s_psi + c_phi*c_psi*s_theta) + (CameraOffset(1)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(2)*(c_phi*c_psi + s_theta*s_phi*s_psi))*(c_psi*s_phi - c_phi*s_theta*s_psi) + c_theta*c_phi*(CameraOffset(1)*c_theta*c_phi - CameraOffset(2)*c_theta*s_phi) - c_theta*s_phi*(pose(2) - l(2) - CameraOffset(0)*s_theta + CameraOffset(2)*c_theta*c_phi + CameraOffset(1)*c_theta*s_phi)))/nom - (ay*(s_theta*(CameraOffset(1)*c_theta*c_phi - CameraOffset(2)*c_theta*s_phi) - c_theta*c_psi*(CameraOffset(1)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(2)*(c_phi*s_psi - c_psi*s_theta*s_phi)) + c_theta*s_psi*(CameraOffset(1)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(2)*(c_phi*c_psi + s_theta*s_phi*s_psi)))*((s_phi*s_psi + c_phi*c_psi*s_theta)*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi) - (c_psi*s_phi - c_phi*s_theta*s_psi)*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi) + c_theta*c_phi*(pose(2) - l(2) - CameraOffset(0)*s_theta + CameraOffset(2)*c_theta*c_phi + CameraOffset(1)*c_theta*s_phi)))/den1;
+    //Hs(1,4) = (ay*((s_phi*s_psi + c_phi*c_psi*s_theta)*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi) - (c_psi*s_phi - c_phi*s_theta*s_psi)*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi) + c_theta*c_phi*(pose(2) - l(2) - CameraOffset(0)*s_theta + CameraOffset(2)*c_theta*c_phi + CameraOffset(1)*c_theta*s_phi))*(s_theta*(CameraOffset(0)*c_theta + CameraOffset(2)*c_phi*s_theta + CameraOffset(1)*s_theta*s_phi) - c_theta*(pose(2) - l(2) - CameraOffset(0)*s_theta + CameraOffset(2)*c_theta*c_phi + CameraOffset(1)*c_theta*s_phi) - s_theta*s_psi*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi) + c_theta*c_psi*(CameraOffset(2)*c_theta*c_phi*c_psi - CameraOffset(0)*c_psi*s_theta + CameraOffset(1)*c_theta*c_psi*s_phi) + c_theta*s_psi*(CameraOffset(2)*c_theta*c_phi*s_psi - CameraOffset(0)*s_theta*s_psi + CameraOffset(1)*c_theta*s_phi*s_psi) - c_psi*s_theta*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi)))/den1 - (ay*((s_phi*s_psi + c_phi*c_psi*s_theta)*(CameraOffset(2)*c_theta*c_phi*c_psi - CameraOffset(0)*c_psi*s_theta + CameraOffset(1)*c_theta*c_psi*s_phi) - (c_psi*s_phi - c_phi*s_theta*s_psi)*(CameraOffset(2)*c_theta*c_phi*s_psi - CameraOffset(0)*s_theta*s_psi + CameraOffset(1)*c_theta*s_phi*s_psi) - c_theta*c_phi*(CameraOffset(0)*c_theta + CameraOffset(2)*c_phi*s_theta + CameraOffset(1)*s_theta*s_phi) - c_phi*s_theta*(pose(2) - l(2) - CameraOffset(0)*s_theta + CameraOffset(2)*c_theta*c_phi + CameraOffset(1)*c_theta*s_phi) + c_theta*c_phi*c_psi*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi) + c_theta*c_phi*s_psi*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi)))/nom;
+    Hs(1,3) = (ay*((c_psi*s_phi - c_phi*s_theta*s_psi)*(CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(0)*c_theta*c_psi) + (s_phi*s_psi + c_phi*c_psi*s_theta)*(CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi) - (c_psi*s_phi - c_phi*s_theta*s_psi)*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi) - (s_phi*s_psi + c_phi*c_psi*s_theta)*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi)))/nom - (ay*((s_phi*s_psi + c_phi*c_psi*s_theta)*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi) - (c_psi*s_phi - c_phi*s_theta*s_psi)*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi) + c_theta*c_phi*(pose(2) - l(2) - CameraOffset(0)*s_theta + CameraOffset(2)*c_theta*c_phi + CameraOffset(1)*c_theta*s_phi))*(c_theta*c_psi*(CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi) - c_theta*s_psi*(CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(0)*c_theta*c_psi) + c_theta*s_psi*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi) - c_theta*c_psi*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi)))/den1;
+
+    Hs(2,0) = -c_theta*c_psi;
+    Hs(2,1) = -c_theta*s_psi;
+    Hs(2,2) = s_theta;
+    //Hs(2,3) = s_theta*(CameraOffset(1)*c_theta*c_phi - CameraOffset(2)*c_theta*s_phi) - c_theta*c_psi*(CameraOffset(1)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(2)*(c_phi*s_psi - c_psi*s_theta*s_phi)) + c_theta*s_psi*(CameraOffset(1)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(2)*(c_phi*c_psi + s_theta*s_phi*s_psi));
+    //Hs(2,4) = c_theta*(pose(2) - l(2) - CameraOffset(0)*s_theta + CameraOffset(2)*c_theta*c_phi + CameraOffset(1)*c_theta*s_phi) - s_theta*(CameraOffset(0)*c_theta + CameraOffset(2)*c_phi*s_theta + CameraOffset(1)*s_theta*s_phi) + s_theta*s_psi*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi) - c_theta*c_psi*(CameraOffset(2)*c_theta*c_phi*c_psi - CameraOffset(0)*c_psi*s_theta + CameraOffset(1)*c_theta*c_psi*s_phi) - c_theta*s_psi*(CameraOffset(2)*c_theta*c_phi*s_psi - CameraOffset(0)*s_theta*s_psi + CameraOffset(1)*c_theta*s_phi*s_psi) + c_psi*s_theta*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi);
+    Hs(2,3) = c_theta*c_psi*(CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi) - c_theta*s_psi*(CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(0)*c_theta*c_psi) + c_theta*s_psi*(pose(0) - l(0) - CameraOffset(1)*(c_phi*s_psi - c_psi*s_theta*s_phi) + CameraOffset(2)*(s_phi*s_psi + c_phi*c_psi*s_theta) + CameraOffset(0)*c_theta*c_psi) - c_theta*c_psi*(pose(1) - l(1) + CameraOffset(1)*(c_phi*c_psi + s_theta*s_phi*s_psi) - CameraOffset(2)*(c_psi*s_phi - c_phi*s_theta*s_psi) + CameraOffset(0)*c_theta*s_psi);
 
     return Hs;
 }
@@ -294,6 +333,7 @@ Eigen::MatrixXf ImgMeasurement::getzCov(){
 }
 
 Eigen::MatrixXf ImgMeasurement::zCov = 0.1*Eigen::Matrix3f::Identity(); // static variable - has to be declared outside class!
+Eigen::Vector3f ImgMeasurement::CameraOffset = Eigen::Vector3f::Zero(); // static variable - has to be declared outside class!
 
 
 
@@ -802,12 +842,18 @@ VectorChiFastSLAMf* Path::getPose(unsigned int k){
 
 
 /* ############################## Defines particle class ##############################  */
-Particle::Particle(VectorChiFastSLAMf s0, MatrixChiFastSLAMf s_0_Cov, unsigned int k)   // default Constructor definition
+Particle::Particle(unsigned int GOT_ID, VectorChiFastSLAMf s0, MatrixChiFastSLAMf s_0_Cov, unsigned int k)   // default Constructor definition
 {
     s = new Path(s0,k); // makes new path!
     map = new MapTree; // makes new mapTree
     w = 1;
     s_k_Cov = s_0_Cov;
+
+    landmark* li = new landmark;
+    li->c = GOT_ID;
+    li->lhat = Eigen::Vector3f::Zero();
+    li->lCov = Eigen::Matrix3f::Zero();
+    map->insertLandmark(li);
 }
 
 Particle::Particle(const Particle &ParticleToCopy)   // Copy Constructor
@@ -1070,12 +1116,12 @@ VectorChiFastSLAMf Particle::drawSampleFromProposaleDistribution(VectorChiFastSL
 }
 
 
-
+// Motion model Jacobian relative to pose - is only used in drawSampleFromProposaleDistributionNEW
 MatrixChiFastSLAMf Particle::calculateFs(VectorChiFastSLAMf *s_k_minor_1){
     return MatrixChiFastSLAMf::Identity();
 }
 
-
+// drawSampleFromProposaleDistributionNEW keeps track of individual Kalman filters for the pose estimate and pose covariance of each individual particle
 VectorChiFastSLAMf Particle::drawSampleFromProposaleDistributionNEW(VectorChiFastSLAMf* s_old, VectorUFastSLAMf* u,MeasurementSet* z_Ex, float Ts)
 {
     //cout << "D10" << endl;
@@ -1443,7 +1489,7 @@ boost::mt19937 Particle::rng; // Creating a new random number generator every ti
 
 
 /* ############################## Defines ParticleSet class ##############################  */
-ParticleSet::ParticleSet(int Nparticles,VectorChiFastSLAMf s0,MatrixChiFastSLAMf s_0_Cov){
+ParticleSet::ParticleSet(int Nparticles,unsigned int GOT_ID,VectorChiFastSLAMf s0,MatrixChiFastSLAMf s_0_Cov){
     k=0;
     sMean = new Path(s0,k); // makes new path to keep track of the estimated mean of the Particle filter!
 
@@ -1451,9 +1497,11 @@ ParticleSet::ParticleSet(int Nparticles,VectorChiFastSLAMf s0,MatrixChiFastSLAMf
     Parray.reserve(nParticles);
 
     for(int i = 1; i<=nParticles; i++){
-        Parray[i] = new Particle(s0,s_0_Cov,k);
+        Parray[i] = new Particle(GOT_ID,s0,s_0_Cov,k);
     }
     StartTime = ros::Time::now().toSec();
+
+    KnownMarkers.push_back(GOT_ID); // add the GOT marker to the known list of landmark IDs
 }
 
 ParticleSet::~ParticleSet(){
@@ -1778,6 +1826,7 @@ void MapTree::saveData(string filename,std::vector<unsigned int> LandmarksToSave
     Path::dataFileStream.flush();
     Path::dataFileStream.close();
 }
+
 
 
 IIR::IIR(const float * coeff_a, int no_coeff_a, const float * coeff_b, int no_coeff_b)

@@ -100,6 +100,7 @@ ofstream MotionModelLog;
 
 // ==== FastSLAM variables ====
 int Nparticles;
+unsigned int GOT_MeasurementID;
 VectorChiFastSLAMf s0 = VectorChiFastSLAMf::Constant(0);
 MatrixChiFastSLAMf s_0_Cov;
 ParticleSet* Pset;
@@ -587,6 +588,32 @@ cv::Vec3f GetWorldCoordinateFromMeasurement(cv::Vec3f meas)
     return WorldPos;
 }
 
+VectorChiFastSLAMf motionModel(VectorChiFastSLAMf sold, VectorUFastSLAMf* u, float Ts) // Ts == sample time
+{
+    VectorChiFastSLAMf s_k = sold; // s(k) = f(s(k-1),u(k))
+
+    if (Ts > 3) {
+        return s_k; // error with the sampling time, just return old pose estimate
+    }
+
+    // Kinematic motion model where u=[x_dot, y_dot, z_dot, yaw_difference]  with x_dot and y_dot being in heading frame
+    //cout << "dt: " << Ts << endl;
+    //cout << "Motion input: " << endl << (*u) << endl;
+
+    // Convert Drone velocity into World velocity by applying Yaw rotation from old pose
+    // R = [cos(psi)  -sin(psi);        % For rotation from drone velocity into world velocity
+    //      sin(psi) cos(psi)]
+    // WorldVel = R * DroneVel
+    s_k(0) = s_k(0) + Ts * (cos(sold(3))* (*u)(0) - sin(sold(3))* (*u)(1));
+    s_k(1) = s_k(1) + Ts * (sin(sold(3))* (*u)(0) + cos(sold(3))* (*u)(1));
+
+    s_k(2) = s_k(2) + Ts * (*u)(2); // add integrated zdot contribution
+
+    s_k(3) = s_k(3) + (*u)(3); // add yaw difference
+
+    return s_k;
+}
+
 
 void ProcessRGBDimage(MeasurementSet * MeasSet)
 {
@@ -697,34 +724,6 @@ void ProcessRGBDimage(MeasurementSet * MeasSet)
 }
 
 
-VectorChiFastSLAMf motionModel(VectorChiFastSLAMf sold, VectorUFastSLAMf* u, float Ts) // Ts == sample time
-{
-    VectorChiFastSLAMf s_k = sold; // s(k) = f(s(k-1),u(k))
-
-    if (Ts > 3) {
-        return s_k; // error with the sampling time, just return old pose estimate
-    }
-
-    // Kinematic motion model where u=[x_dot, y_dot, z_dot, yaw_difference]  with x_dot and y_dot being in heading frame
-    //cout << "dt: " << Ts << endl;
-    //cout << "Motion input: " << endl << (*u) << endl;
-
-    // Convert Drone velocity into World velocity by applying Yaw rotation from old pose
-    // R = [cos(psi)  -sin(psi);        % For rotation from drone velocity into world velocity
-    //      sin(psi) cos(psi)]
-    // WorldVel = R * DroneVel
-    s_k(0) = s_k(0) + Ts * (cos(sold(3))* (*u)(0) - sin(sold(3))* (*u)(1));
-    s_k(1) = s_k(1) + Ts * (sin(sold(3))* (*u)(0) + cos(sold(3))* (*u)(1));
-
-    s_k(2) = s_k(2) + Ts * (*u)(2); // add integrated zdot contribution
-
-    s_k(3) = s_k(3) + (*u)(3); // add yaw difference
-
-    return s_k;
-}
-
-
-
 //*** Main ***//
 int main(int argc, char **argv)
 {
@@ -762,6 +761,39 @@ int main(int argc, char **argv)
         ROS_ERROR("Error opening Intrinsics log file");
         return -1;
     }
+
+    vector<vector<double> > Config = load_csv("src/intel_aero_rtf_gr871/src/FastSLAM/config.csv");
+    if (Config.size() == 0) {
+        ROS_ERROR("Error loading config.csv");
+        ROS_ERROR("Config should be placed within catkin_ws/src/intel_aero_rtf_gr871/src/FastSLAM/");
+        ROS_ERROR("Remember to run the node from the catkin_ws folder");
+        return -1;
+    }
+
+    // ===== Configure FastSLAM =====
+    // motion model covariance
+    Particle::sCov(0,0) = pow(Config[0][0],2); //0.05;
+    Particle::sCov(1,1) = pow(Config[0][1],2); //0.05;
+    Particle::sCov(2,2) = pow(Config[0][2],2); //0.05;
+    Particle::sCov(3,3) = pow(Config[0][3],2); //0.15*0.349066; // 20 degrees
+    cout << "Config.sCov = " << endl << Particle::sCov << endl;
+
+    GOTMeasurement::zCov(0,0) = pow(Config[1][0],2); //0.001;
+    GOTMeasurement::zCov(1,1) = pow(Config[1][1],2); //0.001;
+    GOTMeasurement::zCov(2,2) = pow(Config[1][2],2); //0.001;
+    cout << "Config.GOT.zCov = " << endl << GOTMeasurement::zCov << endl;
+
+    ImgMeasurement::zCov(0,0) = pow(Config[2][0],2); //5;
+    ImgMeasurement::zCov(1,1) = pow(Config[2][1],2); //5;
+    ImgMeasurement::zCov(2,2) = pow(Config[2][2],2); //0.2;
+    cout << "Config.Img.zCov = " << endl << ImgMeasurement::zCov << endl;
+
+    ImgMeasurement::CameraOffset(0) = Config[3][0];
+    ImgMeasurement::CameraOffset(1) = Config[3][1];
+    ImgMeasurement::CameraOffset(2) = Config[3][2];
+    cout << "Config.Img.CameraOffset = " << endl << ImgMeasurement::CameraOffset << endl;
+    // ==== End configuration of FastSLAM ====
+
 
     image_transport::ImageTransport it(n);
 
@@ -802,25 +834,12 @@ int main(int argc, char **argv)
 
     // ===== Configure FastSLAM =====
     Nparticles = 50;
+    GOT_MeasurementID = 49;
     s0 << MocapPose(0), MocapPose(1), MocapPose(2), MocapPose(5); // take starting Mocap Pose as initial particle location
     s_0_Cov = MatrixChiFastSLAMf::Zero(); // motion model covariance is initialized below
-    ParticleSet Pset(Nparticles,s0,s_0_Cov);
+    ParticleSet Pset(Nparticles,GOT_MeasurementID,s0,s_0_Cov);
     VectorUFastSLAMf u = VectorUFastSLAMf::Zero();
     cout << "Initial particle location: " << endl << s0 << endl;
-
-    // motion model covariance
-    Particle::sCov(0,0) = 0.05;
-    Particle::sCov(1,1) = 0.05;
-    Particle::sCov(2,2) = 0.05;
-    Particle::sCov(3,3) = 0.15*0.349066; // 20 degrees
-
-    ImgMeasurement::zCov(0,0) = 5;
-    ImgMeasurement::zCov(1,1) = 5;
-    ImgMeasurement::zCov(2,2) = 0.2;
-
-    GOTMeasurement::zCov(0,0) = 0.001;
-    GOTMeasurement::zCov(1,1) = 0.001;
-    GOTMeasurement::zCov(2,2) = 0.001;
     // ==== End configuration of FastSLAM ====
 
     RGB_Image_New = false;
@@ -852,7 +871,7 @@ int main(int argc, char **argv)
         //if (MeasSet.getNumberOfMeasurements() > 0 && dt.toSec() > 0) {
         if (dt.toSec() > 0) {
             GOT_meas << MocapPose(0), MocapPose(1), MocapPose(2);
-            z_GOT = new GOTMeasurement(40, GOT_meas); // ID, Marker measurements and include current/latest raw Roll and Pitch measurement (in this case directly from Mocap instead of from the estimator)
+            z_GOT = new GOTMeasurement(GOT_MeasurementID, GOT_meas); // ID, Marker measurements and include current/latest raw Roll and Pitch measurement (in this case directly from Mocap instead of from the estimator)
             MeasSet.addMeasurement(z_GOT);
 
             u << DroneVelocity, YawDifference;
