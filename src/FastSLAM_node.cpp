@@ -795,13 +795,18 @@ int main(int argc, char **argv)
     ImgMeasurement::CameraOffset(1) = Config[4][1];
     ImgMeasurement::CameraOffset(2) = Config[4][2];
 
-    float GOT_loss[5];
-    GOT_loss(0) = Config[5][0];
-    GOT_loss(1) = Config[5][1];
-    GOT_loss(2) = Config[5][2];
-    GOT_loss(3) = Config[5][3];
-    GOT_loss(4) = Config[5][4];
-    GOT_loss(5) = Config[5][5];
+    float GOT_loss_xyz[5];
+    GOT_loss_xyz[0] = Config[5][0]; // xmin
+    GOT_loss_xyz[1] = Config[5][1]; // xmax
+    GOT_loss_xyz[2] = Config[5][2]; // ymin
+    GOT_loss_xyz[3] = Config[5][3]; // ymax
+    GOT_loss_xyz[4] = Config[5][4]; // zmin
+    GOT_loss_xyz[5] = Config[5][5]; // zmax
+
+    float GOT_loss_time[2];
+    GOT_loss_time[0] = Config[6][0]; // start
+    GOT_loss_time[1] = Config[6][1]; // duration
+
 
     cout << "Config.Img.CameraOffset = " << endl << ImgMeasurement::CameraOffset << endl;
     // ==== End configuration of FastSLAM ====
@@ -881,17 +886,18 @@ int main(int argc, char **argv)
 
         //if (MeasSet.getNumberOfMeasurements() > 0 && dt.toSec() > 0) {
         if (dt.toSec() > 0) {
-
-            if(!(MocapPose(0)>GOT_loss(0) && MocapPose(0)<GOT_loss(1))){  // simulate loss of GOT
-                if(!(MocapPose(1)>GOT_loss(2) && MocapPose(1)<GOT_loss(3))){
-                    if(!(MocapPose(2)>GOT_loss(4) && MocapPose(2)<GOT_loss(5))){
-                        GOT_meas << MocapPose(0), MocapPose(1), MocapPose(2);
-                        z_GOT = new GOTMeasurement(GOT_MeasurementID, GOT_meas); // ID, Marker measurements and include current/latest raw Roll and Pitch measurement (in this case directly from Mocap instead of from the estimator)
-                        MeasSet.addMeasurement(z_GOT);
+           if(!(GOT_loss_time[0] > (PoseTimestamp.toSec() - Time0.toSec()) && (GOT_loss_time[0]+GOT_loss_time[1]) < (PoseTimestamp.toSec() - Time0.toSec()) )){ // simulate time loss of GOT
+                if(!(MocapPose(0)>GOT_loss_xyz[0] && MocapPose(0)<GOT_loss_xyz[1])){  // simulate position loss of GOT
+                    if(!(MocapPose(1)>GOT_loss_xyz[2] && MocapPose(1)<GOT_loss_xyz[3])){
+                        if(!(MocapPose(2)>GOT_loss_xyz[4] && MocapPose(2)<GOT_loss_xyz[5])){
+                            cout << "hallo" << endl;
+                            GOT_meas << MocapPose(0), MocapPose(1), MocapPose(2);
+                            z_GOT = new GOTMeasurement(GOT_MeasurementID, GOT_meas); // ID, Marker measurements and include current/latest raw Roll and Pitch measurement (in this case directly from Mocap instead of from the estimator)
+                            MeasSet.addMeasurement(z_GOT);
+                        }
                     }
                 }
             }
-
             u << DroneVelocity, YawDifference;
             //cout << "dt: " << dt.toSec() << endl;
             //cout << "Motion input: " << endl << u << endl;
