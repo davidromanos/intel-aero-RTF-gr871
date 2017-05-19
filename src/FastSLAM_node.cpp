@@ -876,7 +876,6 @@ int main(int argc, char **argv)
     VectorChiFastSLAMf s_k = VectorChiFastSLAMf::Zero();
 
     while(ros::ok()){
-
         ros::spinOnce(); // process the latest measurements in the queue (subscribers) and move these into the RGB_Image and Depth_Image objects
 
         ProcessRGBDimage(&MeasSet);
