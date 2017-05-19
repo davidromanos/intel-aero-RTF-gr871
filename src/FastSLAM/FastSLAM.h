@@ -80,6 +80,7 @@ class ImgMeasurement : public Measurement
 {
     public:
     static Eigen::MatrixXf zCov; 	/* measurement covariance - can take different sizes! static such that only one copy is saved in memory - also why it is placed in the subclass*/
+    static Eigen::Vector3f CameraOffset; /* Camera offset of RGB frame relative to GOT/Mocap position origo */
     float roll;
     float pitch;
 
@@ -96,7 +97,7 @@ private:
     static constexpr float ax = 308.92944335938; // also known as fx
     static constexpr float ay = 311.72131347656; // also known as fy
     static constexpr float x0 = 160.68548583984; // also known as ppx
-    static constexpr float y0 = 126.8815536499; // also known as ppy
+    static constexpr float y0 = 126.8815536499; // also known as ppy    
 };
 
 
@@ -243,7 +244,7 @@ public:
 
 
     /* functions */
-    Particle(VectorChiFastSLAMf s0 = VectorChiFastSLAMf::Constant(0), MatrixChiFastSLAMf s_0_Cov = 0.01*MatrixChiFastSLAMf::Identity(), unsigned int k = 0); 		// Initialize a standard particle with "zero-pose" or custom pose
+    Particle(unsigned int GOT_ID, VectorChiFastSLAMf s0 = VectorChiFastSLAMf::Constant(0), MatrixChiFastSLAMf s_0_Cov = 0.01*MatrixChiFastSLAMf::Identity(), unsigned int k = 0); 		// Initialize a standard particle with "zero-pose" or custom pose
     Particle(const Particle &ParticleToCopy);       // Copy constructer used in case where we need to make a copy of a Particle
     ~Particle();
     void updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New, VectorUFastSLAMf* u, unsigned int k, float Ts);
@@ -278,7 +279,7 @@ public:
     std::vector<unsigned int> KnownMarkers;
 
     /* functions */
-    ParticleSet(int Nparticles = 10,VectorChiFastSLAMf s0 = VectorChiFastSLAMf::Constant(0), MatrixChiFastSLAMf s_0_Cov = 0.1*MatrixChiFastSLAMf::Identity()); 		/* Initialize a standard particle set with 100 particles */
+    ParticleSet(int Nparticles = 10,unsigned int GOT_ID=99,VectorChiFastSLAMf s0 = VectorChiFastSLAMf::Constant(0), MatrixChiFastSLAMf s_0_Cov = 0.1*MatrixChiFastSLAMf::Identity()); 		/* Initialize a standard particle set with 100 particles */
     ~ParticleSet();
     void updateParticleSet(MeasurementSet* z, VectorUFastSLAMf u, float Ts);
     VectorChiFastSLAMf* getLatestPoseEstimate();

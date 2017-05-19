@@ -1,8 +1,8 @@
 close all
 clear all
-run('/home/malte/catkin_ws/Data/t_196.m')
+run('/home/thomas/catkin_ws/Data/t_138.m')
 
-t = t196;
+t = t138;
 %%
 figure
 xlabel('x')
