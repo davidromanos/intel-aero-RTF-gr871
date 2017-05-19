@@ -778,7 +778,7 @@ int main(int argc, char **argv)
     Particle::sCov(0,0) = pow(Config[1][0]/3,2); //0.05;
     Particle::sCov(1,1) = pow(Config[1][1]/3,2); //0.05;
     Particle::sCov(2,2) = pow(Config[1][2]/3,2); //0.05;
-    Particle::sCov(3,3) = pow(Config[1][3]/3,2); //0.15*0.349066; // 20 degrees
+    Particle::sCov(3,3) = pow(Config[1][3]*(pi/180)/3,2); //0.15*0.349066; // 20 degrees
     cout << "Config.sCov = " << endl << Particle::sCov << endl;
 
     GOTMeasurement::zCov(0,0) = pow(Config[2][0]/3,2); //0.001;
@@ -794,6 +794,15 @@ int main(int argc, char **argv)
     ImgMeasurement::CameraOffset(0) = Config[4][0];
     ImgMeasurement::CameraOffset(1) = Config[4][1];
     ImgMeasurement::CameraOffset(2) = Config[4][2];
+
+    float GOT_loss[5];
+    GOT_loss(0) = Config[5][0];
+    GOT_loss(1) = Config[5][1];
+    GOT_loss(2) = Config[5][2];
+    GOT_loss(3) = Config[5][3];
+    GOT_loss(4) = Config[5][4];
+    GOT_loss(5) = Config[5][5];
+
     cout << "Config.Img.CameraOffset = " << endl << ImgMeasurement::CameraOffset << endl;
     // ==== End configuration of FastSLAM ====
 
@@ -872,9 +881,16 @@ int main(int argc, char **argv)
 
         //if (MeasSet.getNumberOfMeasurements() > 0 && dt.toSec() > 0) {
         if (dt.toSec() > 0) {
-            GOT_meas << MocapPose(0), MocapPose(1), MocapPose(2);
-            z_GOT = new GOTMeasurement(GOT_MeasurementID, GOT_meas); // ID, Marker measurements and include current/latest raw Roll and Pitch measurement (in this case directly from Mocap instead of from the estimator)
-            MeasSet.addMeasurement(z_GOT);
+
+            if(!(MocapPose(0)>GOT_loss(0) && MocapPose(0)<GOT_loss(1))){  // simulate loss of GOT
+                if(!(MocapPose(1)>GOT_loss(2) && MocapPose(1)<GOT_loss(3))){
+                    if(!(MocapPose(2)>GOT_loss(4) && MocapPose(2)<GOT_loss(5))){
+                        GOT_meas << MocapPose(0), MocapPose(1), MocapPose(2);
+                        z_GOT = new GOTMeasurement(GOT_MeasurementID, GOT_meas); // ID, Marker measurements and include current/latest raw Roll and Pitch measurement (in this case directly from Mocap instead of from the estimator)
+                        MeasSet.addMeasurement(z_GOT);
+                    }
+                }
+            }
 
             u << DroneVelocity, YawDifference;
             //cout << "dt: " << dt.toSec() << endl;
