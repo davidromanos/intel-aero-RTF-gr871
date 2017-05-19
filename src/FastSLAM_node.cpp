@@ -771,26 +771,29 @@ int main(int argc, char **argv)
     }
 
     // ===== Configure FastSLAM =====
+    Nparticles = Config[0][0];
+    cout << "Config.Nparticles" << endl << Nparticles << endl;
+
     // motion model covariance
-    Particle::sCov(0,0) = pow(Config[0][0],2); //0.05;
-    Particle::sCov(1,1) = pow(Config[0][1],2); //0.05;
-    Particle::sCov(2,2) = pow(Config[0][2],2); //0.05;
-    Particle::sCov(3,3) = pow(Config[0][3],2); //0.15*0.349066; // 20 degrees
+    Particle::sCov(0,0) = pow(Config[1][0]/3,2); //0.05;
+    Particle::sCov(1,1) = pow(Config[1][1]/3,2); //0.05;
+    Particle::sCov(2,2) = pow(Config[1][2]/3,2); //0.05;
+    Particle::sCov(3,3) = pow(Config[1][3]/3,2); //0.15*0.349066; // 20 degrees
     cout << "Config.sCov = " << endl << Particle::sCov << endl;
 
-    GOTMeasurement::zCov(0,0) = pow(Config[1][0],2); //0.001;
-    GOTMeasurement::zCov(1,1) = pow(Config[1][1],2); //0.001;
-    GOTMeasurement::zCov(2,2) = pow(Config[1][2],2); //0.001;
+    GOTMeasurement::zCov(0,0) = pow(Config[2][0]/3,2); //0.001;
+    GOTMeasurement::zCov(1,1) = pow(Config[2][1]/3,2); //0.001;
+    GOTMeasurement::zCov(2,2) = pow(Config[2][2]/3,2); //0.001;
     cout << "Config.GOT.zCov = " << endl << GOTMeasurement::zCov << endl;
 
-    ImgMeasurement::zCov(0,0) = pow(Config[2][0],2); //5;
-    ImgMeasurement::zCov(1,1) = pow(Config[2][1],2); //5;
-    ImgMeasurement::zCov(2,2) = pow(Config[2][2],2); //0.2;
+    ImgMeasurement::zCov(0,0) = pow(Config[3][0]/3,2); //5;
+    ImgMeasurement::zCov(1,1) = pow(Config[3][1]/3,2); //5;
+    ImgMeasurement::zCov(2,2) = pow(Config[3][2]/3,2); //0.2;
     cout << "Config.Img.zCov = " << endl << ImgMeasurement::zCov << endl;
 
-    ImgMeasurement::CameraOffset(0) = Config[3][0];
-    ImgMeasurement::CameraOffset(1) = Config[3][1];
-    ImgMeasurement::CameraOffset(2) = Config[3][2];
+    ImgMeasurement::CameraOffset(0) = Config[4][0];
+    ImgMeasurement::CameraOffset(1) = Config[4][1];
+    ImgMeasurement::CameraOffset(2) = Config[4][2];
     cout << "Config.Img.CameraOffset = " << endl << ImgMeasurement::CameraOffset << endl;
     // ==== End configuration of FastSLAM ====
 
@@ -833,7 +836,6 @@ int main(int argc, char **argv)
     }
 
     // ===== Configure FastSLAM =====
-    Nparticles = 50;
     GOT_MeasurementID = 49;
     s0 << MocapPose(0), MocapPose(1), MocapPose(2), MocapPose(5); // take starting Mocap Pose as initial particle location
     s_0_Cov = MatrixChiFastSLAMf::Zero(); // motion model covariance is initialized below
