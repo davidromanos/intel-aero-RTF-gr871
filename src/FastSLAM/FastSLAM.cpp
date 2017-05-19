@@ -1327,6 +1327,11 @@ VectorChiFastSLAMf Particle::motionModel(VectorChiFastSLAMf sold, VectorUFastSLA
 
     s_k(3) = s_k(3) + (*u)(3); // add yaw difference
 
+    cout << "#########################################" << endl;
+    cout << "s_old:" << endl << sold << endl;
+    cout << "s_k:" << endl << s_k << endl;
+    cout << "#########################################" << endl;
+
     return s_k;
 }
 

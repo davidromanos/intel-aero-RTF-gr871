@@ -801,7 +801,7 @@ int main(int argc, char **argv)
     }
 
     // ===== Configure FastSLAM =====
-    Nparticles = 200;
+    Nparticles = 50;
     s0 << MocapPose(0), MocapPose(1), MocapPose(2), MocapPose(5); // take starting Mocap Pose as initial particle location
     s_0_Cov = MatrixChiFastSLAMf::Zero(); // motion model covariance is initialized below
     ParticleSet Pset(Nparticles,s0,s_0_Cov);
@@ -809,14 +809,14 @@ int main(int argc, char **argv)
     cout << "Initial particle location: " << endl << s0 << endl;
 
     // motion model covariance
-    Particle::sCov(0,0) = 0.1;
-    Particle::sCov(1,1) = 0.1;
-    Particle::sCov(2,2) = 0.1;
-    Particle::sCov(3,3) = 0.349066; // 20 degrees
+    Particle::sCov(0,0) = 0.02;
+    Particle::sCov(1,1) = 0.02;
+    Particle::sCov(2,2) = 0.02;
+    Particle::sCov(3,3) = 0.15*0.349066; // 20 degrees
 
-    ImgMeasurement::zCov(0,0) = 1;
-    ImgMeasurement::zCov(1,1) = 1;
-    ImgMeasurement::zCov(2,2) = 0.05;
+    ImgMeasurement::zCov(0,0) = 5;
+    ImgMeasurement::zCov(1,1) = 5;
+    ImgMeasurement::zCov(2,2) = 0.2;
 
     GOTMeasurement::zCov(0,0) = 0.05;
     GOTMeasurement::zCov(1,1) = 0.05;
