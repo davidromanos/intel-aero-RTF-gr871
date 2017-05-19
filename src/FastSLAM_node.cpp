@@ -814,9 +814,9 @@ int main(int argc, char **argv)
     Particle::sCov(2,2) = 0.0044;
     Particle::sCov(3,3) = 0.15*0.349066; // 20 degrees
 
-    ImgMeasurement::zCov(0,0) = 2.7778; //(5/3)^2
-    ImgMeasurement::zCov(1,1) = 2.7778; //(5/3)^2
-    ImgMeasurement::zCov(2,2) =  0.0044; //(0.2/3)^2
+    ImgMeasurement::zCov(0,0) = pow(40/3,2);
+    ImgMeasurement::zCov(1,1) = pow(40/3,2);
+    ImgMeasurement::zCov(2,2) =  pow(0.5/3,2); //(0.2/3)^2
 
     GOTMeasurement::zCov(0,0) = 0.0011; //(0.1/3)^2
     GOTMeasurement::zCov(1,1) = 0.0011; //(0.1/3)^2

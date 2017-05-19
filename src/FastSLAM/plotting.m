@@ -1,8 +1,8 @@
 close all
 clear all
-run('/home/malte/catkin_ws/Data/t_106.m')
+run('/home/malte/catkin_ws/Data/t_196.m')
 
-t = t106;
+t = t196;
 %%
 figure
 xlabel('x')
@@ -41,8 +41,8 @@ plot3(t.meanPath.Path(1,:),t.meanPath.Path(2,:),t.meanPath.Path(3,:),'r')
 
 %% plot x,y,z
 figure
-plot(t.meanPath.Ts(1:end-1),t.meanPath.Path(1,1:end-1))
+plot(t.meanPath.Ts(1:end-1),t.meanPath.Path(1,1:end-1),'r')
 figure
-plot(t.meanPath.Ts(1:end-1),t.meanPath.Path(2,1:end-1))
+plot(t.meanPath.Ts(1:end-1),t.meanPath.Path(2,1:end-1),'r')
 figure
-plot(t.meanPath.Ts(1:end-1),t.meanPath.Path(3,1:end-1))
+plot(t.meanPath.Ts(1:end-1),t.meanPath.Path(3,1:end-1),'r')
