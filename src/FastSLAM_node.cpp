@@ -809,18 +809,18 @@ int main(int argc, char **argv)
     cout << "Initial particle location: " << endl << s0 << endl;
 
     // motion model covariance
-    Particle::sCov(0,0) = 0.02;
-    Particle::sCov(1,1) = 0.02;
-    Particle::sCov(2,2) = 0.02;
+    Particle::sCov(0,0) = 0.05;
+    Particle::sCov(1,1) = 0.05;
+    Particle::sCov(2,2) = 0.05;
     Particle::sCov(3,3) = 0.15*0.349066; // 20 degrees
 
     ImgMeasurement::zCov(0,0) = 5;
     ImgMeasurement::zCov(1,1) = 5;
     ImgMeasurement::zCov(2,2) = 0.2;
 
-    GOTMeasurement::zCov(0,0) = 0.05;
-    GOTMeasurement::zCov(1,1) = 0.05;
-    GOTMeasurement::zCov(2,2) = 0.05;
+    GOTMeasurement::zCov(0,0) = 0.001;
+    GOTMeasurement::zCov(1,1) = 0.001;
+    GOTMeasurement::zCov(2,2) = 0.001;
     // ==== End configuration of FastSLAM ====
 
     RGB_Image_New = false;

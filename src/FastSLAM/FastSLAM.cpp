@@ -88,21 +88,21 @@ GOTMeasurement::GOTMeasurement(unsigned int i, Eigen::Vector3f GOT_meas)
 
 Eigen::VectorXf GOTMeasurement::MeasurementModel(VectorChiFastSLAMf pose, Eigen::Vector3f l)
 {
-    Eigen::Vector3f z = l - pose.topRows<3>();
+    Eigen::Vector3f z = pose.topRows<3>() - l;
     return z;
 }
 
 Eigen::VectorXf GOTMeasurement::inverseMeasurementModel(VectorChiFastSLAMf pose)
 {
     VectorChiFastSLAMf s = pose; // temp variable to make it look like equations
-    Eigen::Vector3f l = s.topRows<3>() + z;
+    Eigen::Vector3f l = s.topRows<3>() - z;
     return l;
 }
 
 Eigen::MatrixXf GOTMeasurement::calculateHs(VectorChiFastSLAMf pose, Eigen::Vector3f l)
 {
     Eigen::MatrixXf Hs(3, 4);
-    Hs << -1.0*Eigen::Matrix3f::Identity(3,3), Eigen::MatrixXf::Zero(3,1);
+    Hs << Eigen::Matrix3f::Identity(3,3), Eigen::MatrixXf::Zero(3,1);
     //cout << " Hs" << Hs << endl;
     return Hs;
 }
@@ -110,7 +110,7 @@ Eigen::MatrixXf GOTMeasurement::calculateHs(VectorChiFastSLAMf pose, Eigen::Vect
 Eigen::MatrixXf GOTMeasurement::calculateHl(VectorChiFastSLAMf pose, Eigen::Vector3f l)
 {
     //s = pose; // temp variable to make it look like equations
-    Eigen::Matrix3f Hl = Eigen::Matrix3f::Identity();
+    Eigen::Matrix3f Hl = -1.0*Eigen::Matrix3f::Identity();
     return Hl;
 };
 
