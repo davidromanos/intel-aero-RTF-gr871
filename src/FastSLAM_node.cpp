@@ -204,9 +204,9 @@ Vector3f MocapVelocity = Vector3f::Zero();
 Vector3f DroneVelocity = Vector3f::Zero();
 
 void MocapVelocityFilter()
-{       
+{
     ros::Duration dt;
-    float dx, dy, dz;    
+    float dx, dy, dz;
 
     if (!SkipMeasurement) {
         SkipMeasurement = true;
@@ -415,7 +415,7 @@ void CameraInfo_RGB_Callback(const sensor_msgs::CameraInfoConstPtr& cameraInfo) 
             ROS_INFO("    %f\t%f\t%f\t%f", (double)cameraInfo->P[8], (double)cameraInfo->P[9], (double)cameraInfo->P[10], (double)cameraInfo->P[11]);
             ROS_INFO("]");
 
-            ROS_INFO("==================================");*/            
+            ROS_INFO("==================================");*/
 //            ROS_INFO("RGB intrinsics received");
 
             // Convert into intrinsics object - see https://github.com/intel-ros/realsense/blob/17b7279fb0a3bfe11bb162c0413f949d639b7a76/realsense_camera/src/base_nodelet.cpp#L682-L705
@@ -460,7 +460,7 @@ void CameraInfo_Depth_Callback(const sensor_msgs::CameraInfoConstPtr& cameraInfo
             ROS_INFO("    %f\t%f\t%f\t%f", (double)cameraInfo->P[8], (double)cameraInfo->P[9], (double)cameraInfo->P[10], (double)cameraInfo->P[11]);
             ROS_INFO("]");
 
-            ROS_INFO("==================================");*/            
+            ROS_INFO("==================================");*/
             ROS_INFO("Depth intrinsics received");
 
             // Convert into intrinsics object - see https://github.com/intel-ros/realsense/blob/17b7279fb0a3bfe11bb162c0413f949d639b7a76/realsense_camera/src/base_nodelet.cpp#L682-L705
@@ -701,7 +701,7 @@ VectorChiFastSLAMf motionModel(VectorChiFastSLAMf sold, VectorUFastSLAMf* u, flo
 {
     VectorChiFastSLAMf s_k = sold; // s(k) = f(s(k-1),u(k))
 
-    if (Ts > 10) {
+    if (Ts > 3) {
         return s_k; // error with the sampling time, just return old pose estimate
     }
 
@@ -800,18 +800,45 @@ int main(int argc, char **argv)
         ros::spinOnce();
     }
 
+    // ===== Configure FastSLAM =====
+    Nparticles = 200;
+    s0 << MocapPose(0), MocapPose(1), MocapPose(2), MocapPose(5); // take starting Mocap Pose as initial particle location
+    s_0_Cov = MatrixChiFastSLAMf::Zero(); // motion model covariance is initialized below
+    ParticleSet Pset(Nparticles,s0,s_0_Cov);
+    VectorUFastSLAMf u = VectorUFastSLAMf::Zero();
+    cout << "Initial particle location: " << endl << s0 << endl;
+
+    // motion model covariance
+    Particle::sCov(0,0) = 0.1;
+    Particle::sCov(1,1) = 0.1;
+    Particle::sCov(2,2) = 0.1;
+    Particle::sCov(3,3) = 0.349066; // 20 degrees
+
+    ImgMeasurement::zCov(0,0) = 1;
+    ImgMeasurement::zCov(1,1) = 1;
+    ImgMeasurement::zCov(2,2) = 0.05;
+
+    GOTMeasurement::zCov(0,0) = 0.05;
+    GOTMeasurement::zCov(1,1) = 0.05;
+    GOTMeasurement::zCov(2,2) = 0.05;
+    // ==== End configuration of FastSLAM ====
+
     RGB_Image_New = false;
     Depth_Image_New = false;
     RGBD_Image_Ready = false;
 
-    cv::namedWindow("view", CV_WINDOW_KEEPRATIO);    
+    cv::namedWindow("view", CV_WINDOW_KEEPRATIO);
     cv::startWindowThread();
 
-    MeasurementSet MeasSet;    
+    MeasurementSet MeasSet;
     ros::Duration dt;
     ros::Time PreviousMeasurementTimestamp = PoseTimestamp;
+    GOTMeasurement* z_GOT;
+    Eigen::Vector3f GOT_meas;
     float PreviousYaw = MocapPose(5);
     float YawDifference = 0.f;
+
+    VectorChiFastSLAMf s_k = VectorChiFastSLAMf::Zero();
 
     while(ros::ok()){
 
