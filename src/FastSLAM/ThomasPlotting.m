@@ -32,3 +32,54 @@ hold on;
 scatter3(x, y, z, 10, tFastSLAM, '*');
 hold off;
 axis equal;
+
+%% Plot landmarks
+hold on 
+i = 1;
+markers_FastSLAM = [];
+for j = 1:length(t.Particles(i).map.mean(1,:))
+    text(t.Particles(i).map.mean(1,j),...
+         t.Particles(i).map.mean(2,j),...
+         t.Particles(i).map.mean(3,j),...
+         num2str(t.Particles(i).map.identifier(j)));
+    scatter3(t.Particles(i).map.mean(1,j),...
+             t.Particles(i).map.mean(2,j),...
+             t.Particles(i).map.mean(3,j),'*');
+    
+    marker = [t.Particles(i).map.identifier(j), t.Particles(i).map.mean(1,j), t.Particles(i).map.mean(2,j), t.Particles(i).map.mean(3,j)];
+    markers_FastSLAM = [markers_FastSLAM; marker];
+end
+hold off;
+
+%% Plot actual landmark positions
+hold on;
+for i = 1:length(markers)
+    text(markers(i,2),...
+         markers(i,3),...
+         markers(i,4),...
+         num2str(markers(i,1)));
+    scatter3(markers(i,2),...
+             markers(i,3),...
+             markers(i,4),'O');
+end
+hold off;
+
+%% Draw connection lines between actual landmark positions and FastSLAM estimated positions
+m0 = [];
+r = [];
+for i = 1:length(markers)
+    ID = markers(i,1);
+    idx = find(markers_FastSLAM(:,1) == ID);
+    
+    if (idx)    
+        m0x = markers_FastSLAM(idx,2:4)';
+        m1 = markers(i,2:4)';
+        rx = m1-m0x;    
+        
+        m0 = [m0, m0x];
+        r = [r, rx];
+    end
+end
+hold on;
+quiver3(m0(1,:), m0(2,:), m0(3,:), r(1,:), r(2,:), r(3,:), 0);
+hold off;

@@ -841,9 +841,13 @@ int main(int argc, char **argv)
 
     float GOT_loss_time[2];
     GOT_loss_time[0] = Config[6][0]; // start
-    GOT_loss_time[1] = Config[6][1]; // end
-    cout << "Config.GOT.LossStart = " << endl << GOT_loss_time[0] << endl;
-    cout << "Config.GOT.LossEnd = " << endl << GOT_loss_time[1] << endl;
+    GOT_loss_time[1] = Config[6][1]; // duration
+    cout << "Config.GOT.LossStart = " << GOT_loss_time[0] << endl;
+    cout << "Config.GOT.LossLength = " << GOT_loss_time[1] << endl;
+
+    float GOT_MinSampleTime;
+    GOT_MinSampleTime = Config[7][0];
+    cout << "Config.GOT.MinSampleTime = " << GOT_MinSampleTime << endl;
 
     // ==== End configuration of FastSLAM ====
 
@@ -909,6 +913,7 @@ int main(int argc, char **argv)
     MeasurementSet MeasSet;
     ros::Duration dt;
     ros::Time PreviousMeasurementTimestamp = PoseTimestamp;
+    ros::Time PreviousGOTUsedSampleTimestamp(0);
     GOTMeasurement* z_GOT;
     Eigen::Vector3f GOT_meas;
     float PreviousYaw = MocapPose(5);
@@ -931,10 +936,15 @@ int main(int argc, char **argv)
                 if(!(MocapPose(0)>GOT_loss_xyz[0] && MocapPose(0)<GOT_loss_xyz[1])){  // simulate position loss of GOT
                     if(!(MocapPose(1)>GOT_loss_xyz[2] && MocapPose(1)<GOT_loss_xyz[3])){
                         if(!(MocapPose(2)>GOT_loss_xyz[4] && MocapPose(2)<GOT_loss_xyz[5])){
-                            cout << "GOT enabled" << endl;
-                            GOT_meas << MocapPose(0), MocapPose(1), MocapPose(2);
-                            z_GOT = new GOTMeasurement(GOT_MeasurementID, GOT_meas); // ID, Marker measurements and include current/latest raw Roll and Pitch measurement (in this case directly from Mocap instead of from the estimator)
-                            MeasSet.addMeasurement(z_GOT);
+                            if ((PoseTimestamp-PreviousGOTUsedSampleTimestamp).toSec() > GOT_MinSampleTime) {
+                                PreviousGOTUsedSampleTimestamp = PoseTimestamp;
+                                cout << "GOT enabled" << endl;
+                                GOT_meas << MocapPose(0), MocapPose(1), MocapPose(2);
+                                z_GOT = new GOTMeasurement(GOT_MeasurementID, GOT_meas); // ID, Marker measurements and include current/latest raw Roll and Pitch measurement (in this case directly from Mocap instead of from the estimator)
+                                MeasSet.addMeasurement(z_GOT);
+                            } else {
+                                cout << "GOT sample dropped intentionally" << endl;
+                            }
                         }
                     }
                 }
