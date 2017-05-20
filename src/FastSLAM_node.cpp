@@ -680,7 +680,7 @@ void ProcessRGBDimage(MeasurementSet * MeasSet)
             int dispX,dispY;
             vector<cv::Point2f> MarkerPoints;
             cv::Vec3f MarkerMeas; // cameraX, cameraY, worldZ (depth)
-            float DepthMean;
+            float Xmean, Ymean, DepthMean;
             int ValuesAddedToMeanCount;
             signed int meanX, meanY;
             Eigen::Vector3f MarkerMeas_;
@@ -688,6 +688,8 @@ void ProcessRGBDimage(MeasurementSet * MeasSet)
 
             for (int i = 0; i < markerCorners.size(); i++) {
                 ValuesAddedToMeanCount = 0;
+                Xmean = 0.f;
+                Ymean = 0.f;
                 DepthMean = 0.f;
                 MarkerPoints = markerCorners[i];
                 cv::Point2f point = MarkerPoints[0];                
@@ -698,24 +700,27 @@ void ProcessRGBDimage(MeasurementSet * MeasSet)
                             MarkerMeas = registered_depth2.at<cv::Vec3f>(point.y+meanY, point.x+meanX);
                             //cout << MarkerMeas[2] << " ";
                             if (MarkerMeas[2] > 0) {
+                                Xmean += MarkerMeas[0];
+                                Ymean += MarkerMeas[1];
                                 DepthMean += MarkerMeas[2];
                                 ValuesAddedToMeanCount++;
                             }
                         }
                     }
-                }
-                //cout << endl;
+                }                
 
                 if (ValuesAddedToMeanCount > 0) {
+                    Xmean = Xmean / (float)ValuesAddedToMeanCount;
+                    Ymean = Ymean / (float)ValuesAddedToMeanCount;
                     DepthMean = DepthMean / (float)ValuesAddedToMeanCount;
                 }
 
                 if (DepthMean > 0) {
-                    MarkerMeas = registered_depth2.at<cv::Vec3f>(point.y, point.x);
-                    //cout << "Depth: " << MarkerMeas[2] << " - Mean: " << DepthMean << endl;
+                    MarkerMeas[0] = Xmean;
+                    MarkerMeas[1] = Ymean;
                     MarkerMeas[2] = DepthMean;
-                /*MarkerMeas = registered_depth2.at<cv::Vec3f>(point.y, point.x);
-                if (MarkerMeas[2] > 0) {*/
+                    /*MarkerMeas = registered_depth2.at<cv::Vec3f>(point.y, point.x);
+                    if (MarkerMeas[2] > 0) {*/
 
                     MarkerMeas_(0) = MarkerMeas[0];
                     MarkerMeas_(1) = MarkerMeas[1];
