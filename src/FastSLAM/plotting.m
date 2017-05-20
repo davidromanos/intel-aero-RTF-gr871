@@ -1,8 +1,9 @@
 close all
 clear all
-run('/home/malte/catkin_ws/Data/t_183.m')
+%%
+run('/home/malte/catkin_ws/Data/t_524.m')
 
-t = t183;
+t = t524;
 %%
 figure
 xlabel('x')
@@ -12,7 +13,7 @@ zlabel('z')
 %ylim([-3,3]) 
 %zlim([-3,3]) 
 grid
-%%
+%
 for i = 1%:length(t.Particles)
     hold on 
     for j = 1:length(t.Particles(i).map.mean(1,:))
@@ -25,7 +26,7 @@ for i = 1%:length(t.Particles)
                  t.Particles(i).map.mean(3,j),'*');
     end
 end
-%%
+%
 hold on 
 
 x = t.meanPath.Path(1,:);
