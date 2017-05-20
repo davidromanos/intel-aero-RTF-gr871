@@ -88,14 +88,18 @@ GOTMeasurement::GOTMeasurement(unsigned int i, Eigen::Vector3f GOT_meas)
 
 Eigen::VectorXf GOTMeasurement::MeasurementModel(VectorChiFastSLAMf pose, Eigen::Vector3f l)
 {
-    Eigen::Vector3f z = pose.topRows<3>() - l;
+    Eigen::Vector3f z;
+    z << pose(0), pose(1), pose(2);
+    z = z - l;
     return z;
 }
 
 Eigen::VectorXf GOTMeasurement::inverseMeasurementModel(VectorChiFastSLAMf pose)
 {
-    VectorChiFastSLAMf s = pose; // temp variable to make it look like equations
-    Eigen::Vector3f l = s.topRows<3>() - z;
+    VectorChiFastSLAMf s = pose; // temp variable to make it look like equations    
+    Eigen::Vector3f l;
+    l << s(0), s(1), s(2);
+    l = l - z;
     return l;
 }
 
@@ -122,6 +126,10 @@ Eigen::MatrixXf GOTMeasurement::zCov = 0.05*Eigen::Matrix3f::Identity(); // stat
 
 
 /* ############################## Defines ImgMeasurement class ##############################  */
+float ImgMeasurement::ax = 308.92944335938; // also known as fx
+float ImgMeasurement::ay = 311.72131347656; // also known as fy
+float ImgMeasurement::x0 = 160.68548583984; // also known as ppx
+float ImgMeasurement::y0 = 126.8815536499; // also known as ppy
 /*ImgMeasurement::ImgMeasurement(unsigned int i, Eigen::Vector3f img_meas){
     pitch = 0;
     roll = 0;
@@ -374,7 +382,7 @@ MeasurementSet::MeasurementSet(Measurement *meas){
     firstMeasNode->nextNode = NULL;
     nMeas = 1;
     firstMeasNode->measIdentifier = nMeas;
-    cout << "n1: " << nMeas << endl;
+    //cout << "n1: " << nMeas << endl;
 }
 
 MeasurementSet::~MeasurementSet(){
@@ -742,7 +750,7 @@ void MapTree::printAllLandmarkPositions(){
         //cout << "D31 ";
         if (extractLandmarkNodePointer(i) != NULL){
             //cout << "D32 ";
-             cout << "l_" << i <<": "<< extractLandmarkNodePointer(i)->lhat.transpose() << endl;
+             //cout << "l_" << i <<": "<< extractLandmarkNodePointer(i)->lhat.transpose() << endl;
         }
         else{
             //tmpMatrix.col(i-1) = Eigen::Vector3f::Zero();
@@ -1007,7 +1015,7 @@ void Particle::handleNewMeas(MeasurementSet* z_New, VectorChiFastSLAMf s_proposa
 
             li->lhat = z_tmp->inverseMeasurementModel(s_proposale);
 
-            cout << "lhat" << li->lhat << endl;
+            //cout << "lhat" << li->lhat << endl;
 
             Eigen::MatrixXf Hl;
             Hl = z_tmp->calculateHl(s_proposale,li->lhat);
@@ -1128,13 +1136,13 @@ VectorChiFastSLAMf Particle::drawSampleFromProposaleDistribution(VectorChiFastSL
         }
     }
 
-    cout << endl << "##############################" << endl;
-    cout << endl << "sMean_proposale" << endl << sMean_proposale << endl;
-    cout << endl << "sCov_proposale" << endl << sCov_proposale << endl;
+    //cout << endl << "##############################" << endl;
+    //cout << endl << "sMean_proposale" << endl << sMean_proposale << endl;
+    //cout << endl << "sCov_proposale" << endl << sCov_proposale << endl;
 
     VectorChiFastSLAMf s_proposale = drawSampleRandomPose(sMean_proposale, sCov_proposale);
 
-    cout << endl << "s_proposale" << endl << s_proposale << endl;
+    //cout << endl << "s_proposale" << endl << s_proposale << endl;
 
     return s_proposale;
 
@@ -1398,10 +1406,10 @@ VectorChiFastSLAMf Particle::motionModel(VectorChiFastSLAMf sold, VectorUFastSLA
 
     s_k(3) = s_k(3) + (*u)(3); // add yaw difference
 
-    cout << "#########################################" << endl;
-    cout << "s_old:" << endl << sold << endl;
-    cout << "s_k:" << endl << s_k << endl;
-    cout << "#########################################" << endl;
+    //cout << "#########################################" << endl;
+    //cout << "s_old:" << endl << sold << endl;
+    //cout << "s_k:" << endl << s_k << endl;
+    //cout << "#########################################" << endl;
 
     return s_k;
 }
@@ -1419,7 +1427,7 @@ void Particle::calculateImportanceWeight(MeasurementSet* z_Ex, VectorChiFastSLAM
             landmark* li_old = map->extractLandmarkNodePointer(z_tmp->c);
 
             //cout << "imp s_proposale: " << endl << s_proposale << endl;
-            cout << "old li: " << endl << li_old->lhat << endl;
+            //cout << "old li: " << endl << li_old->lhat << endl;
             Eigen::MatrixXf Hli;
             Hli = z_tmp->calculateHl(s_proposale,li_old->lhat); //resizes automatically due to the "=" operator
             //cout << "imp Hli" << endl << Hli << endl;
@@ -1635,7 +1643,7 @@ void ParticleSet::resample(){
                 }
                 weight = Parray[index]->w;
             }
-            cout << "index: " << index << endl;
+            //cout << "index: " << index << endl;
             Parraytmp[z] = new Particle(*Parray[index]);
             //cout << "Parraytmp[" << z << "]:" << endl << *(Parraytmp[z]->s->getPose()) << endl;
         }
@@ -1710,7 +1718,7 @@ void ParticleSet::estimateDistribution(float Ts){
         wSum = wSum + Parray[i]->w;
     }
 
-    cout << "wSum - 1: " << wSum << endl;
+    //cout << "wSum - 1: " << wSum << endl;
 
     VectorChiFastSLAMf sTmp = VectorChiFastSLAMf::Zero();
     VectorChiFastSLAMf sMean_estimate = VectorChiFastSLAMf::Zero();

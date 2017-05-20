@@ -81,6 +81,11 @@ class ImgMeasurement : public Measurement
     public:
     static Eigen::MatrixXf zCov; 	/* measurement covariance - can take different sizes! static such that only one copy is saved in memory - also why it is placed in the subclass*/
     static Eigen::Vector3f CameraOffset; /* Camera offset of RGB frame relative to GOT/Mocap position origo */
+    /* Camera coefficients */
+    static float ax; // also known as fx
+    static float ay; // also known as fy
+    static float x0; // also known as ppx
+    static float y0; // also known as ppy
     float roll;
     float pitch;
 
@@ -93,11 +98,6 @@ class ImgMeasurement : public Measurement
     Eigen::MatrixXf getzCov();
 
 private:
-    /* Camera coefficients */
-    static constexpr float ax = 308.92944335938; // also known as fx
-    static constexpr float ay = 311.72131347656; // also known as fy
-    static constexpr float x0 = 160.68548583984; // also known as ppx
-    static constexpr float y0 = 126.8815536499; // also known as ppy    
 };
 
 

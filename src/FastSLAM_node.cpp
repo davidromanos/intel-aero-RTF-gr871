@@ -298,9 +298,9 @@ void MocapPose_Callback(const geometry_msgs::PoseStamped::ConstPtr& pose) {
     MocapPose << pose->pose.position.x,
                  pose->pose.position.y,
                  pose->pose.position.z,
-                 rollFilt,
-                 pitchFilt,
-                 yawFilt;
+                 roll,
+                 pitch,
+                 yaw;
 
     MocapVelocityFilter();
 
@@ -794,6 +794,7 @@ int main(int argc, char **argv)
     ImgMeasurement::CameraOffset(0) = Config[4][0];
     ImgMeasurement::CameraOffset(1) = Config[4][1];
     ImgMeasurement::CameraOffset(2) = Config[4][2];
+    cout << "Config.Img.CameraOffset = " << endl << ImgMeasurement::CameraOffset << endl;
 
     float GOT_loss_xyz[5];
     GOT_loss_xyz[0] = Config[5][0]; // xmin
@@ -806,9 +807,9 @@ int main(int argc, char **argv)
     float GOT_loss_time[2];
     GOT_loss_time[0] = Config[6][0]; // start
     GOT_loss_time[1] = Config[6][1]; // duration
+    cout << "Config.GOT.LossStart = " << endl << GOT_loss_time[0] << endl;
+    cout << "Config.GOT.LossLength = " << endl << GOT_loss_time[1] << endl;
 
-
-    cout << "Config.Img.CameraOffset = " << endl << ImgMeasurement::CameraOffset << endl;
     // ==== End configuration of FastSLAM ====
 
 
@@ -849,6 +850,11 @@ int main(int argc, char **argv)
         ros::spinOnce();
     }
 
+    ImgMeasurement::ax = rgb_intrin.fx;
+    ImgMeasurement::ay = rgb_intrin.fy;
+    ImgMeasurement::x0 = rgb_intrin.ppx;
+    ImgMeasurement::y0 = rgb_intrin.ppy;
+
     // ===== Configure FastSLAM =====
     GOT_MeasurementID = 49;
     s0 << MocapPose(0), MocapPose(1), MocapPose(2), MocapPose(5); // take starting Mocap Pose as initial particle location
@@ -885,17 +891,20 @@ int main(int argc, char **argv)
 
         //if (MeasSet.getNumberOfMeasurements() > 0 && dt.toSec() > 0) {
         if (dt.toSec() > 0) {
-           if(!(GOT_loss_time[0] > (PoseTimestamp.toSec() - Time0.toSec()) && (GOT_loss_time[0]+GOT_loss_time[1]) < (PoseTimestamp.toSec() - Time0.toSec()) )){ // simulate time loss of GOT
+            cout << "Time: " << (PoseTimestamp-Time0).toSec() << endl;
+           if ( ((PoseTimestamp-Time0).toSec() < GOT_loss_time[0]) || ((PoseTimestamp-Time0).toSec() > (GOT_loss_time[0]+GOT_loss_time[1])) ) { // simulate time loss of GOT
                 if(!(MocapPose(0)>GOT_loss_xyz[0] && MocapPose(0)<GOT_loss_xyz[1])){  // simulate position loss of GOT
                     if(!(MocapPose(1)>GOT_loss_xyz[2] && MocapPose(1)<GOT_loss_xyz[3])){
                         if(!(MocapPose(2)>GOT_loss_xyz[4] && MocapPose(2)<GOT_loss_xyz[5])){
-                            cout << "hallo" << endl;
+                            cout << "GOT enabled" << endl;
                             GOT_meas << MocapPose(0), MocapPose(1), MocapPose(2);
                             z_GOT = new GOTMeasurement(GOT_MeasurementID, GOT_meas); // ID, Marker measurements and include current/latest raw Roll and Pitch measurement (in this case directly from Mocap instead of from the estimator)
                             MeasSet.addMeasurement(z_GOT);
                         }
                     }
                 }
+            } else {
+               cout << "GOT disabled" << endl;
             }
             u << DroneVelocity, YawDifference;
             //cout << "dt: " << dt.toSec() << endl;
