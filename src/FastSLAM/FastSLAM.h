@@ -278,6 +278,7 @@ public:
     MatrixChiFastSLAMf sCov;
     unsigned int k; // number of interations since time zero
     std::vector<unsigned int> KnownMarkers;
+    Path* sMean;                    // instance of path Class to keep track of the estimated mean of the Particle filter!
 
     /* functions */
     ParticleSet(int Nparticles = 10,unsigned int GOT_ID=99,VectorChiFastSLAMf s0 = VectorChiFastSLAMf::Constant(0), MatrixChiFastSLAMf s_0_Cov = 0.1*MatrixChiFastSLAMf::Identity()); 		/* Initialize a standard particle set with 100 particles */
@@ -289,8 +290,7 @@ public:
 
     private:
     /* variables */
-    int nParticles;
-    Path* sMean;                    // instance of path Class to keep track of the estimated mean of the Particle filter!
+    int nParticles;   
     double StartTime;
 
 

@@ -42,6 +42,11 @@
 using namespace std;
 using namespace Eigen;
 
+#define USE_MEAN_DEPTH_VALUES   1
+#define USE_ROLL_PITCH_YAW_FILTER   0
+#define USE_VELOCITY_FILTER     0
+#define ONLY_RUN_FILTER_WHEN_MEASUREMENTS_ARE_AVAILABLE 0   // OBS. Enabling this will likely cause problems with the velocity based motion model, as it is the previous velocity used and not an average
+
 #define USE_IMAGE_SYNCHRONIZER 1
 
 typedef union U_FloatParse {
@@ -225,7 +230,11 @@ void MocapVelocityFilter()
         }
 
         if (dx != 0)
+#if USE_VELOCITY_FILTER
             MocapVelocity(0) = Xdot_Filter.Filter(dx / dt.toSec());
+#else
+            MocapVelocity(0) = dx / dt.toSec();
+#endif
         else {
             //MocapVelocity(0) = Xdot_Filter.Filter(MocapVelocity(0)); // velocity can not be zero, so we assume that it is because of no measurement, hence take the previous velocity
             MocapVelocity(0) = MocapVelocity(0); // velocity can not be zero, so we assume that it is because of no measurement, hence take the previous velocity
@@ -233,7 +242,11 @@ void MocapVelocityFilter()
         }
 
         if (dy != 0)
+#if USE_VELOCITY_FILTER
             MocapVelocity(1) = Ydot_Filter.Filter(dy / dt.toSec());
+#else
+            MocapVelocity(1) = dy / dt.toSec();
+#endif
         else {
             //MocapVelocity(1) = Ydot_Filter.Filter(MocapVelocity(1)); // velocity can not be zero, so we assume that it is because of no measurement, hence take the previous velocity
             MocapVelocity(1) = MocapVelocity(1); // velocity can not be zero, so we assume that it is because of no measurement, hence take the previous velocity
@@ -241,7 +254,11 @@ void MocapVelocityFilter()
         }
 
         if (dz != 0)
+#if USE_VELOCITY_FILTER
             MocapVelocity(2) = Zdot_Filter.Filter(dz / dt.toSec());
+#else
+            MocapVelocity(2) = dz / dt.toSec();
+#endif
         else {
             //MocapVelocity(2) = Zdot_Filter.Filter(MocapVelocity(2)); // velocity can not be zero, so we assume that it is because of no measurement, hence take the previous velocity
             MocapVelocity(2) = MocapVelocity(2); // velocity can not be zero, so we assume that it is because of no measurement, hence take the previous velocity
@@ -295,12 +312,21 @@ void MocapPose_Callback(const geometry_msgs::PoseStamped::ConstPtr& pose) {
     pitchFilt = Pitch_Filter.Filter(pitch);
     yawFilt = Yaw_Filter.Filter(yaw);
 
+#if USE_ROLL_PITCH_YAW_FILTER
+    MocapPose << pose->pose.position.x,
+                 pose->pose.position.y,
+                 pose->pose.position.z,
+                 rollFilt,
+                 pitchFilt,
+                 yawFilt;
+#else
     MocapPose << pose->pose.position.x,
                  pose->pose.position.y,
                  pose->pose.position.z,
                  roll,
                  pitch,
                  yaw;
+#endif
 
     MocapVelocityFilter();
 
@@ -592,7 +618,7 @@ VectorChiFastSLAMf motionModel(VectorChiFastSLAMf sold, VectorUFastSLAMf* u, flo
 {
     VectorChiFastSLAMf s_k = sold; // s(k) = f(s(k-1),u(k))
 
-    if (Ts > 3) {
+    if (Ts > 3) {        
         return s_k; // error with the sampling time, just return old pose estimate
     }
 
@@ -931,7 +957,7 @@ int main(int argc, char **argv)
 
         //if (MeasSet.getNumberOfMeasurements() > 0 && dt.toSec() > 0) {
         if (dt.toSec() > 0) {
-            cout << "Time: " << (PoseTimestamp-Time0).toSec() << endl;
+           cout << "Time: " << (PoseTimestamp-Time0).toSec() << endl;
            if ( ((PoseTimestamp-Time0).toSec() < GOT_loss_time[0]) || ((PoseTimestamp-Time0).toSec() > (GOT_loss_time[1])) ) { // simulate time loss of GOT
                 if(!(MocapPose(0)>GOT_loss_xyz[0] && MocapPose(0)<GOT_loss_xyz[1])){  // simulate position loss of GOT
                     if(!(MocapPose(1)>GOT_loss_xyz[2] && MocapPose(1)<GOT_loss_xyz[3])){
@@ -951,6 +977,13 @@ int main(int argc, char **argv)
             } else {
                cout << "GOT disabled" << endl;
             }
+
+#if ONLY_RUN_FILTER_WHEN_MEASUREMENTS_ARE_AVAILABLE
+           if (MeasSet.getNumberOfMeasurements() == 0) {
+               cout << "No measurements - waiting instead..." << endl;
+               continue;
+           }
+#endif
             u << DroneVelocity, YawDifference;
             //cout << "dt: " << dt.toSec() << endl;
             //cout << "Motion input: " << endl << u << endl;
@@ -962,6 +995,8 @@ int main(int argc, char **argv)
             MotionModelLog.flush();
 
             Pset.updateParticleSet(&MeasSet, u, dt.toSec());
+
+            cout << "Pose: " << endl << *(Pset.sMean->getPose()) << endl;
 
             MeasSet.emptyMeasurementSet();
 

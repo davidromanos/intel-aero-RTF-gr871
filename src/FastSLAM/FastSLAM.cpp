@@ -26,7 +26,7 @@
 
 // Default marked in paranthesis
 #define USE_NUMERICAL_STABILIZED_KALMAN_FILTERS 0  // (0)
-#define FORCE_COVARIANCE_SYMMETRY 0                // (0)
+#define FORCE_COVARIANCE_SYMMETRY 1                // (0)
 #define ADD_LANDMARKS_AFTER_RESAMPLING 0           // (0)
 #define SLOW_INIT 1   // (1)    // force the first 5 iterations to only handle new measurements and pose predictions (motion model) - no corrections done based on measurements
 #define USE_PROPOSAL_COVARIANCE_IN_IMPORTANCE_WEIGHT 0  // (0)
@@ -1006,6 +1006,10 @@ void Particle::handleExMeas(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale
             li_update->lCov = (Eigen::MatrixXf::Identity(tmpMatrix.rows(),tmpMatrix.cols())-tmpMatrix)*li_old->lCov;// (3.38)*/
 #endif
 
+#if FORCE_COVARIANCE_SYMMETRY
+    li_update->lCov = (li_update->lCov+li_update->lCov.transpose()) * 0.5; //make symmetric
+#endif
+
             //cout << "Correct landmark lhat: " << li_old->lhat << endl;
 
             if (li_update->lhat != li_update->lhat) {
@@ -1040,6 +1044,10 @@ void Particle::handleNewMeas(MeasurementSet* z_New, VectorChiFastSLAMf s_proposa
             Eigen::MatrixXf zCov_tmp = z_tmp->getzCov();
 
             li->lCov = (Hl.transpose()*zCov_tmp.inverse()*Hl).inverse(); // this is different from this line: https://github.com/bushuhui/fastslam/blob/master/src/fastslam_core.cpp#L567
+
+#if FORCE_COVARIANCE_SYMMETRY
+    li->lCov = (li->lCov+li->lCov.transpose()) * 0.5; //make symmetric
+#endif
 
             map->insertLandmark(li);
         }
@@ -1163,6 +1171,10 @@ VectorChiFastSLAMf Particle::drawSampleFromProposaleDistribution(VectorChiFastSL
             //cout << "z_tmp->z: " << endl << z_tmp->z << endl << endl;
             //cout << "li_old->lhat: " << endl << li_old->lhat << endl << endl;
             //cout << "z_tmp->MeasurementModel: " << endl << zhat << endl << endl;
+
+#if FORCE_COVARIANCE_SYMMETRY
+    sCov_proposale = (sCov_proposale+sCov_proposale.transpose()) * 0.5; //make symmetric
+#endif
 
             if (sCov_proposale(0,0) != sCov_proposale(0,0)) {
                 cout << "sCov NaN err" << endl;
@@ -1411,6 +1423,7 @@ VectorChiFastSLAMf Particle::motionModel(VectorChiFastSLAMf sold, VectorUFastSLA
     VectorChiFastSLAMf s_k = sold; // s(k) = f(s(k-1),u(k))
 
     if (Ts > 3) {
+        cout << "Motion model: Sample rate error" << endl;
         return s_k; // error with the sampling time, just return old pose estimate
     }
 
