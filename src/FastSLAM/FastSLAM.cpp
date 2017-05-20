@@ -24,6 +24,8 @@
 #include <random>
 #include <boost/filesystem.hpp>
 
+#define USE_NUMERICAL_STABILIZED_KALMAN_FILTERS 0
+
 using namespace std;
 
 float pi_to_pi(float ang)
@@ -963,6 +965,7 @@ void Particle::handleExMeas(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale
             //li_old->lhat = xfi
             //li_old->lCov = Pfi
 
+#if USE_NUMERICAL_STABILIZED_KALMAN_FILTERS
             Eigen::VectorXf x = li_old->lhat;
             Eigen::MatrixXf P = li_old->lCov;
             Eigen::MatrixXf H = Hl;
@@ -974,12 +977,9 @@ void Particle::handleExMeas(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale
             li_update->c = z_tmp->c;
             li_update->lhat = x;
             li_update->lCov = P;
+#endif
 
-            if (li_update->lhat != li_update->lhat) {
-                cout << "landmark update NaN err, ID: " << z_tmp->c << endl;
-            }
-
-            /*
+#if !USE_NUMERICAL_STABILIZED_KALMAN_FILTERS
             Eigen::MatrixXf Zk;
             Zk = z_tmp->getzCov() + Hl*li_old->lCov*Hl.transpose(); // (3.35)
             Eigen::MatrixXf Kk;
@@ -987,13 +987,18 @@ void Particle::handleExMeas(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale
 
             landmark* li_update = new landmark;
             li_update->c = z_tmp->c;
-            li_update->lhat = li_old->lhat + Kk*(z_tmp->z - z_hat); // (3.37)
-
-            cout << "Correct landmark lhat: " << li_old->lhat << endl;
+            li_update->lhat = li_old->lhat + Kk*(z_tmp->z - z_hat); // (3.37)            
 
             Eigen::MatrixXf tmpMatrix;
             tmpMatrix = Kk*Hl;
             li_update->lCov = (Eigen::MatrixXf::Identity(tmpMatrix.rows(),tmpMatrix.cols())-tmpMatrix)*li_old->lCov;// (3.38)*/
+#endif
+
+            //cout << "Correct landmark lhat: " << li_old->lhat << endl;
+
+            if (li_update->lhat != li_update->lhat) {
+                cout << "landmark update NaN err, ID: " << z_tmp->c << endl;
+            }
 
             map->correctLandmark(li_update);
         }
@@ -1034,8 +1039,6 @@ VectorChiFastSLAMf Particle::drawSampleFromProposaleDistribution(VectorChiFastSL
     //cout << "D10" << endl;
 
     VectorChiFastSLAMf s_bar = motionModel(*s_old,u,Ts);
-
-
     //cout << endl << "s_bar" << endl << s_bar << endl;
 
     MatrixChiFastSLAMf sCov_proposale= sCov; // eq (3.28)
@@ -1069,26 +1072,31 @@ VectorChiFastSLAMf Particle::drawSampleFromProposaleDistribution(VectorChiFastSL
 */
             Zki = zCov_tmp + Hli*(li_old->lCov)*Hli.transpose();
 
-
-            // Rk = Zki
-            // Hk = Hsi
-            // Pk = sCov_proposale
-            Eigen::MatrixXf Kk;
-            Kk = sCov_proposale*Hsi.transpose() * (Hsi*sCov_proposale*Hsi.transpose() + Zki).inverse();
-
             Eigen::VectorXf zhat;
             zhat = z_tmp->MeasurementModel(s_bar,li_old->lhat);
 
-            //cout << "i: " << i << "     z_tmp->c: " << z_tmp->c << endl;
-            //cout << "z_tmp->z: " << endl << z_tmp->z << endl << endl;
-            //cout << "li_old->lhat: " << endl << li_old->lhat << endl << endl;
-            //cout << "z_tmp->MeasurementModel: " << endl << zhat << endl << endl;
+#if !USE_NUMERICAL_STABILIZED_KALMAN_FILTERS
+            Eigen::MatrixXf Kk;
+            Kk = sCov_proposale*Hsi.transpose() * (Hsi*sCov_proposale*Hsi.transpose() + Zki).inverse();
 
-            Eigen::MatrixXf tmp;
+            sCov_proposale = (Hsi.transpose()*Zki.inverse()*Hsi + sCov_proposale.inverse()).inverse();  // eq (3.30)
+            sMean_proposale = sMean_proposale + sCov_proposale*Hsi.transpose()*Zki.inverse()*(z_tmp->z - zhat); // eq (3.31)
+
+            // Different approach with stabilizing implementation
+            //sMean_proposale = sMean_proposale + Kk*(z_tmp->z - zhat); // eq (3.31)
+            //sCov_proposale = (Eigen::MatrixXf::Identity(rows,cols) - Kk*Hsi) * sCov_proposale * (Eigen::MatrixXf::Identity(rows,cols) - Kk*Hsi).transpose() + Kk*Zki*Kk.transpose();  // eq (3.30)
+#endif
+
+#if USE_NUMERICAL_STABILIZED_KALMAN_FILTERS
+            // Rk = Zki
+            // Hk = Hsi
+            // Pk = sCov_proposale
+
+            /*Eigen::MatrixXf tmp;
             tmp = Kk * Hsi;
             int rows, cols;
             rows = tmp.rows();
-            cols = tmp.cols();
+            cols = tmp.cols();*/
 
             Eigen::VectorXf x = sMean_proposale;
             Eigen::MatrixXf P = sCov_proposale;
@@ -1096,15 +1104,12 @@ VectorChiFastSLAMf Particle::drawSampleFromProposaleDistribution(VectorChiFastSL
             Eigen::MatrixXf R = Zki;
             Eigen::MatrixXf H = Hsi;
 
-            KF_cholesky_update(x, P, v, R, H);
+            KF_cholesky_update(x, P, v, R, H);            
 
-            //sCov_proposale = (Hsi.transpose()*Zki.inverse()*Hsi + sCov_proposale.inverse()).inverse();  // eq (3.30)
-            //sMean_proposale = sMean_proposale + sCov_proposale*Hsi.transpose()*Zki.inverse()*(z_tmp->z - zhat); // eq (3.31)
-            sMean_proposale = sMean_proposale + Kk*(z_tmp->z - zhat); // eq (3.31)
-            sCov_proposale = (Eigen::MatrixXf::Identity(rows,cols) - Kk*Hsi) * sCov_proposale * (Eigen::MatrixXf::Identity(rows,cols) - Kk*Hsi).transpose() + Kk*Zki*Kk.transpose();  // eq (3.30)
-            //cout << endl << "--sCov_proposale (method 1)" << endl << sCov_proposale << endl;
+            sMean_proposale = x;
+            sCov_proposale = P;
 
-            // ==== Implementation according to  https://github.com/bushuhui/fastslam/blob/master/src/fastslam_2.cpp#L575-L577
+            /*// ==== Implementation according to  https://github.com/bushuhui/fastslam/blob/master/src/fastslam_2.cpp#L575-L577
             Eigen::VectorXf xv = sMean_proposale;
             Eigen::MatrixXf Pv = sCov_proposale;
 
@@ -1122,17 +1127,23 @@ VectorChiFastSLAMf Particle::drawSampleFromProposaleDistribution(VectorChiFastSL
 
             //proposal mean
             xv = xv + Pv * Hvi.transpose() * Sfi *vi;
+            // =================*/
 
-            // =================
-
+            //cout << endl << "--sCov_proposale (method 1)" << endl << sCov_proposale << endl;
             //cout << endl << "--sCov_proposale (method 2)" << endl << Pv << endl;
             //cout << endl << "--sCov_proposale (method 3)" << endl << P << endl;
-            sMean_proposale = x;
-            sCov_proposale = P;
+#endif
+
+            //cout << "i: " << i << "     z_tmp->c: " << z_tmp->c << endl;
+            //cout << "z_tmp->z: " << endl << z_tmp->z << endl << endl;
+            //cout << "li_old->lhat: " << endl << li_old->lhat << endl << endl;
+            //cout << "z_tmp->MeasurementModel: " << endl << zhat << endl << endl;
 
             if (sCov_proposale(0,0) != sCov_proposale(0,0)) {
                 cout << "sCov NaN err" << endl;
             }
+
+
         }
     }
 
