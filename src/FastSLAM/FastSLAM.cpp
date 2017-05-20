@@ -129,10 +129,10 @@ Eigen::MatrixXf GOTMeasurement::zCov = 0.05*Eigen::Matrix3f::Identity(); // stat
 
 
 /* ############################## Defines ImgMeasurement class ##############################  */
-float ImgMeasurement::ax = 308.92944335938; // also known as fx
-float ImgMeasurement::ay = 311.72131347656; // also known as fy
-float ImgMeasurement::x0 = 160.68548583984; // also known as ppx
-float ImgMeasurement::y0 = 126.8815536499; // also known as ppy
+float ImgMeasurement::ax = 0; // also known as fx
+float ImgMeasurement::ay = 0; // also known as fy
+float ImgMeasurement::x0 = 0; // also known as ppx
+float ImgMeasurement::y0 = 0; // also known as ppy
 /*ImgMeasurement::ImgMeasurement(unsigned int i, Eigen::Vector3f img_meas){
     pitch = 0;
     roll = 0;
@@ -1433,6 +1433,15 @@ VectorChiFastSLAMf Particle::motionModel(VectorChiFastSLAMf sold, VectorUFastSLA
     return s_k;
 }
 
+
+// Motion model Jacobian relative to pose - is only used in drawSampleFromProposaleDistributionNEW
+MatrixChiFastSLAMf Particle::calculateFs(VectorChiFastSLAMf *s_k_old){
+    return MatrixChiFastSLAMf::Identity();
+}
+
+MatrixChiFastSLAMf Particle::calculateFu(VectorChiFastSLAMf *s_k_old){
+    return MatrixChiFastSLAMf::Identity();
+}
 
 void Particle::calculateImportanceWeight(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale){
     Eigen::MatrixXf wCov_i;
