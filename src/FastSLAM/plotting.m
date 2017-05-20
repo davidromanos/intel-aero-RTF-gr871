@@ -1,9 +1,9 @@
 close all
 clear all
 %%
-run('/home/malte/catkin_ws/Data/t_524.m')
+run('/home/malte/catkin_ws/Data/t_454.m')
 
-t = t524;
+t = t454;
 %%
 figure
 xlabel('x')

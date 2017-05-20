@@ -1104,7 +1104,12 @@ VectorChiFastSLAMf Particle::drawSampleFromProposaleDistribution(VectorChiFastSL
             Eigen::MatrixXf R = Zki;
             Eigen::MatrixXf H = Hsi;
 
-            KF_cholesky_update(x, P, v, R, H);            
+            cout << "################## proposale ##################" << endl;
+            cout << "z: " << endl << z_tmp->z << endl << endl;
+            cout << "z_hat: " << endl << zhat << endl << endl;
+            cout << "error: " << endl << v << endl << endl;
+
+            KF_cholesky_update(x, P, v, R, H);
 
             sMean_proposale = x;
             sCov_proposale = P;
@@ -1454,6 +1459,12 @@ void Particle::calculateImportanceWeight(MeasurementSet* z_Ex, VectorChiFastSLAM
             Eigen::VectorXf z_diff;
             z_diff = z_tmp->z - zhat;
             //cout << "z" << endl << z_tmp->z << endl;
+
+            cout << "################## importance weight ##################" << endl;
+            cout << "z: " << endl << z_tmp->z << endl << endl;
+            cout << "z_hat: " << endl << zhat << endl << endl;
+            cout << "error: " << endl << z_diff << endl << endl;
+
 
             wCov_i = Hsi*sCov*Hsi.transpose() + Hli*li_old->lCov*Hli.transpose() + z_tmp->getzCov(); // (3.45)
 //            cout << "imp wCov_i: " << wCov_i << endl;

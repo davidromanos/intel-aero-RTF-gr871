@@ -25,12 +25,6 @@ tFastSLAM = t.meanPath.Ts(:);
 
 %% Plot drone positions and orientations
 figure(1);
-plot3(pos(:,1), pos(:,2), pos(:,3));
-grid;
-hold on;
-
-%%
-figure
 xlabel('x')
 ylabel('y')
 zlabel('z')
@@ -38,6 +32,11 @@ zlabel('z')
 %ylim([-3,3]) 
 %zlim([-3,3]) 
 grid
+plot3(pos(:,1), pos(:,2), pos(:,3));
+grid;
+hold on;
+
+
 %
 for i = 1%:length(t.Particles)
     hold on 
@@ -57,7 +56,7 @@ hold on
 x = t.meanPath.Path(1,:);
 y = t.meanPath.Path(2,:);
 z = t.meanPath.Path(3,:);
-c = tFastSLAM;
+c = t.meanPath.Ts(:);
 
 cmap = colormap;
 % change c into an index into the colormap
@@ -65,14 +64,13 @@ cmap = colormap;
 c = round(1+(size(cmap,1)-1)*(c - min(c))/(max(c)-min(c)));
 % make a blank plot
 plot3(x,y,z,'linestyle','none')
+
+clear line
 % add line segments
 for k = 1:(length(x)-1)
     line(x(k:k+1),y(k:k+1),z(k:k+1),'color',cmap(c(k),:),'Linewidth',2)
 end
-
-
-
-
-scatter3(x, y, z, 10, tFastSLAM, '*');
+%%
+%%scatter3(x, y, z, 10, tFastSLAM, '*');
 hold off;
 axis equal;
