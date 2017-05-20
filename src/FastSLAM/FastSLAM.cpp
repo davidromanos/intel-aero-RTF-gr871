@@ -1168,10 +1168,7 @@ VectorChiFastSLAMf Particle::drawSampleFromProposaleDistribution(VectorChiFastSL
 }
 
 
-// Motion model Jacobian relative to pose - is only used in drawSampleFromProposaleDistributionNEW
-MatrixChiFastSLAMf Particle::calculateFs(VectorChiFastSLAMf *s_k_minor_1){
-    return MatrixChiFastSLAMf::Identity();
-}
+
 
 // drawSampleFromProposaleDistributionNEW keeps track of individual Kalman filters for the pose estimate and pose covariance of each individual particle
 VectorChiFastSLAMf Particle::drawSampleFromProposaleDistributionNEW(VectorChiFastSLAMf* s_old, VectorUFastSLAMf* u,MeasurementSet* z_Ex, float Ts)
