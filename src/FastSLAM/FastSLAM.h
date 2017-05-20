@@ -250,6 +250,7 @@ public:
     void updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New, VectorUFastSLAMf* u, unsigned int k, float Ts);
     double getWeigth();
     void saveData(std::string filename,std::vector<unsigned int> LandmarksToSave);
+    void handleNewMeas(MeasurementSet* z_New, VectorChiFastSLAMf s_proposale); // only moved up here to allow new landmarks to be added by Particle Set function
 
 private:
     /* variables */
@@ -258,8 +259,7 @@ private:
     VectorChiFastSLAMf drawSampleFromProposaleDistribution(VectorChiFastSLAMf* s_old, VectorUFastSLAMf* u, MeasurementSet* z_Ex, float Ts);
     VectorChiFastSLAMf drawSampleFromProposaleDistributionNEW(VectorChiFastSLAMf* s_old, VectorUFastSLAMf* u,MeasurementSet* z_Ex, float Ts);
     VectorChiFastSLAMf motionModel(VectorChiFastSLAMf sold, VectorUFastSLAMf* u, float Ts);
-    void handleExMeas(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale);
-    void handleNewMeas(MeasurementSet* z_New, VectorChiFastSLAMf s_proposale);
+    void handleExMeas(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale);    
     void updateLandmarkEstimates(VectorChiFastSLAMf s_proposale, MeasurementSet* z_Ex, MeasurementSet* z_New);
     VectorChiFastSLAMf drawSampleRandomPose(VectorChiFastSLAMf sMean_proposale, MatrixChiFastSLAMf sCov_proposale);
     void calculateImportanceWeight(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale);

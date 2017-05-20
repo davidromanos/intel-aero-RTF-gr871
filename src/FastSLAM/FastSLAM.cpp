@@ -25,6 +25,7 @@
 #include <boost/filesystem.hpp>
 
 #define USE_NUMERICAL_STABILIZED_KALMAN_FILTERS 0
+#define ADD_LANDMARKS_AFTER_RESAMPLING 0
 
 using namespace std;
 
@@ -943,7 +944,9 @@ void Particle::updateLandmarkEstimates(VectorChiFastSLAMf s_proposale, Measureme
 
     handleExMeas(z_Ex,s_proposale);
 
+#if !ADD_LANDMARKS_AFTER_RESAMPLING
     handleNewMeas(z_New,s_proposale);
+#endif
 
     //cout << "N_landmarks in map after update: " << map->N_Landmarks << endl;
 }
@@ -1614,6 +1617,12 @@ void ParticleSet::updateParticleSet(MeasurementSet* z, VectorUFastSLAMf u, float
     estimateDistribution(Ts);
 
     resample();
+
+#if ADD_LANDMARKS_AFTER_RESAMPLING
+    for(int i = 1; i<=nParticles;i++){
+        ((Particle*)Parray[i])->handleNewMeas(&z_New,*(((Particle*)Parray[i])->s->getPose()));
+    }
+#endif
 
 }
 

@@ -680,27 +680,57 @@ void ProcessRGBDimage(MeasurementSet * MeasSet)
             int dispX,dispY;
             vector<cv::Point2f> MarkerPoints;
             cv::Vec3f MarkerMeas; // cameraX, cameraY, worldZ (depth)
+            float DepthMean;
+            int ValuesAddedToMeanCount;
+            signed int meanX, meanY;
             Eigen::Vector3f MarkerMeas_;
             ImgMeasurement* z_img;
-            for (int i = 0; i < markerCorners.size(); i++) {
-                MarkerPoints = markerCorners[i];
-                cv::Point2f point = MarkerPoints[0];
-                MarkerMeas = registered_depth2.at<cv::Vec3f>(point.y, point.x);
-                MarkerMeas_(0) = MarkerMeas[0]; // conversion from CV vector to Eigen vector
-                MarkerMeas_(1) = MarkerMeas[1];
-                MarkerMeas_(2) = MarkerMeas[2];
 
-                if (MarkerMeas[2] > 0) {
-                    dispX = point.x;
-                    dispY = point.y;
+            for (int i = 0; i < markerCorners.size(); i++) {
+                ValuesAddedToMeanCount = 0;
+                DepthMean = 0.f;
+                MarkerPoints = markerCorners[i];
+                cv::Point2f point = MarkerPoints[0];                
+                // Get mean depth
+                for (meanY = -1; meanY <= 1; meanY++) {
+                    for (meanX = -1; meanX <= 1; meanX++) {
+                        if ((point.x+meanX >= 0 && point.x+meanX < rgb_intrin.width) && (point.y+meanY >= 0 && point.y+meanY < rgb_intrin.height)) {
+                            MarkerMeas = registered_depth2.at<cv::Vec3f>(point.y+meanY, point.x+meanX);
+                            //cout << MarkerMeas[2] << " ";
+                            if (MarkerMeas[2] > 0) {
+                                DepthMean += MarkerMeas[2];
+                                ValuesAddedToMeanCount++;
+                            }
+                        }
+                    }
+                }
+                //cout << endl;
+
+                if (ValuesAddedToMeanCount > 0) {
+                    DepthMean = DepthMean / (float)ValuesAddedToMeanCount;
+                }
+
+                if (DepthMean > 0) {
+                    MarkerMeas = registered_depth2.at<cv::Vec3f>(point.y, point.x);
+                    //cout << "Depth: " << MarkerMeas[2] << " - Mean: " << DepthMean << endl;
+                    MarkerMeas[2] = DepthMean;
+                /*MarkerMeas = registered_depth2.at<cv::Vec3f>(point.y, point.x);
+                if (MarkerMeas[2] > 0) {*/
+
+                    MarkerMeas_(0) = MarkerMeas[0];
+                    MarkerMeas_(1) = MarkerMeas[1];
+                    MarkerMeas_(2) = MarkerMeas[2];
 
                     ID = (unsigned int)markerIds[i] + 1; // make sure ID go from 1 and up
 
-                    cv::Vec3f World = GetWorldCoordinateFromMeasurement(MarkerMeas);
 //                    ROS_INFO("Marker ID %u at (%f, %f, %f)", ID, MarkerMeas_(0), MarkerMeas_(1), MarkerMeas_(2));
 
                     z_img = new ImgMeasurement(ID, MarkerMeas_, MocapPose(3), MocapPose(4)); // ID, Marker measurements and include current/latest raw Roll and Pitch measurement (in this case directly from Mocap instead of from the estimator)
                     MeasSet->addMeasurement(z_img);
+
+                    dispX = point.x;
+                    dispY = point.y;
+                    cv::Vec3f World = GetWorldCoordinateFromMeasurement(MarkerMeas);
 
                     sprintf(str, "X=%1.3f", World[0]);
                     cv::putText(blended, str, cv::Point(dispX+4, dispY-12+4), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255)); // see http://answers.opencv.org/question/6544/how-can-i-display-timer-results-with-a-c-puttext-command/
@@ -806,9 +836,9 @@ int main(int argc, char **argv)
 
     float GOT_loss_time[2];
     GOT_loss_time[0] = Config[6][0]; // start
-    GOT_loss_time[1] = Config[6][1]; // duration
+    GOT_loss_time[1] = Config[6][1]; // end
     cout << "Config.GOT.LossStart = " << endl << GOT_loss_time[0] << endl;
-    cout << "Config.GOT.LossLength = " << endl << GOT_loss_time[1] << endl;
+    cout << "Config.GOT.LossEnd = " << endl << GOT_loss_time[1] << endl;
 
     // ==== End configuration of FastSLAM ====
 
@@ -892,7 +922,7 @@ int main(int argc, char **argv)
         //if (MeasSet.getNumberOfMeasurements() > 0 && dt.toSec() > 0) {
         if (dt.toSec() > 0) {
             cout << "Time: " << (PoseTimestamp-Time0).toSec() << endl;
-           if ( ((PoseTimestamp-Time0).toSec() < GOT_loss_time[0]) || ((PoseTimestamp-Time0).toSec() > (GOT_loss_time[0]+GOT_loss_time[1])) ) { // simulate time loss of GOT
+           if ( ((PoseTimestamp-Time0).toSec() < GOT_loss_time[0]) || ((PoseTimestamp-Time0).toSec() > (GOT_loss_time[1])) ) { // simulate time loss of GOT
                 if(!(MocapPose(0)>GOT_loss_xyz[0] && MocapPose(0)<GOT_loss_xyz[1])){  // simulate position loss of GOT
                     if(!(MocapPose(1)>GOT_loss_xyz[2] && MocapPose(1)<GOT_loss_xyz[3])){
                         if(!(MocapPose(2)>GOT_loss_xyz[4] && MocapPose(2)<GOT_loss_xyz[5])){

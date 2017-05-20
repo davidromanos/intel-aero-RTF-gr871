@@ -1,9 +1,20 @@
 close all
 clear all
-%%
-run('/home/malte/catkin_ws/Data/t_454.m')
+Data = dir('~/catkin_ws/Data/*.m');
+timestamp = 0;
+idx = 0;
+for (i = 1:length(Data))
+    if (Data(i).datenum > timestamp)
+        idx = i;
+        timestamp = Data(idx).datenum;
+    end
+end
+run(['~/catkin_ws/Data/' Data(idx).name]);
 
-t = t454;
+s1 = split(Data(idx).name, '_');
+s2 = split(s1(2), '.');
+
+t = eval(['t' char(s2(1))]);
 %%
 figure
 xlabel('x')
