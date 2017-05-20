@@ -48,17 +48,17 @@ while (~feof(intrinFile))
     line = fgetl(intrinFile);
     s = split(line, ',');
     if (length(s) == 12)
-        intrin.width = double(s(2));
-        intrin.height = double(s(3));
-        intrin.fx = double(s(4));
-        intrin.ppx = double(s(5));
-        intrin.fy = double(s(6));
-        intrin.ppy = double(s(7));
-        intrin.coeffs(1) = double(s(8));  
-        intrin.coeffs(2) = double(s(9));  
-        intrin.coeffs(3) = double(s(10));  
-        intrin.coeffs(4) = double(s(11));  
-        intrin.coeffs(5) = double(s(12));  
+        intrin.width = str2num(s{2});
+        intrin.height = str2num(s{3});
+        intrin.fx = str2num(s{4});
+        intrin.ppx = str2num(s{5});
+        intrin.fy = str2num(s{6});
+        intrin.ppy = str2num(s{7});
+        intrin.coeffs(1) = str2num(s{8});  
+        intrin.coeffs(2) = str2num(s{9});  
+        intrin.coeffs(3) = str2num(s{10});  
+        intrin.coeffs(4) = str2num(s{11});  
+        intrin.coeffs(5) = str2num(s{12});  
     end    
     if (contains(line, 'rgb'))        
         RGB = intrin;
