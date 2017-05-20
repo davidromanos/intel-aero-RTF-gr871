@@ -24,8 +24,14 @@
 #include <random>
 #include <boost/filesystem.hpp>
 
-#define USE_NUMERICAL_STABILIZED_KALMAN_FILTERS 0
-#define ADD_LANDMARKS_AFTER_RESAMPLING 0
+// Default marked in paranthesis
+#define USE_NUMERICAL_STABILIZED_KALMAN_FILTERS 0  // (0)
+#define FORCE_COVARIANCE_SYMMETRY 0                // (0)
+#define ADD_LANDMARKS_AFTER_RESAMPLING 0           // (0)
+#define SLOW_INIT 1   // (1)    // force the first 5 iterations to only handle new measurements and pose predictions (motion model) - no corrections done based on measurements
+#define USE_PROPOSAL_COVARIANCE_IN_IMPORTANCE_WEIGHT 0  // (0)
+#define RESET_PARTICLE_PROPOSAL_COVARIANCE_ALWAYS 1     // (1)
+#define ONLY_RESAMPLE_WHEN_MEASUREMENTS_ARE_AVAILABLE 0 // (0)
 
 using namespace std;
 
@@ -64,7 +70,9 @@ void KF_cholesky_update(Eigen::VectorXf &x, Eigen::MatrixXf &P, Eigen::VectorXf 
     Eigen::MatrixXf S = H*PHt + R;
 
     // FIXME: why use conjugate()?
+#if FORCE_COVARIANCE_SYMMETRY
     S = (S+S.transpose()) * 0.5; //make symmetric
+#endif
     Eigen::MatrixXf SChol = S.llt().matrixU();
     //SChol.transpose();
     //SChol.conjugate();
@@ -883,7 +891,7 @@ Particle::Particle(unsigned int GOT_ID, VectorChiFastSLAMf s0, MatrixChiFastSLAM
     s = new Path(s0,k); // makes new path!
     map = new MapTree; // makes new mapTree
     w = 1;
-    s_k_Cov = s_0_Cov;
+    s_k_Cov = s_0_Cov; // zero covariance
 
     landmark* li = new landmark;
     li->c = GOT_ID;
@@ -912,21 +920,22 @@ void Particle::updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New,VectorU
 {
     VectorChiFastSLAMf s_proposale;
 
+#if SLOW_INIT
     if (k > 5){
-
+#endif
         s_proposale = drawSampleFromProposaleDistribution(s->getPose(),u,z_Ex,Ts);
 
         s->addPose(s_proposale,k, Ts); // we are done estimating our pose and add it to the path!
 
         // OBS. In this code the importance weight is calculated differently and before the landmark corrections are done: https://github.com/bushuhui/fastslam/blob/master/src/fastslam_2.cpp#L593-L602
         if (z_Ex != NULL && z_Ex->nMeas != 0 ){
-
             calculateImportanceWeight(z_Ex,s_proposale);
+            s_k_Cov = MatrixChiFastSLAMf::Zero();
         }
 
         updateLandmarkEstimates(s_proposale,z_Ex,z_New);
 
-
+#if SLOW_INIT
     }
     else{
 
@@ -935,8 +944,8 @@ void Particle::updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New,VectorU
         s->addPose(s_proposale,k, Ts); // we are done estimating our pose and add it to the path!
 
         updateLandmarkEstimates(s_proposale,NULL,z_New);
-
     }
+#endif
 
 }
 
@@ -1044,8 +1053,16 @@ VectorChiFastSLAMf Particle::drawSampleFromProposaleDistribution(VectorChiFastSL
     VectorChiFastSLAMf s_bar = motionModel(*s_old,u,Ts);
     //cout << endl << "s_bar" << endl << s_bar << endl;
 
-    MatrixChiFastSLAMf sCov_proposale= sCov; // eq (3.28)
+    //MatrixChiFastSLAMf sCov_proposale= sCov; // eq (3.28)
     VectorChiFastSLAMf sMean_proposale = s_bar; // eq (3.29)
+
+#if RESET_PARTICLE_PROPOSAL_COVARIANCE_ALWAYS
+    s_k_Cov = MatrixChiFastSLAMf::Zero();
+#endif
+
+    MatrixChiFastSLAMf Fs = calculateFs(s_old);
+    MatrixChiFastSLAMf Fu = calculateFu(s_old);
+    MatrixChiFastSLAMf sCov_proposale = Fs.transpose()*s_k_Cov*Fs + Fu.transpose()*sCov*Fu; // sCovPrev should be reset if resampling has occured
 
     if (z_Ex != NULL){
 
@@ -1160,6 +1177,8 @@ VectorChiFastSLAMf Particle::drawSampleFromProposaleDistribution(VectorChiFastSL
     //cout << endl << "sCov_proposale" << endl << sCov_proposale << endl;
 
     VectorChiFastSLAMf s_proposale = drawSampleRandomPose(sMean_proposale, sCov_proposale);
+
+    s_k_Cov = sCov_proposale;
 
     //cout << endl << "s_proposale" << endl << s_proposale << endl;
 
@@ -1346,28 +1365,16 @@ Eigen::MatrixXf rand(int m, int n)
     return x;
 }
 
-//add random measurement noise. We assume R is diagnoal matrix
-void add_observation_noise(vector<Eigen::VectorXf> &z, Eigen::MatrixXf &R, int addnoise)
-{
-    if (addnoise == 1) {
-        unsigned long len = z.size();
-        if (len > 0) {
-            Eigen::MatrixXf randM1 = randn(1,len);
-            Eigen::MatrixXf randM2 = randn(1,len);
-
-            for (unsigned long c=0; c<len; c++) {
-                z[c][0] = z[c][0] + randM1(0,c)*sqrt(R(0,0));
-                z[c][1] = z[c][1] + randM2(0,c)*sqrt(R(1,1));
-            }
-        }
-    }
-}
-
-
 VectorChiFastSLAMf Particle::drawSampleRandomPose(VectorChiFastSLAMf sMean_proposale, MatrixChiFastSLAMf sCov_proposale)
 {
+    Eigen::MatrixXf Cov = sCov_proposale;
+
+#if FORCE_COVARIANCE_SYMMETRY
+    Cov = (Cov+Cov.transpose()) * 0.5; //make symmetric
+#endif
+
     //choleksy decomposition
-    Eigen::MatrixXf S = sCov_proposale.llt().matrixL();
+    Eigen::MatrixXf S = Cov.llt().matrixL();
     Eigen::MatrixXf X = randn(4,1);
 
     return S*X + sMean_proposale;
@@ -1442,8 +1449,8 @@ MatrixChiFastSLAMf Particle::calculateFu(VectorChiFastSLAMf *s_k_old){
 
 void Particle::calculateImportanceWeight(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale){
     Eigen::MatrixXf wCov_i;
-    double wi;
-    double w_tmp;
+    double wi = 1;
+    double w_tmp = 1;
     //cout << "imp s_proposale: " << endl << s_proposale << endl;
 
     if (z_Ex != NULL){
@@ -1469,13 +1476,16 @@ void Particle::calculateImportanceWeight(MeasurementSet* z_Ex, VectorChiFastSLAM
             z_diff = z_tmp->z - zhat;
             //cout << "z" << endl << z_tmp->z << endl;
 
-            cout << "################## importance weight ##################" << endl;
+            /*cout << "################## importance weight ##################" << endl;
             cout << "z: " << endl << z_tmp->z << endl << endl;
             cout << "z_hat: " << endl << zhat << endl << endl;
-            cout << "error: " << endl << z_diff << endl << endl;
+            cout << "error: " << endl << z_diff << endl << endl;*/
 
-
+#if USE_PROPOSAL_COVARIANCE_IN_IMPORTANCE_WEIGHT
+            wCov_i = Hsi*s_k_Cov*Hsi.transpose() + Hli*li_old->lCov*Hli.transpose() + z_tmp->getzCov(); // (3.45)
+#else
             wCov_i = Hsi*sCov*Hsi.transpose() + Hli*li_old->lCov*Hli.transpose() + z_tmp->getzCov(); // (3.45)
+#endif
 //            cout << "imp wCov_i: " << wCov_i << endl;
 
             Eigen::MatrixXf expTerm;
@@ -1622,7 +1632,13 @@ void ParticleSet::updateParticleSet(MeasurementSet* z, VectorUFastSLAMf u, float
 
     estimateDistribution(Ts);
 
+#if ONLY_RESAMPLE_WHEN_MEASUREMENTS_ARE_AVAILABLE
+    if (z_Ex.nMeas != 0 ) { // only do resampling when measurements has been processed and used for calculating new weights
+        resample();
+    }
+#else
     resample();
+#endif
 
 #if ADD_LANDMARKS_AFTER_RESAMPLING
     for(int i = 1; i<=nParticles;i++){
