@@ -30,8 +30,8 @@
 #define FORCE_COVARIANCE_SYMMETRY 1                // (0)
 #define ADD_LANDMARKS_AFTER_RESAMPLING 0           // (0)
 #define SLOW_INIT 1   // (1)    // force the first 5 iterations to only handle new measurements and pose predictions (motion model) - no corrections done based on measurements
-#define USE_PROPOSAL_COVARIANCE_IN_IMPORTANCE_WEIGHT 0  // (0)
-#define RESET_PARTICLE_PROPOSAL_COVARIANCE_ALWAYS 1     // (1)
+#define USE_PROPOSAL_COVARIANCE_IN_IMPORTANCE_WEIGHT 1  // (0)
+#define RESET_PARTICLE_PROPOSAL_COVARIANCE_ALWAYS 1     // (1)  - doesn't seem to work very well when set to 0
 #define ONLY_RESAMPLE_WHEN_MEASUREMENTS_ARE_AVAILABLE 0 // (0)
 
 using namespace std;
