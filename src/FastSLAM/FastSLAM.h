@@ -258,13 +258,13 @@ private:
     /* functions */
     VectorChiFastSLAMf drawSampleFromProposaleDistribution(VectorChiFastSLAMf* s_old, VectorUFastSLAMf* u, MeasurementSet* z_Ex, float Ts);
     VectorChiFastSLAMf drawSampleFromProposaleDistributionNEW(VectorChiFastSLAMf* s_old, VectorUFastSLAMf* u,MeasurementSet* z_Ex, float Ts);
-    VectorChiFastSLAMf motionModel(VectorChiFastSLAMf sold, VectorUFastSLAMf* u, float Ts);
+    VectorChiFastSLAMf motionModel(VectorChiFastSLAMf* sold, VectorUFastSLAMf* u, float Ts);
     void handleExMeas(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale);    
     void updateLandmarkEstimates(VectorChiFastSLAMf s_proposale, MeasurementSet* z_Ex, MeasurementSet* z_New);
     VectorChiFastSLAMf drawSampleRandomPose(VectorChiFastSLAMf sMean_proposale, MatrixChiFastSLAMf sCov_proposale);
     void calculateImportanceWeight(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale);
-    MatrixChiFastSLAMf calculateFs(VectorChiFastSLAMf *s_k_old);
-    MatrixChiFastSLAMf calculateFu(VectorChiFastSLAMf *s_k_old);
+    MatrixChiFastSLAMf calculateFs(VectorChiFastSLAMf *s_k_old, VectorUFastSLAMf* u, float Ts);
+    MatrixChiFastSLAMf calculateFw(VectorChiFastSLAMf *s_k_old, VectorUFastSLAMf* u, float Ts);
 };
 
 

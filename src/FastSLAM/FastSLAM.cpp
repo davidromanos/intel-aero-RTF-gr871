@@ -25,6 +25,7 @@
 #include <boost/filesystem.hpp>
 
 // Default marked in paranthesis
+#define USE_MOTION_MODEL_JACOBIAN   1              // (1)
 #define USE_NUMERICAL_STABILIZED_KALMAN_FILTERS 0  // (0)
 #define FORCE_COVARIANCE_SYMMETRY 1                // (0)
 #define ADD_LANDMARKS_AFTER_RESAMPLING 0           // (0)
@@ -1058,7 +1059,7 @@ VectorChiFastSLAMf Particle::drawSampleFromProposaleDistribution(VectorChiFastSL
 {
     //cout << "D10" << endl;
 
-    VectorChiFastSLAMf s_bar = motionModel(*s_old,u,Ts);
+    VectorChiFastSLAMf s_bar = motionModel(s_old,u,Ts);
     //cout << endl << "s_bar" << endl << s_bar << endl;
 
     //MatrixChiFastSLAMf sCov_proposale= sCov; // eq (3.28)
@@ -1068,9 +1069,14 @@ VectorChiFastSLAMf Particle::drawSampleFromProposaleDistribution(VectorChiFastSL
     s_k_Cov = MatrixChiFastSLAMf::Zero();
 #endif
 
-    MatrixChiFastSLAMf Fs = calculateFs(s_old);
-    MatrixChiFastSLAMf Fu = calculateFu(s_old);
-    MatrixChiFastSLAMf sCov_proposale = Fs.transpose()*s_k_Cov*Fs + Fu.transpose()*sCov*Fu; // sCovPrev should be reset if resampling has occured
+#if USE_MOTION_MODEL_JACOBIAN
+    MatrixChiFastSLAMf Fs = calculateFs(s_old,u,Ts);
+    MatrixChiFastSLAMf Fw = calculateFw(s_old,u,Ts);
+#else
+    MatrixChiFastSLAMf Fs = MatrixChiFastSLAMf::Zero();
+    MatrixChiFastSLAMf Fw = MatrixChiFastSLAMf::Identity();
+#endif
+    MatrixChiFastSLAMf sCov_proposale = Fs.transpose()*s_k_Cov*Fs + Fw.transpose()*sCov*Fw; // sCovPrev should be reset if resampling has occured
 
     if (z_Ex != NULL){
 
@@ -1209,9 +1215,9 @@ VectorChiFastSLAMf Particle::drawSampleFromProposaleDistributionNEW(VectorChiFas
     VectorChiFastSLAMf wk = drawSampleRandomPose(VectorChiFastSLAMf::Zero(), sCov); // draw random noise
 
     // prediction step
-    VectorChiFastSLAMf s_bar = motionModel(*s_old,u,Ts) + wk;
+    VectorChiFastSLAMf s_bar = motionModel(s_old,u,Ts) + wk;
 
-    MatrixChiFastSLAMf Fs = calculateFs(s_old);
+    MatrixChiFastSLAMf Fs = calculateFs(s_old,u,Ts);
     MatrixChiFastSLAMf sCov_proposale =  Fs.transpose()*s_k_Cov*Fs + sCov;
 
     //MatrixChiFastSLAMf << endl << "s_bar" << endl << s_bar << endl;
@@ -1418,9 +1424,9 @@ VectorChiFastSLAMf Particle::drawSampleRandomPose(VectorChiFastSLAMf sMean_propo
     //return sMean_proposale;// + 0.000001*VectorChiFastSLAMf::Random();
 }*/
 
-VectorChiFastSLAMf Particle::motionModel(VectorChiFastSLAMf sold, VectorUFastSLAMf* u, float Ts) // Ts == sample time
+VectorChiFastSLAMf Particle::motionModel(VectorChiFastSLAMf* sold, VectorUFastSLAMf* u, float Ts) // Ts == sample time
 {
-    VectorChiFastSLAMf s_k = sold; // s(k) = f(s(k-1),u(k))
+    VectorChiFastSLAMf s_k = (*sold); // s(k) = f(s(k-1),u(k))
 
     if (Ts > 3) {
         cout << "Motion model: Sample rate error" << endl;
@@ -1435,8 +1441,8 @@ VectorChiFastSLAMf Particle::motionModel(VectorChiFastSLAMf sold, VectorUFastSLA
     // R = [cos(psi)  -sin(psi);        % For rotation from drone velocity into world velocity
     //      sin(psi) cos(psi)]
     // WorldVel = R * DroneVel
-    s_k(0) = s_k(0) + Ts * (cos(sold(3))* (*u)(0) - sin(sold(3))* (*u)(1));
-    s_k(1) = s_k(1) + Ts * (sin(sold(3))* (*u)(0) + cos(sold(3))* (*u)(1));
+    s_k(0) = s_k(0) + Ts * (cos((*sold)(3))* (*u)(0) - sin((*sold)(3))* (*u)(1));
+    s_k(1) = s_k(1) + Ts * (sin((*sold)(3))* (*u)(0) + cos((*sold)(3))* (*u)(1));
 
     s_k(2) = s_k(2) + Ts * (*u)(2); // add integrated zdot contribution
 
@@ -1452,12 +1458,22 @@ VectorChiFastSLAMf Particle::motionModel(VectorChiFastSLAMf sold, VectorUFastSLA
 
 
 // Motion model Jacobian relative to pose - is only used in drawSampleFromProposaleDistributionNEW
-MatrixChiFastSLAMf Particle::calculateFs(VectorChiFastSLAMf *s_k_old){
-    return MatrixChiFastSLAMf::Identity();
+MatrixChiFastSLAMf Particle::calculateFs(VectorChiFastSLAMf *s_k_old, VectorUFastSLAMf* u, float Ts) { // Maybe this u has to be u_old ?
+    MatrixChiFastSLAMf Fs = MatrixChiFastSLAMf::Identity();
+    Fs(0,3) = Ts * (-sin((*s_k_old)(3))* (*u)(0) - cos((*s_k_old)(3))* (*u)(1));
+    Fs(1,3) = Ts * (cos((*s_k_old)(3))* (*u)(0) - sin((*s_k_old)(3))* (*u)(1));
+    return Fs;
 }
 
-MatrixChiFastSLAMf Particle::calculateFu(VectorChiFastSLAMf *s_k_old){
-    return MatrixChiFastSLAMf::Identity();
+MatrixChiFastSLAMf Particle::calculateFw(VectorChiFastSLAMf *s_k_old, VectorUFastSLAMf* u, float Ts) {
+    MatrixChiFastSLAMf Fw = MatrixChiFastSLAMf::Zero();
+    Fw(0,0) = Ts * cos((*s_k_old)(3));
+    Fw(0,1) = -Ts * sin((*s_k_old)(3));
+    Fw(1,0) = Ts * sin((*s_k_old)(3));
+    Fw(1,1) = Ts * cos((*s_k_old)(3));
+    Fw(2,2) = Ts;
+    Fw(3,3) = 1;
+    return Fw;
 }
 
 void Particle::calculateImportanceWeight(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale){
