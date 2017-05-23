@@ -5,7 +5,7 @@
 // File: ekf_types.h
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 23-May-2017 09:55:53
+// C/C++ source code generated on  : 23-May-2017 11:16:32
 //
 #ifndef EKF_TYPES_H
 #define EKF_TYPES_H

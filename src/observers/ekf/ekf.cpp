@@ -5,7 +5,7 @@
 // File: ekf.cpp
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 23-May-2017 09:55:53
+// C/C++ source code generated on  : 23-May-2017 11:16:32
 //
 
 // Include Files
@@ -200,10 +200,10 @@ void ekf(unsigned char fastslam_on, const double fastslam[4], const double C_fs
   cov[320] = 0.01;
 
   //  z bias
-  cov[340] = 1.0E-5;
+  cov[340] = 1.0E-6;
 
   //  pitch bias
-  cov[360] = 1.0E-5;
+  cov[360] = 1.0E-6;
 
   // roll bias
   //

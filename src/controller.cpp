@@ -325,10 +325,10 @@ void stateFeedbackController::update(double setpoint[],double *meas)
     std::vector<double>tmp;
 
     tmp = Kx.multiplyVector(Xstates);
-    output[0] = tmp[0];
+    output[0] = tmp[0] +meas[17];
 
     tmp = Ky.multiplyVector(Ystates);
-    output[1] =tmp[0];
+    output[1] =tmp[0]+meas[18];
 
     if(std::isnan(output[0]) == 1){output[0] = 0;}
     if(std::isnan(output[1]) == 1){output[1] = 0;}
@@ -603,8 +603,8 @@ int main(int argc, char **argv)
         m.getRPY(imuRoll,imuPitch,imuYaw);
         //std::cout << "Roll: " << roll << ", Pitch: " << pitch << ", Yaw: " << yaw << std::endl;
 
-        savecopy(&PX4Meas[0],&imuRoll);
-        savecopy(&PX4Meas[1],&imuPitch);
+        savecopy(&PX4Meas[0],&imuPitch);
+        savecopy(&PX4Meas[1],&imuRoll);
         savecopy(&PX4Meas[2],&imuYaw);
 
         savecopy(&fastslamMeas[0],&position.pose.position.x);
@@ -619,7 +619,8 @@ int main(int argc, char **argv)
         if(current_state.mode == "OFFBOARD" && current_state.armed)
         {
 
-            ekf(1,fastslamMeas,covariansfastslam,PX4Meas,xyController.output[1],xyController.output[0],yawRef,zcontroller.thrust[0],estimatedStates,covariansVelocities,&VarYaw);
+            ekf(1,fastslamMeas,covariansfastslam,PX4Meas,xyController.output[1]-estimatedStates[18]*1,xyController.output[0]-estimatedStates[17]*1,yawRef,zcontroller.thrust[0],estimatedStates,covariansVelocities,&VarYaw);
+            //ekf(1,fastslamMeas,covariansfastslam,PX4Meas,0,0,yawRef,zcontroller.thrust[0],estimatedStates,covariansVelocities,&VarYaw);
             xyController.update(setpoints,estimatedStates);
 
 
@@ -669,7 +670,7 @@ int main(int argc, char **argv)
             }
 
 
-            q1.setRPY(xyController.output[1]-estimatedStates[18],xyController.output[0]-estimatedStates[17],yawRef);
+            q1.setRPY(xyController.output[1]+estimatedStates[18]*0,xyController.output[0]+estimatedStates[17]*0,yawRef);
 
             thrustInput.data = zcontroller.update(setpoints[2],estimatedStates);
         }
@@ -730,7 +731,7 @@ int main(int argc, char **argv)
         thrust_pub.publish(thrustInput);
 
         //logToFile("/home/joan/flightlog.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,yawRef,estimatedStates[16],estimatedStates[17],estimatedStates[18]);
-        logToFile("/home/chris/Dropbox/P8 (CA2)/Controller/logs/reportxylog3.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,yawRef,estimatedStates[16],estimatedStates[17],estimatedStates[18]);
+        logToFile("/home/chris/Dropbox/P8 (CA2)/Controller/logs/reportxylog8.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,yawRef,estimatedStates[16],estimatedStates[17],estimatedStates[18]);
         last_request1 = ros::Time::now();
         ros::spinOnce();
         rate.sleep();

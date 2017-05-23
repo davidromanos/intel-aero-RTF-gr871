@@ -5,7 +5,7 @@
  * File: _coder_ekf_api.h
  *
  * MATLAB Coder version            : 3.3
- * C/C++ source code generated on  : 23-May-2017 09:55:53
+ * C/C++ source code generated on  : 23-May-2017 11:16:32
  */
 
 #ifndef _CODER_EKF_API_H
