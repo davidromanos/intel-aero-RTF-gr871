@@ -5,7 +5,7 @@
  * File: _coder_ekf_api.c
  *
  * MATLAB Coder version            : 3.3
- * C/C++ source code generated on  : 16-May-2017 14:57:32
+ * C/C++ source code generated on  : 23-May-2017 09:55:53
  */
 
 /* Include Files */
@@ -360,11 +360,11 @@ static real_T (*n_emlrt_marshallIn(const mxArray *src, const emlrtMsgIdentifier 
 }
 
 /*
- * Arguments    : const mxArray *prhs[8]
+ * Arguments    : const mxArray * const prhs[8]
  *                const mxArray *plhs[3]
  * Return Type  : void
  */
-void ekf_api(const mxArray *prhs[8], const mxArray *plhs[3])
+void ekf_api(const mxArray * const prhs[8], const mxArray *plhs[3])
 {
   real_T (*est)[19];
   real_T (*Pout)[9];
@@ -379,17 +379,20 @@ void ekf_api(const mxArray *prhs[8], const mxArray *plhs[3])
   real_T VarYaw;
   est = (real_T (*)[19])mxMalloc(sizeof(real_T [19]));
   Pout = (real_T (*)[9])mxMalloc(sizeof(real_T [9]));
-  prhs[2] = emlrtProtectR2012b(prhs[2], 2, false, -1);
 
   /* Marshall function inputs */
-  fastslam_on = emlrt_marshallIn(emlrtAliasP(prhs[0]), "fastslam_on");
-  fastslam = c_emlrt_marshallIn(emlrtAlias(prhs[1]), "fastslam");
-  C_fs = e_emlrt_marshallIn(emlrtAlias(prhs[2]), "C_fs");
-  PX4 = g_emlrt_marshallIn(emlrtAlias(prhs[3]), "PX4");
-  roll_ref = i_emlrt_marshallIn(emlrtAliasP(prhs[4]), "roll_ref");
-  pitch_ref = i_emlrt_marshallIn(emlrtAliasP(prhs[5]), "pitch_ref");
-  yaw_ref = i_emlrt_marshallIn(emlrtAliasP(prhs[6]), "yaw_ref");
-  thrust_ref = i_emlrt_marshallIn(emlrtAliasP(prhs[7]), "thrust_ref");
+  fastslam_on = emlrt_marshallIn(emlrtAliasP((const mxArray *)prhs[0]),
+    "fastslam_on");
+  fastslam = c_emlrt_marshallIn(emlrtAlias((const mxArray *)prhs[1]), "fastslam");
+  C_fs = e_emlrt_marshallIn(emlrtAlias((const mxArray *)prhs[2]), "C_fs");
+  PX4 = g_emlrt_marshallIn(emlrtAlias((const mxArray *)prhs[3]), "PX4");
+  roll_ref = i_emlrt_marshallIn(emlrtAliasP((const mxArray *)prhs[4]),
+    "roll_ref");
+  pitch_ref = i_emlrt_marshallIn(emlrtAliasP((const mxArray *)prhs[5]),
+    "pitch_ref");
+  yaw_ref = i_emlrt_marshallIn(emlrtAliasP((const mxArray *)prhs[6]), "yaw_ref");
+  thrust_ref = i_emlrt_marshallIn(emlrtAliasP((const mxArray *)prhs[7]),
+    "thrust_ref");
 
   /* Invoke the target function */
   ekf(fastslam_on, *fastslam, *C_fs, *PX4, roll_ref, pitch_ref, yaw_ref,

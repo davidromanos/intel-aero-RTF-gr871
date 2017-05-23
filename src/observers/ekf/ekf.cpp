@@ -5,7 +5,7 @@
 // File: ekf.cpp
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 16-May-2017 14:57:32
+// C/C++ source code generated on  : 23-May-2017 09:55:53
 //
 
 // Include Files
@@ -29,7 +29,7 @@ static double P[361];
 // function est = ekf(fastslam_on, fastslam, C_fs, PX4, roll_ref, pitch_ref, yaw_ref, thrust_ref)
 // Arguments    : unsigned char fastslam_on
 //                const double fastslam[4]
-//                double C_fs[16]
+//                const double C_fs[16]
 //                const double PX4[3]
 //                double roll_ref
 //                double pitch_ref
@@ -40,9 +40,10 @@ static double P[361];
 //                double *VarYaw
 // Return Type  : void
 //
-void ekf(unsigned char fastslam_on, const double fastslam[4], double C_fs[16],
-         const double PX4[3], double roll_ref, double pitch_ref, double yaw_ref,
-         double thrust_ref, double est[19], double Pout[9], double *VarYaw)
+void ekf(unsigned char fastslam_on, const double fastslam[4], const double C_fs
+         [16], const double PX4[3], double roll_ref, double pitch_ref, double
+         yaw_ref, double thrust_ref, double est[19], double Pout[9], double
+         *VarYaw)
 {
   double b_refState;
   double b_refOldinput;
@@ -50,35 +51,38 @@ void ekf(unsigned char fastslam_on, const double fastslam[4], double C_fs[16],
   double H_PX4[57];
   int i0;
   double cov[361];
-  static const signed char iv0[361] = { 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 2 };
-
-  signed char C_PX4[9];
-  static const signed char iv1[9] = { 1, 0, 0, 0, 1, 0, 0, 0, 1 };
+  static const signed char iv0[361] = { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 1 };
 
   int meas_size_idx_0;
+  double h_fs[76];
+  double R_data[49];
+  static const double C_PX4[9] = { 0.01, 0.0, 0.0, 0.0, 0.01, 0.0, 0.0, 0.0,
+    0.01 };
+
   double meas_data[7];
   int H_size_idx_0;
-  double R_data[49];
+  int h_size_idx_0;
   double H_data[133];
-  double b_fastslam[7];
+  double h_data[133];
   double b_pitch_ref[4];
+  double b_fastslam[7];
+  double a[19];
   int c;
   double b_C_fs[49];
-  double a[19];
   double b_a[19];
   static const double c_a[361] = { 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
@@ -115,11 +119,14 @@ void ekf(unsigned char fastslam_on, const double fastslam[4], double C_fs[16],
     0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
     0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0 };
 
+  static const double dv0[21] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.01, 0.0, 0.0, 0.0, 0.01, 0.0, 0.0, 0.0, 0.01 };
+
   int br;
   int ic;
-  double b_H_fs[133];
   double e_a[361];
   int k;
+  double b_H_fs[133];
   int ar;
   int ib;
   double P_p[361];
@@ -151,12 +158,13 @@ void ekf(unsigned char fastslam_on, const double fastslam[4], double C_fs[16],
     1.0 };
 
   int ia;
+  double b_h_fs[133];
   double L_data[133];
   int C_size[2];
   double C_data[49];
   int R_size[2];
-  double dv0[361];
-  static const signed char iv2[3] = { 2, 7, 14 };
+  double dv1[361];
+  static const signed char iv1[3] = { 2, 7, 14 };
 
   // Initialize constant matrices
   uunwrap(yaw_ref, refState, refOldinput, &b_refState, &b_refOldinput);
@@ -178,41 +186,60 @@ void ekf(unsigned char fastslam_on, const double fastslam[4], double C_fs[16],
     cov[i0] = iv0[i0];
   }
 
-  cov[40] = 150.0;
-  cov[140] = 150.0;
+  cov[0] = 2.0;
+  cov[20] = 2.0;
+  cov[40] = 10.0;
+
+  // 2*10;
+  cov[140] = 10.0;
   cov[240] = 1.0;
-  cov[280] = 10.0;
+  cov[280] = 1.0;
 
   //  z dot
-  cov[300] = 50.0;
+  cov[300] = 10.0;
   cov[320] = 0.01;
 
   //  z bias
-  cov[340] = 1.0E-6;
+  cov[340] = 1.0E-5;
 
   //  pitch bias
-  cov[360] = 1.0E-6;
+  cov[360] = 1.0E-5;
 
   // roll bias
+  //
+  //  cov = 2*eye(n);
+  //
+  //  cov(3,3) = 25*6;
+  //  cov(8,8) = 25*6;
+  //  cov(13,13) = 1;
+  //  cov(15,15) = 10; % z dot
+  //  cov(16,16) = 50;
+  //  cov(17,17) = 0.01; % z bias
+  //  cov(18,18) = 0.000001; % pitch bias
+  //  cov(19,19) = 0.000001; %roll bias
   // constant covariance noise matrix PX4
-  for (i0 = 0; i0 < 9; i0++) {
-    C_PX4[i0] = iv1[i0];
-  }
-
-  C_PX4[8] = 1;
-  C_fs[15] = 1.0;
-
+  // C_PX4(3,3) = 1;
   // C_fs(1,1) = 1;
   // input vector
   //  Store the states from time to time.
   //  Store the covariance from time to time.
-  // u = [pitch_ref+states(18); roll_ref+states(19); yaw_ref; (thrust_ref-0.587)]; 
+  // u = [pitch_ref-states(18); roll_ref-states(19); yaw_ref; (thrust_ref-0.587)]; 
+  // u = [pitch_ref*1; roll_ref; yaw_ref; (thrust_refo-0.587)];
   // measurements and measurements covariance
   if (fastslam_on == 1) {
+    memcpy(&h_fs[0], &H_fs[0], 76U * sizeof(double));
     H_fs[0] = std::cos(states[12]);
     H_fs[4] = -std::sin(states[12]);
     H_fs[1] = std::sin(states[12]);
     H_fs[5] = std::cos(states[12]);
+    h_fs[0] = std::cos(states[12]);
+    h_fs[4] = -std::sin(states[12]);
+    h_fs[1] = std::sin(states[12]);
+    h_fs[5] = std::cos(states[12]);
+    H_fs[48] = -std::sin(states[12]) * states[0] - std::cos(states[12]) *
+      states[1];
+    H_fs[49] = std::cos(states[12]) * states[0] - std::sin(states[12]) * states
+      [1];
     for (i0 = 0; i0 < 4; i0++) {
       b_fastslam[i0] = fastslam[i0];
     }
@@ -238,25 +265,18 @@ void ekf(unsigned char fastslam_on, const double fastslam[4], double C_fs[16],
       }
     }
 
-    for (i0 = 0; i0 < 4; i0++) {
-      for (c = 0; c < 3; c++) {
-        b_C_fs[(c + 7 * i0) + 4] = 0.0;
-      }
-    }
-
-    for (i0 = 0; i0 < 3; i0++) {
-      for (c = 0; c < 3; c++) {
-        b_C_fs[(c + 7 * (i0 + 4)) + 4] = C_PX4[c + 3 * i0];
-      }
-    }
-
     for (i0 = 0; i0 < 7; i0++) {
+      for (c = 0; c < 3; c++) {
+        b_C_fs[(c + 7 * i0) + 4] = dv0[c + 3 * i0];
+      }
+
       for (c = 0; c < 7; c++) {
         R_data[c + 7 * i0] = b_C_fs[c + 7 * i0];
       }
     }
 
     H_size_idx_0 = 7;
+    h_size_idx_0 = 7;
     for (i0 = 0; i0 < 19; i0++) {
       for (c = 0; c < 4; c++) {
         b_H_fs[c + 7 * i0] = H_fs[c + (i0 << 2)];
@@ -269,6 +289,18 @@ void ekf(unsigned char fastslam_on, const double fastslam[4], double C_fs[16],
       for (c = 0; c < 7; c++) {
         H_data[c + 7 * i0] = b_H_fs[c + 7 * i0];
       }
+
+      for (c = 0; c < 4; c++) {
+        b_h_fs[c + 7 * i0] = h_fs[c + (i0 << 2)];
+      }
+
+      for (c = 0; c < 3; c++) {
+        b_h_fs[(c + 7 * i0) + 4] = H_PX4[c + 3 * i0];
+      }
+
+      for (c = 0; c < 7; c++) {
+        h_data[c + 7 * i0] = b_h_fs[c + 7 * i0];
+      }
     }
   } else {
     meas_size_idx_0 = 3;
@@ -276,19 +308,18 @@ void ekf(unsigned char fastslam_on, const double fastslam[4], double C_fs[16],
       meas_data[i0] = PX4[i0];
     }
 
-    for (i0 = 0; i0 < 9; i0++) {
-      R_data[i0] = C_PX4[i0];
-    }
-
+    memcpy(&R_data[0], &C_PX4[0], 9U * sizeof(double));
     H_size_idx_0 = 3;
+    h_size_idx_0 = 3;
     memcpy(&H_data[0], &H_PX4[0], 57U * sizeof(double));
+    memcpy(&h_data[0], &H_PX4[0], 57U * sizeof(double));
   }
 
   // Prediction step
   // predicted states with linear model
   b_pitch_ref[0] = pitch_ref;
   b_pitch_ref[1] = roll_ref;
-  b_pitch_ref[2] = yaw_ref;
+  b_pitch_ref[2] = refState;
   b_pitch_ref[3] = thrust_ref - 0.587;
 
   // states_p(13) = mod(states_p(13)+pi,2*pi)-pi;
@@ -325,17 +356,17 @@ void ekf(unsigned char fastslam_on, const double fastslam[4], double C_fs[16],
 
   // Update step
   // measurement residual with linear model (H is always linear here)
-  for (i0 = 0; i0 < H_size_idx_0; i0++) {
+  for (i0 = 0; i0 < h_size_idx_0; i0++) {
     b_fastslam[i0] = 0.0;
   }
 
   cr = 0;
   while (cr <= 0) {
-    for (ic = 1; ic <= H_size_idx_0; ic++) {
+    for (ic = 1; ic <= h_size_idx_0; ic++) {
       b_fastslam[ic - 1] = 0.0;
     }
 
-    cr = H_size_idx_0;
+    cr = h_size_idx_0;
   }
 
   br = 0;
@@ -345,17 +376,17 @@ void ekf(unsigned char fastslam_on, const double fastslam[4], double C_fs[16],
     for (ib = br; ib + 1 <= br + 19; ib++) {
       if (states_p[ib] != 0.0) {
         ia = ar;
-        for (ic = 0; ic + 1 <= H_size_idx_0; ic++) {
+        for (ic = 0; ic + 1 <= h_size_idx_0; ic++) {
           ia++;
-          b_fastslam[ic] += states_p[ib] * H_data[ia];
+          b_fastslam[ic] += states_p[ib] * h_data[ia];
         }
       }
 
-      ar += H_size_idx_0;
+      ar += h_size_idx_0;
     }
 
     br += 19;
-    cr = H_size_idx_0;
+    cr = h_size_idx_0;
   }
 
   for (i0 = 0; i0 < meas_size_idx_0; i0++) {
@@ -372,7 +403,7 @@ void ekf(unsigned char fastslam_on, const double fastslam[4], double C_fs[16],
   // residual covariance with linear model
   for (i0 = 0; i0 < 19; i0++) {
     for (c = 0; c < H_size_idx_0; c++) {
-      b_H_fs[c + H_size_idx_0 * i0] = 0.0;
+      h_data[c + H_size_idx_0 * i0] = 0.0;
     }
   }
 
@@ -380,7 +411,7 @@ void ekf(unsigned char fastslam_on, const double fastslam[4], double C_fs[16],
   for (cr = 0; cr <= c; cr += H_size_idx_0) {
     i0 = cr + H_size_idx_0;
     for (ic = cr; ic + 1 <= i0; ic++) {
-      b_H_fs[ic] = 0.0;
+      h_data[ic] = 0.0;
     }
   }
 
@@ -393,7 +424,7 @@ void ekf(unsigned char fastslam_on, const double fastslam[4], double C_fs[16],
         i0 = cr + H_size_idx_0;
         for (ic = cr; ic + 1 <= i0; ic++) {
           ia++;
-          b_H_fs[ic] += P_p[ib] * H_data[ia];
+          h_data[ic] += P_p[ib] * H_data[ia];
         }
       }
 
@@ -432,7 +463,7 @@ void ekf(unsigned char fastslam_on, const double fastslam[4], double C_fs[16],
         i0 = cr + H_size_idx_0;
         for (ic = cr; ic + 1 <= i0; ic++) {
           ia++;
-          b_C_fs[ic] += L_data[ib] * b_H_fs[ia];
+          b_C_fs[ic] += L_data[ib] * h_data[ia];
         }
       }
 
@@ -450,13 +481,13 @@ void ekf(unsigned char fastslam_on, const double fastslam[4], double C_fs[16],
   }
 
   for (i0 = 0; i0 < H_size_idx_0; i0++) {
-    memset(&b_H_fs[i0 * 19], 0, 19U * sizeof(double));
+    memset(&h_data[i0 * 19], 0, 19U * sizeof(double));
   }
 
   c = 19 * (H_size_idx_0 - 1);
   for (cr = 0; cr <= c; cr += 19) {
     for (ic = cr; ic + 1 <= cr + 19; ic++) {
-      b_H_fs[ic] = 0.0;
+      h_data[ic] = 0.0;
     }
   }
 
@@ -468,7 +499,7 @@ void ekf(unsigned char fastslam_on, const double fastslam[4], double C_fs[16],
         ia = ar;
         for (ic = cr; ic + 1 <= cr + 19; ic++) {
           ia++;
-          b_H_fs[ic] += L_data[ib] * P_p[ia];
+          h_data[ic] += L_data[ib] * P_p[ia];
         }
       }
 
@@ -507,7 +538,7 @@ void ekf(unsigned char fastslam_on, const double fastslam[4], double C_fs[16],
         ia = ar;
         for (ic = cr; ic + 1 <= cr + 19; ic++) {
           ia++;
-          L_data[ic] += R_data[ib] * b_H_fs[ia];
+          L_data[ic] += R_data[ib] * h_data[ia];
         }
       }
 
@@ -567,7 +598,7 @@ void ekf(unsigned char fastslam_on, const double fastslam[4], double C_fs[16],
   eye(e_a);
   for (i0 = 0; i0 < 19; i0++) {
     for (c = 0; c < 19; c++) {
-      dv0[c + 19 * i0] = e_a[c + 19 * i0] - cov[c + 19 * i0];
+      dv1[c + 19 * i0] = e_a[c + 19 * i0] - cov[c + 19 * i0];
     }
   }
 
@@ -578,7 +609,7 @@ void ekf(unsigned char fastslam_on, const double fastslam[4], double C_fs[16],
     for (i0 = 0; i0 < 19; i0++) {
       P[k + 19 * i0] = 0.0;
       for (c = 0; c < 19; c++) {
-        P[k + 19 * i0] += dv0[k + 19 * c] * P_p[c + 19 * i0];
+        P[k + 19 * i0] += dv1[k + 19 * c] * P_p[c + 19 * i0];
       }
     }
 
@@ -590,9 +621,9 @@ void ekf(unsigned char fastslam_on, const double fastslam[4], double C_fs[16],
   //  states_pp = states_p;
   //  states_pp(13) = mod(states_pp(13)+pi,2*pi)-pi;
   for (i0 = 0; i0 < 3; i0++) {
-    Pout[3 * i0] = P[2 + 19 * iv2[i0]];
-    Pout[1 + 3 * i0] = P[7 + 19 * iv2[i0]];
-    Pout[2 + 3 * i0] = P[14 + 19 * iv2[i0]];
+    Pout[3 * i0] = P[2 + 19 * iv1[i0]];
+    Pout[1 + 3 * i0] = P[7 + 19 * iv1[i0]];
+    Pout[2 + 3 * i0] = P[14 + 19 * iv1[i0]];
   }
 
   *VarYaw = P[240];

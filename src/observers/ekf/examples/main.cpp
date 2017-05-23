@@ -5,7 +5,7 @@
 // File: main.cpp
 //
 // MATLAB Coder version            : 3.3
-// C/C++ source code generated on  : 16-May-2017 14:57:32
+// C/C++ source code generated on  : 23-May-2017 09:55:53
 //
 
 //***********************************************************************
@@ -124,9 +124,9 @@ static unsigned char argInit_uint8_T()
 //
 static void main_ekf()
 {
-  double dv1[4];
-  double dv2[16];
-  double dv3[3];
+  double dv2[4];
+  double dv3[16];
+  double dv4[3];
   double est[19];
   double Pout[9];
   double VarYaw;
@@ -136,10 +136,10 @@ static void main_ekf()
   // Initialize function input argument 'C_fs'.
   // Initialize function input argument 'PX4'.
   // Call the entry-point 'ekf'.
-  argInit_4x1_real_T(dv1);
-  argInit_4x4_real_T(dv2);
-  argInit_3x1_real_T(dv3);
-  ekf(argInit_uint8_T(), dv1, dv2, dv3, argInit_real_T(), argInit_real_T(),
+  argInit_4x1_real_T(dv2);
+  argInit_4x4_real_T(dv3);
+  argInit_3x1_real_T(dv4);
+  ekf(argInit_uint8_T(), dv2, dv3, dv4, argInit_real_T(), argInit_real_T(),
       argInit_real_T(), argInit_real_T(), est, Pout, &VarYaw);
 }
 

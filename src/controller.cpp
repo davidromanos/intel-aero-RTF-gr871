@@ -444,15 +444,20 @@ int main(int argc, char **argv)
     double estimatedStates[19];
 
     std::vector<waypoint> listOfWaypoints;
-    listOfWaypoints.push_back(waypoint(0,0,1));
+    // Triangle
+    /*listOfWaypoints.push_back(waypoint(0,0,1));
     listOfWaypoints.push_back(waypoint(2,0,2));
-    listOfWaypoints.push_back(waypoint(0,1,1));
+    listOfWaypoints.push_back(waypoint(0,1,1));*/
+
     /*listOfWaypoints.push_back(waypoint(0,0,1));
     listOfWaypoints.push_back(waypoint(0,0,2));
     listOfWaypoints.push_back(waypoint(0,0,1));
     listOfWaypoints.push_back(waypoint(0,0,3));*/
     //listOfWaypoints.push_back(waypoint(0,0,1));
 
+
+        listOfWaypoints.push_back(waypoint(0,0,1));
+        listOfWaypoints.push_back(waypoint(0,0,2));
 
 
 
@@ -509,10 +514,10 @@ int main(int argc, char **argv)
     double covariansVelocities[9] = {1,0,0,
                                     0,1,0,
                                     0,0,1};
-    double covariansfastslam[16] = {1,0,0,0,
-                                    0,1,0,0,
-                                    0,0,1,0,
-                                    0,0,0,1};
+    double covariansfastslam[16] = {0.01,0,0,0,
+                                    0,0.01,0,0,
+                                    0,0,0.01,0,
+                                    0,0,0,0.01};
     
 
     double PX4Meas[3] = {0,0,0};
@@ -724,8 +729,8 @@ int main(int argc, char **argv)
 
         thrust_pub.publish(thrustInput);
 
-        logToFile("/home/joan/flightlog.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,yawRef,estimatedStates[16],estimatedStates[17],estimatedStates[18]);
-        //logToFile("/home/chris/Dropbox/P8 (CA2)/Controller/logs/logthursday.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,yawRef,estimatedStates[16],estimatedStates[17],estimatedStates[18]);
+        //logToFile("/home/joan/flightlog.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,yawRef,estimatedStates[16],estimatedStates[17],estimatedStates[18]);
+        logToFile("/home/chris/Dropbox/P8 (CA2)/Controller/logs/reportxylog3.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,yawRef,estimatedStates[16],estimatedStates[17],estimatedStates[18]);
         last_request1 = ros::Time::now();
         ros::spinOnce();
         rate.sleep();
