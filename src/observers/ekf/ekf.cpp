@@ -200,10 +200,10 @@ void ekf(unsigned char fastslam_on, const double fastslam[4], const double C_fs
   cov[320] = 0.01;
 
   //  z bias
-  cov[340] = 1.0E-6;
+  cov[340] = 1.0E-4;
 
   //  pitch bias
-  cov[360] = 1.0E-6;
+  cov[360] = 1.0E-4;
 
   // roll bias
   //

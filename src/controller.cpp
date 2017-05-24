@@ -445,9 +445,9 @@ int main(int argc, char **argv)
 
     std::vector<waypoint> listOfWaypoints;
     // Triangle
-    /*listOfWaypoints.push_back(waypoint(0,0,1));
+    listOfWaypoints.push_back(waypoint(0,0,1));
     listOfWaypoints.push_back(waypoint(2,0,2));
-    listOfWaypoints.push_back(waypoint(0,1,1));*/
+    listOfWaypoints.push_back(waypoint(0,1,1));
 
     /*listOfWaypoints.push_back(waypoint(0,0,1));
     listOfWaypoints.push_back(waypoint(0,0,2));
@@ -456,8 +456,8 @@ int main(int argc, char **argv)
     //listOfWaypoints.push_back(waypoint(0,0,1));
 
 
-        listOfWaypoints.push_back(waypoint(0,0,1));
-        listOfWaypoints.push_back(waypoint(0,0,2));
+        /*listOfWaypoints.push_back(waypoint(0,0,1));
+        listOfWaypoints.push_back(waypoint(0,0,2));*/
 
 
 
@@ -626,8 +626,8 @@ int main(int argc, char **argv)
 
             if(simulation == 1)
             {
-                //yawRef = yawReference(currentWaypoint.x-oldWaypoint.x,currentWaypoint.y-oldWaypoint.y);
-                yawRef = M_PI/4;
+                yawRef = yawReference(currentWaypoint.x-oldWaypoint.x,currentWaypoint.y-oldWaypoint.y);
+                //yawRef =3*M_PI/4;1
                 k++;
                 if(k%300 == 0)
                 {
@@ -642,7 +642,7 @@ int main(int argc, char **argv)
                 }
 
 
-                if(abs(yaw-yawRef)< 0.15)
+                if(abs(yaw-yawRef)< 0.05)
                 {
                     setpoints[0] = currentWaypoint.x;
                     setpoints[1] = currentWaypoint.y;
@@ -652,7 +652,7 @@ int main(int argc, char **argv)
             else
             {
                 k++;
-                if(k%500 == 0)
+                if(k%150 == 0)
                 {
                     i++;
                     if(i>listOfWaypoints.size()-1)
@@ -661,7 +661,7 @@ int main(int argc, char **argv)
                     }
                     oldWaypoint = currentWaypoint;
                     currentWaypoint = listOfWaypoints[i];
-                    std::cout << "current waypoint :" << currentWaypoint.x <<"," << currentWaypoint.y <<"," << currentWaypoint.z  <<  "\n";
+                    std::cout << "current waypoint nr :" << i <<", " << currentWaypoint.x <<"," << currentWaypoint.y <<"," << currentWaypoint.z  <<  "\n";
 
                 }
                 setpoints[0] = currentWaypoint.x;
@@ -698,12 +698,26 @@ int main(int argc, char **argv)
                 //listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]+1));
                 //listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]-0.25));
 
-                listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]));
+                /*listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]));
                 listOfWaypoints.push_back(waypoint(setpoints[0]-0.75,setpoints[1]-0.75,setpoints[2]));
 
                 listOfWaypoints.push_back(waypoint(setpoints[0]-0.75,setpoints[1]+0.75,setpoints[2]));
                 listOfWaypoints.push_back(waypoint(setpoints[0]+0.75,setpoints[1]+0.75,setpoints[2]));
-                listOfWaypoints.push_back(waypoint(setpoints[0]+0.75,setpoints[1]-0.75,setpoints[2]));
+                listOfWaypoints.push_back(waypoint(setpoints[0]+0.75,setpoints[1]-0.75,setpoints[2]));*/
+
+
+
+                listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]));
+                listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1]+1,setpoints[2]));
+                listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1]+1,setpoints[2]+1));
+
+                listOfWaypoints.push_back(waypoint(setpoints[0]-0.5,setpoints[1]+1,setpoints[2]+1));
+                listOfWaypoints.push_back(waypoint(setpoints[0]-0.5,setpoints[1]+1,setpoints[2]));
+                listOfWaypoints.push_back(waypoint(setpoints[0]-0.5,setpoints[1],setpoints[2]));
+                listOfWaypoints.push_back(waypoint(setpoints[0]-0.5,setpoints[1],setpoints[2]+1));
+                listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]+1));
+                //listOfWaypoints.push_back(waypoint(setpoints[0]-0.5,setpoints[1],setpoints[2]+1));
+
 
                 //listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]));
             }
@@ -731,7 +745,7 @@ int main(int argc, char **argv)
         thrust_pub.publish(thrustInput);
 
         //logToFile("/home/joan/flightlog.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,yawRef,estimatedStates[16],estimatedStates[17],estimatedStates[18]);
-        logToFile("/home/chris/Dropbox/P8 (CA2)/Controller/logs/reportxylog8.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,yawRef,estimatedStates[16],estimatedStates[17],estimatedStates[18]);
+        logToFile("/home/chris/Dropbox/P8 (CA2)/Controller/logs/reportxylog15.txt","%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f",estimatedStates[0],estimatedStates[1],estimatedStates[2],estimatedStates[3],estimatedStates[4],estimatedStates[5],estimatedStates[6],estimatedStates[7],estimatedStates[8],estimatedStates[9],estimatedStates[10],estimatedStates[11],estimatedStates[12],estimatedStates[13],estimatedStates[14],estimatedStates[15],position.pose.position.x,position.pose.position.y,position.pose.position.z,pitch,roll,yaw,xyController.output[0],xyController.output[1],zcontroller.thrust[0],setpoints[0],setpoints[1],setpoints[2],twist.linear.x,twist.linear.y,twist.linear.z,imuPitch,imuRoll,yawRef,estimatedStates[16],estimatedStates[17],estimatedStates[18]);
         last_request1 = ros::Time::now();
         ros::spinOnce();
         rate.sleep();
