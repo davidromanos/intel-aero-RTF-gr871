@@ -262,7 +262,7 @@ private:
     void handleExMeas(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale);    
     void updateLandmarkEstimates(VectorChiFastSLAMf s_proposale, MeasurementSet* z_Ex, MeasurementSet* z_New);
     VectorChiFastSLAMf drawSampleRandomPose(VectorChiFastSLAMf sMean_proposale, MatrixChiFastSLAMf sCov_proposale);
-    void calculateImportanceWeight(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale);
+    void calculateImportanceWeight(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale,MatrixChiFastSLAMf Fw);
     MatrixChiFastSLAMf calculateFs(VectorChiFastSLAMf *s_k_old, VectorUFastSLAMf* u, float Ts);
     MatrixChiFastSLAMf calculateFw(VectorChiFastSLAMf *s_k_old, VectorUFastSLAMf* u, float Ts);
 };

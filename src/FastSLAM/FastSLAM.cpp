@@ -920,17 +920,25 @@ Particle::~Particle()
 void Particle::updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New,VectorUFastSLAMf* u, unsigned int k, float Ts)
 {
     VectorChiFastSLAMf s_proposale;
+    VectorChiFastSLAMf* s_old = s->getPose();
 
 #if SLOW_INIT
     if (k > 5){
 #endif
-        s_proposale = drawSampleFromProposaleDistribution(s->getPose(),u,z_Ex,Ts);
+#if USE_MOTION_MODEL_JACOBIAN
+    MatrixChiFastSLAMf Fs = calculateFs(s_old,u,Ts);
+    MatrixChiFastSLAMf Fw = calculateFw(s_old,u,Ts);
+#else
+    MatrixChiFastSLAMf Fs = MatrixChiFastSLAMf::Zero();
+    MatrixChiFastSLAMf Fw = MatrixChiFastSLAMf::Identity();
+#endif
+        s_proposale = drawSampleFromProposaleDistribution(s_old,u,z_Ex,Ts);
 
         s->addPose(s_proposale,k, Ts); // we are done estimating our pose and add it to the path!
 
         // OBS. In this code the importance weight is calculated differently and before the landmark corrections are done: https://github.com/bushuhui/fastslam/blob/master/src/fastslam_2.cpp#L593-L602
         if (z_Ex != NULL && z_Ex->nMeas != 0 ){
-            calculateImportanceWeight(z_Ex,s_proposale);
+            calculateImportanceWeight(z_Ex,s_proposale,Fw);
             s_k_Cov = MatrixChiFastSLAMf::Zero();
         }
 
@@ -1476,7 +1484,7 @@ MatrixChiFastSLAMf Particle::calculateFw(VectorChiFastSLAMf *s_k_old, VectorUFas
     return Fw;
 }
 
-void Particle::calculateImportanceWeight(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale){
+void Particle::calculateImportanceWeight(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale,MatrixChiFastSLAMf Fw){
     Eigen::MatrixXf wCov_i;
     double wi = 1;
     double w_tmp = 1;
@@ -1510,11 +1518,8 @@ void Particle::calculateImportanceWeight(MeasurementSet* z_Ex, VectorChiFastSLAM
             cout << "z_hat: " << endl << zhat << endl << endl;
             cout << "error: " << endl << z_diff << endl << endl;*/
 
-#if USE_PROPOSAL_COVARIANCE_IN_IMPORTANCE_WEIGHT
-            wCov_i = Hsi*s_k_Cov*Hsi.transpose() + Hli*li_old->lCov*Hli.transpose() + z_tmp->getzCov(); // (3.45)
-#else
-            wCov_i = Hsi*sCov*Hsi.transpose() + Hli*li_old->lCov*Hli.transpose() + z_tmp->getzCov(); // (3.45)
-#endif
+            wCov_i = Hsi*Fw*sCov*Fw.transpose()*Hsi.transpose() + Hli*li_old->lCov*Hli.transpose() + z_tmp->getzCov(); // (3.45)
+
 //            cout << "imp wCov_i: " << wCov_i << endl;
 
             Eigen::MatrixXf expTerm;

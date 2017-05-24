@@ -74,3 +74,25 @@ end
 %%scatter3(x, y, z, 10, tFastSLAM, '*');
 hold off;
 axis equal;
+
+%%
+%% plot x,y,z
+figure
+plot(tMoc,pos(:,1))
+hold on
+plot(t.meanPath.Ts(1:end-1),t.meanPath.Path(1,1:end-1),'r')
+figure
+plot(tMoc,pos(:,2))
+hold on
+plot(t.meanPath.Ts(1:end-1),t.meanPath.Path(2,1:end-1),'r')
+figure
+plot(tMoc,pos(:,3))
+hold on
+plot(t.meanPath.Ts(1:end-1),t.meanPath.Path(3,1:end-1),'r')
+figure
+plot(tMoc,yaw)
+hold on
+plot(t.meanPath.Ts(1:end-1),t.meanPath.Path(4,1:end-1),'r')
+
+%% sample rate
+Hz = 1/(-1*mean(diff(t.meanPath.Ts)))
