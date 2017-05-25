@@ -890,6 +890,9 @@ VectorChiFastSLAMf* Path::getPose(unsigned int k){
 Particle::Particle(unsigned int GOT_ID, VectorChiFastSLAMf s0, MatrixChiFastSLAMf s_0_Cov, unsigned int k)   // default Constructor definition
 {
     s = new Path(s0,k); // makes new path!
+    s_proposale_mean = new Path(s0,k);
+    s_proposale_mean_corrected = new Path(s0,k);
+
     map = new MapTree; // makes new mapTree
     w = 1;
     s_k_Cov = s_0_Cov; // zero covariance
@@ -905,6 +908,8 @@ Particle::Particle(const Particle &ParticleToCopy)   // Copy Constructor
 {
     //cout << "Copying particle" << endl;
     s = new Path(*(ParticleToCopy.s)); //makes copy of s on the heap
+    s_proposale_mean = new Path(*(ParticleToCopy.s_proposale_mean));
+    s_proposale_mean_corrected = new Path(*(ParticleToCopy.s_proposale_mean_corrected));
     map = new MapTree(*(ParticleToCopy.map));
     w = ParticleToCopy.w;
     s_k_Cov = ParticleToCopy.s_k_Cov;
@@ -932,7 +937,7 @@ void Particle::updateParticle(MeasurementSet* z_Ex,MeasurementSet* z_New,VectorU
     MatrixChiFastSLAMf Fs = MatrixChiFastSLAMf::Zero();
     MatrixChiFastSLAMf Fw = MatrixChiFastSLAMf::Identity();
 #endif
-        s_proposale = drawSampleFromProposaleDistribution(s_old,u,z_Ex,Ts);
+        s_proposale = drawSampleFromProposaleDistribution(s_old,u,z_Ex,Ts,k);
 
         s->addPose(s_proposale,k, Ts); // we are done estimating our pose and add it to the path!
 
@@ -1063,7 +1068,7 @@ void Particle::handleNewMeas(MeasurementSet* z_New, VectorChiFastSLAMf s_proposa
     }
 }
 
-VectorChiFastSLAMf Particle::drawSampleFromProposaleDistribution(VectorChiFastSLAMf* s_old, VectorUFastSLAMf* u,MeasurementSet* z_Ex, float Ts)
+VectorChiFastSLAMf Particle::drawSampleFromProposaleDistribution(VectorChiFastSLAMf* s_old, VectorUFastSLAMf* u,MeasurementSet* z_Ex, float Ts, unsigned int k)
 {
     //cout << "D10" << endl;
 
@@ -1072,6 +1077,7 @@ VectorChiFastSLAMf Particle::drawSampleFromProposaleDistribution(VectorChiFastSL
 
     //MatrixChiFastSLAMf sCov_proposale= sCov; // eq (3.28)
     VectorChiFastSLAMf sMean_proposale = s_bar; // eq (3.29)
+    s_proposale_mean->addPose(s_bar,k,Ts);
 
 #if RESET_PARTICLE_PROPOSAL_COVARIANCE_ALWAYS
     s_k_Cov = MatrixChiFastSLAMf::Zero();
@@ -1201,6 +1207,9 @@ VectorChiFastSLAMf Particle::drawSampleFromProposaleDistribution(VectorChiFastSL
     //cout << endl << "##############################" << endl;
     //cout << endl << "sMean_proposale" << endl << sMean_proposale << endl;
     //cout << endl << "sCov_proposale" << endl << sCov_proposale << endl;
+
+
+    s_proposale_mean_corrected->addPose(sMean_proposale,k, Ts);
 
     VectorChiFastSLAMf s_proposale = drawSampleRandomPose(sMean_proposale, sCov_proposale);
 
@@ -1520,7 +1529,7 @@ void Particle::calculateImportanceWeight(MeasurementSet* z_Ex, VectorChiFastSLAM
 
             wCov_i = Hsi*Fw*sCov*Fw.transpose()*Hsi.transpose() + Hli*li_old->lCov*Hli.transpose() + z_tmp->getzCov(); // (3.45)
 
-//            cout << "imp wCov_i: " << wCov_i << endl;
+//            cout << "imp wCov_i: "rosbag play PosCtl_320x240.bag << wCov_i << endl;
 
             Eigen::MatrixXf expTerm;
             expTerm = z_diff.transpose()*wCov_i.inverse()*z_diff;
@@ -1868,7 +1877,7 @@ void ParticleSet::saveData(){
     Path::dataFileStream.flush();
     Path::dataFileStream.close();
 
-    sMean->saveData(filename);
+    sMean->saveData(filename,"Path");
 
     Path::dataFileStream.open(filename,ios::in | ios::ate);
     Path::dataFileStream << "t" << to_string(k) << ".meanPath = Path;" << endl;
@@ -1899,17 +1908,26 @@ void ParticleSet::saveData(){
 }
 
 void Particle::saveData(string filename,std::vector<unsigned int> LandmarksToSave){
-    s->saveData(filename);
+    std::string PathName = "s";
+    std::string MeanPathName = "s_proposale_mean";
+    std::string MeanPathCorrectedName = "s_proposale_mean_corrected";
+
+    s->saveData(filename,PathName);
+    s_proposale_mean->saveData(filename,MeanPathName);
+    s_proposale_mean_corrected->saveData(filename,MeanPathCorrectedName);
     map->saveData(filename, LandmarksToSave);
+
     Path::dataFileStream.open(filename,ios::out | ios::app);
-    Path::dataFileStream << "particle = struct('Path',Path,'map',map);" << endl;
+    Path::dataFileStream << "particle = struct('" << PathName << "'," << PathName << ",'" << MeanPathName << "'," << MeanPathName << ",'" << MeanPathCorrectedName << "'," << MeanPathCorrectedName << ",'map',map);" << endl;
     Path::dataFileStream.flush();
     Path::dataFileStream.close();
 }
 
-void Path::saveData(string filename){
+
+
+void Path::saveData(std::string filename,std::string PathName){
     Path::dataFileStream.open(filename,ios::out | ios::app);
-    Path::dataFileStream << "Path = struct('PathLength',[],'Path',[],'Ts',[]);" << endl;
+    Path::dataFileStream << PathName << " = struct('PathLength',[],'Path',[],'Ts',[]);" << endl;
     Path::dataFileStream << "Path.PathLength = " << PathLength << ";" << endl;
 
     unsigned int j = 1;
@@ -1918,7 +1936,7 @@ void Path::saveData(string filename){
         while (tmp_pointer->nextNode != NULL){
             tmp_pointer = tmp_pointer->nextNode;
 
-            Path::dataFileStream << "Path.Path(:," << j << ") = " << tmp_pointer->S.format(Path::OctaveFmt) << ";" << endl;
+            Path::dataFileStream << PathName << ".Path(:," << j << ") = " << tmp_pointer->S.format(Path::OctaveFmt) << ";" << endl;
             Path::dataFileStream << "Path.Ts(:," << j << ") = " << tmp_pointer->Ts << ";" << endl;
             j++;
         }

@@ -887,6 +887,9 @@ int main(int argc, char **argv)
     GOT_MinSampleTime = Config[7][0];
     cout << "Config.GOT.MinSampleTime = " << GOT_MinSampleTime << endl;
 
+    float gMAX;
+    gMAX = Config[8][0];
+
     // ==== End configuration of FastSLAM ====
 
 
@@ -959,6 +962,10 @@ int main(int argc, char **argv)
 
     VectorChiFastSLAMf s_k = VectorChiFastSLAMf::Zero();
 
+    int g = 1;
+
+    cout << "hallo" << endl;
+
     while(ros::ok()){
         ros::spinOnce(); // process the latest measurements in the queue (subscribers) and move these into the RGB_Image and Depth_Image objects
 
@@ -1008,6 +1015,12 @@ int main(int argc, char **argv)
 
             Pset.updateParticleSet(&MeasSet, u, dt.toSec());
 
+            g++;
+            if(g==gMAX){
+                Pset.saveData();
+                g = 1;
+            }
+
             cout << "Pose: " << endl << *(Pset.sMean->getPose()) << endl;
 
             MeasSet.emptyMeasurementSet();
@@ -1015,6 +1028,7 @@ int main(int argc, char **argv)
             PreviousYaw = MocapPose(5);
             PreviousMeasurementTimestamp = PoseTimestamp;
         }
+
     }
 
     Pset.saveData();

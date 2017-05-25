@@ -34,7 +34,7 @@ dt = motionModel(:,2);
 u = motionModel(:,3:6);
 pose = motionModel(:,7:10);
 
-figure(1);
+figure;
 subplot(3,1,1);
 plot(tMoc, x, tMot, pose(:,1)+x(1));
 title('X');
@@ -48,9 +48,9 @@ plot(tMoc, z, tMot, pose(:,3)+z(1));
 title('Z');
 legend('Mocap', 'Dead reckoning');
 
-figure(2);
+figure;
 plot(tMoc, rad2deg(yaw));
 
 %%
-figure(3);
+figure;
 plot(tMot, u(:,1));

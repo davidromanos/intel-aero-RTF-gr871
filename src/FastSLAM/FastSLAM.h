@@ -221,7 +221,7 @@ public:
     unsigned int countLengthOfPath();
     VectorChiFastSLAMf* getPose();
     VectorChiFastSLAMf* getPose(unsigned int k);
-    void saveData(std::string filename);
+    void saveData(std::string filename,std::string PathName);
 
 private:
     void deletePath(Node_Path *PathNode);
@@ -234,6 +234,8 @@ class Particle
 public:
     /* variables */
     Path* s;
+    Path* s_proposale_mean;
+    Path* s_proposale_mean_corrected;
     MapTree* map;
     double w;
     MatrixChiFastSLAMf s_k_Cov; // particle covariance
@@ -256,7 +258,7 @@ private:
     /* variables */
 
     /* functions */
-    VectorChiFastSLAMf drawSampleFromProposaleDistribution(VectorChiFastSLAMf* s_old, VectorUFastSLAMf* u, MeasurementSet* z_Ex, float Ts);
+    VectorChiFastSLAMf drawSampleFromProposaleDistribution(VectorChiFastSLAMf* s_old, VectorUFastSLAMf* u, MeasurementSet* z_Ex, float Ts, unsigned int k);
     VectorChiFastSLAMf drawSampleFromProposaleDistributionNEW(VectorChiFastSLAMf* s_old, VectorUFastSLAMf* u,MeasurementSet* z_Ex, float Ts);
     VectorChiFastSLAMf motionModel(VectorChiFastSLAMf* sold, VectorUFastSLAMf* u, float Ts);
     void handleExMeas(MeasurementSet* z_Ex, VectorChiFastSLAMf s_proposale);    
