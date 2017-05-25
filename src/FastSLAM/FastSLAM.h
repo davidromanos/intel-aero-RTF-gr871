@@ -35,6 +35,8 @@ typedef Eigen::Matrix<float, 4, 4> MatrixChiFastSLAMf; // used for covariance of
 typedef Eigen::Matrix<float, 6, Eigen::Dynamic> Matrix6kf;
 
 
+Eigen::MatrixXf randn(int m, int n);
+
 /* ############################## Defines measurement class ##############################  */
 class Measurement
 {

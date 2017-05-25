@@ -34,23 +34,28 @@ dt = motionModel(:,2);
 u = motionModel(:,3:6);
 pose = motionModel(:,7:10);
 
-figure(1);
-subplot(3,1,1);
+figure;
+subplot(4,1,1);
 plot(tMoc, x, tMot, pose(:,1)+x(1));
 title('X');
 legend('Mocap', 'Dead reckoning');
-subplot(3,1,2);
+ylabel('Meters');
+subplot(4,1,2);
 plot(tMoc, y, tMot, pose(:,2)+y(1));
-title('Z');
+title('Y');
 legend('Mocap', 'Dead reckoning');
-subplot(3,1,3);
+ylabel('Meters');
+subplot(4,1,3);
 plot(tMoc, z, tMot, pose(:,3)+z(1));
 title('Z');
 legend('Mocap', 'Dead reckoning');
-
-figure(2);
-plot(tMoc, rad2deg(yaw));
+ylabel('Meters');
+subplot(4,1,4);
+plot(tMoc, rad2deg(yaw), tMot, rad2deg(pose(:,4)+yaw(1)));
+title('Yaw');
+legend('Mocap', 'Dead reckoning');
+ylabel('Degrees');
 
 %%
-figure(3);
+figure;
 plot(tMot, u(:,1));

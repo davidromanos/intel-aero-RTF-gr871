@@ -32,8 +32,12 @@ using namespace std;
 #define USE_IMAGE_SYNCHRONIZER 1
 #define OPTICAL_FLOW_TRACKING 0
 
-#define VISUALIZE_MEASUREMENT_VECTOR 0
-#define VISUALIZE_ARUCO_PIXEL_LOCATION 1
+#define OVERLAY_DEPTH 1
+#define VISUALIZE_MEASUREMENT_VECTOR 1
+#define VISUALIZE_ARUCO_PIXEL_LOCATION 0
+
+#define DEPTH_SCALING   1000.f    // R200 camera on drone
+//#define DEPTH_SCALING   1.f       // Gazebo depth camera
 
 typedef union U_FloatParse {
     float float_data;
@@ -246,9 +250,9 @@ void imageCallback(const sensor_msgs::ImageConstPtr& image) {
 
             for (y = 0; y < temp.rows; y++) {
                 float* pixel = temp.ptr<float>(y);  // point to first color in row
-                for (x = 0; x < temp.cols; x++) {
+                for (x = 0; x < temp.cols; x++) {                    
                     //depth_in_meters = temp.at<float>(y,x) / 1000.0;  // see http://stackoverflow.com/questions/8932893/accessing-certain-pixel-rgb-value-in-opencv
-                    depth_in_meters = *pixel++ / 1000.0;
+                    depth_in_meters = *pixel++ / DEPTH_SCALING;
                     depth_pixel[0] = x;
                     depth_pixel[1] = y;
 
@@ -258,7 +262,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& image) {
                     rs_project_point_to_pixel(registered_pixel, &rgb_intrin, color_point, false);
 
                     if (color_pixel[0] >= 0 && color_pixel[0] < registered_depth.cols && color_pixel[1] >= 0 && color_pixel[1] < registered_depth.rows) {
-                        registered_depth.at<float>(color_pixel[1],color_pixel[0]) = depth_in_meters * 1000;
+                        registered_depth.at<float>(color_pixel[1],color_pixel[0]) = depth_in_meters * DEPTH_SCALING;
                         depthPx = cv::Vec3f(depth_pixel[0], depth_pixel[1], depth_in_meters); // store undistorted X/Y pixel coordinate + depth (in meters)
                         registered_depth2.at<cv::Vec3f>(color_pixel[1],color_pixel[0]) = depthPx;
                     }
@@ -351,9 +355,12 @@ void imageCallback(const sensor_msgs::ImageConstPtr& image) {
             cv::Mat normalized;
             grayBGR.convertTo(normalized, CV_8UC3, 255.0/5000, 0);  // see http://docs.ros.org/diamondback/api/cv_bridge/html/c++/classsensor__msgs_1_1CvBridge.html
 
-            if (RGB_Image.cols == normalized.cols) {                
-                //cv::addWeighted( normalized, 0.5, RGB_Image, 0.5, 0.0, blended);
+            if (RGB_Image.cols == normalized.cols) {
+#if OVERLAY_DEPTH
+                cv::addWeighted( normalized, 0.5, RGB_Image, 0.5, 0.0, blended);
+#else
                 RGB_Image.copyTo(blended);
+#endif
 
                 if (displayX != -1 && displayY != -1) {
                     cv::circle(blended, cv::Point(displayX, displayY), 2, cv::Scalar(0,255,0,255), -1); // see http://docs.opencv.org/2.4/modules/core/doc/drawing_functions.html#circle
@@ -426,24 +433,25 @@ void imageCallback(const sensor_msgs::ImageConstPtr& image) {
 
                     ROS_INFO("Marker ID %d at (%f, %f)", markerIds[i], point.x, point.y);
 
+#if VISUALIZE_MEASUREMENT_VECTOR
                     if (MarkerMeas[2] > 0) {
                         dispX = 4*point.x;
                         dispY = 4*point.y;
 
-#if VISUALIZE_MEASUREMENT_VECTOR
-                        /*sprintf(str, "X=%1.0f", MarkerMeas[0]);
+                        sprintf(str, "X=%1.0f", MarkerMeas[0]);
                         cv::putText(blended, str, cv::Point(dispX-17, dispY-105), cv::FONT_HERSHEY_PLAIN, 4, cv::Scalar(0,0,255,255),3); // see http://answers.opencv.org/question/6544/how-can-i-display-timer-results-with-a-c-puttext-command/
                         sprintf(str, "Y=%1.0f", MarkerMeas[1]);
                         cv::putText(blended, str, cv::Point(dispX-17, dispY-60), cv::FONT_HERSHEY_PLAIN, 4, cv::Scalar(0,0,255,255),3);
                         sprintf(str, "d=%1.3f", MarkerMeas[2]);
-                        cv::putText(blended, str, cv::Point(dispX-17, dispY-15), cv::FONT_HERSHEY_PLAIN, 4, cv::Scalar(0,0,255,255),3);*/
-#elif VISUALIZE_ARUCO_PIXEL_LOCATION
-                        sprintf(str, "X=%1.0f", point.x);
-                        cv::putText(blended, str, cv::Point(dispX-17, dispY-60), cv::FONT_HERSHEY_PLAIN, 4, cv::Scalar(0,0,255,255),3); // see http://answers.opencv.org/question/6544/how-can-i-display-timer-results-with-a-c-puttext-command/
-                        sprintf(str, "Y=%1.0f", point.y);
                         cv::putText(blended, str, cv::Point(dispX-17, dispY-15), cv::FONT_HERSHEY_PLAIN, 4, cv::Scalar(0,0,255,255),3);
-#endif
                     }
+#endif
+#if VISUALIZE_ARUCO_PIXEL_LOCATION
+                    sprintf(str, "X=%1.0f", point.x);
+                    cv::putText(blended, str, cv::Point(dispX-17, dispY-60), cv::FONT_HERSHEY_PLAIN, 4, cv::Scalar(0,0,255,255),3); // see http://answers.opencv.org/question/6544/how-can-i-display-timer-results-with-a-c-puttext-command/
+                    sprintf(str, "Y=%1.0f", point.y);
+                    cv::putText(blended, str, cv::Point(dispX-17, dispY-15), cv::FONT_HERSHEY_PLAIN, 4, cv::Scalar(0,0,255,255),3);
+#endif
                 }
 
                 cv::imshow("view", blended);

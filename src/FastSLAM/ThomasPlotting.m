@@ -25,9 +25,10 @@ t = eval(['t' char(s2(1))]);
 run('LoadLatestLogs.m');
 
 %% Extract FastSLAM path
-x = t.meanPath.Path(1,:);
-y = t.meanPath.Path(2,:);
-z = t.meanPath.Path(3,:);
+estX = t.meanPath.Path(1,:);
+estY = t.meanPath.Path(2,:);
+estZ = t.meanPath.Path(3,:);
+estYaw = t.meanPath.Path(4,:);
 tFastSLAM = t.meanPath.Ts(:);
 
 %% Plot drone positions and orientations
@@ -36,7 +37,7 @@ figure(1);
 plot3(pos(:,1), pos(:,2), pos(:,3));
 grid;
 hold on;
-scatter3(x, y, z, 10, tFastSLAM, '*');
+scatter3(estX, estY, estZ, 10, tFastSLAM, '*');
 hold off;
 axis equal;
 
@@ -90,3 +91,26 @@ end
 hold on;
 quiver3(m0(1,:), m0(2,:), m0(3,:), r(1,:), r(2,:), r(3,:), 0);
 hold off;
+
+%%
+figure(2);
+subplot(4,1,1);
+plot(tMoc, pos(:,1), tFastSLAM, estX);
+title('X');
+legend('Mocap', 'FastSLAM');
+ylabel('Meters');
+subplot(4,1,2);
+plot(tMoc, pos(:,2), tFastSLAM, estY);
+title('Y');
+legend('Mocap', 'FastSLAM');
+ylabel('Meters');
+subplot(4,1,3);
+plot(tMoc, pos(:,3), tFastSLAM, estZ);
+title('Z');
+legend('Mocap', 'FastSLAM');
+ylabel('Meters');
+subplot(4,1,4);
+plot(tMoc, rad2deg(yaw), tFastSLAM, rad2deg(estYaw));
+title('Yaw');
+legend('Mocap', 'FastSLAM');
+ylabel('Degrees');

@@ -44,11 +44,19 @@ using namespace Eigen;
 
 #define USE_MEAN_DEPTH_VALUES   1
 #define USE_ROLL_PITCH_YAW_FILTER   0
-#define USE_VELOCITY_FILTER     0
+#define USE_VELOCITY_FILTER     1
 #define ONLY_RUN_FILTER_WHEN_MEASUREMENTS_ARE_AVAILABLE 0   // OBS. Enabling this will likely cause problems with the velocity based motion model, as it is the previous velocity used and not an average
 
 #define VISUALIZE_MEASUREMENT_VECTOR 1
 #define VISUALIZE_WORLD_MEASUREMENT 0
+
+#define ADDED_VELOCITY_X_BIAS               0.02
+#define ADDED_VELOCITY_Y_BIAS               0.02
+#define ADDED_VELOCITY_Z_BIAS               -0.03
+#define ADDED_VELOCITY_NOISE_X_SIGMA        0.05
+#define ADDED_VELOCITY_NOISE_Y_SIGMA        0.05
+#define ADDED_VELOCITY_NOISE_Z_SIGMA        0.05
+#define ADDED_YAW_DIFFERENCE_NOISE_SIGMA    0.01 // corresponds to 1.7 degrees
 
 #define USE_IMAGE_SYNCHRONIZER 1
 
@@ -234,9 +242,9 @@ void MocapVelocityFilter()
 
         if (dx != 0)
 #if USE_VELOCITY_FILTER
-            MocapVelocity(0) = Xdot_Filter.Filter(dx / dt.toSec());
+            MocapVelocity(0) = Xdot_Filter.Filter(dx / dt.toSec() + ADDED_VELOCITY_X_BIAS);
 #else
-            MocapVelocity(0) = dx / dt.toSec();
+            MocapVelocity(0) = dx / dt.toSec() + ADDED_VELOCITY_X_BIAS;
 #endif
         else {
             //MocapVelocity(0) = Xdot_Filter.Filter(MocapVelocity(0)); // velocity can not be zero, so we assume that it is because of no measurement, hence take the previous velocity
@@ -246,9 +254,9 @@ void MocapVelocityFilter()
 
         if (dy != 0)
 #if USE_VELOCITY_FILTER
-            MocapVelocity(1) = Ydot_Filter.Filter(dy / dt.toSec());
+            MocapVelocity(1) = Ydot_Filter.Filter(dy / dt.toSec() + ADDED_VELOCITY_Y_BIAS);
 #else
-            MocapVelocity(1) = dy / dt.toSec();
+            MocapVelocity(1) = dy / dt.toSec() + ADDED_VELOCITY_Y_BIAS;
 #endif
         else {
             //MocapVelocity(1) = Ydot_Filter.Filter(MocapVelocity(1)); // velocity can not be zero, so we assume that it is because of no measurement, hence take the previous velocity
@@ -258,15 +266,22 @@ void MocapVelocityFilter()
 
         if (dz != 0)
 #if USE_VELOCITY_FILTER
-            MocapVelocity(2) = Zdot_Filter.Filter(dz / dt.toSec());
+            MocapVelocity(2) = Zdot_Filter.Filter(dz / dt.toSec() + ADDED_VELOCITY_Z_BIAS);
 #else
-            MocapVelocity(2) = dz / dt.toSec();
+            MocapVelocity(2) = dz / dt.toSec() + ADDED_VELOCITY_Z_BIAS;
 #endif
         else {
             //MocapVelocity(2) = Zdot_Filter.Filter(MocapVelocity(2)); // velocity can not be zero, so we assume that it is because of no measurement, hence take the previous velocity
             MocapVelocity(2) = MocapVelocity(2); // velocity can not be zero, so we assume that it is because of no measurement, hence take the previous velocity
             SkipMeasurement = false;
         }
+
+        Eigen::MatrixXf noise = randn(3,1);
+
+        MocapVelocity(0) += ADDED_VELOCITY_NOISE_X_SIGMA*noise(0);
+        MocapVelocity(1) += ADDED_VELOCITY_NOISE_Y_SIGMA*noise(1);
+        MocapVelocity(2) += ADDED_VELOCITY_NOISE_Z_SIGMA*noise(2);
+
 
         //cout << "xdot filt: " << MocapVelocity(0) << endl;
 
@@ -800,6 +815,8 @@ void ProcessRGBDimage(MeasurementSet * MeasSet)
 //*** Main ***//
 int main(int argc, char **argv)
 {
+    //std::srand(std::time(0));
+    std::srand(1495718309);
     ros::init(argc, argv, "FastSLAM_node");
     ros::NodeHandle n;
     printf("READY to get image\n");
@@ -956,6 +973,7 @@ int main(int argc, char **argv)
     Eigen::Vector3f GOT_meas;
     float PreviousYaw = MocapPose(5);
     float YawDifference = 0.f;
+    Eigen::MatrixXf noise;
 
     VectorChiFastSLAMf s_k = VectorChiFastSLAMf::Zero();
 
@@ -964,7 +982,8 @@ int main(int argc, char **argv)
 
         ProcessRGBDimage(&MeasSet);
 
-        YawDifference = MocapPose(5) - PreviousYaw;
+        noise = randn(1,1);
+        YawDifference = MocapPose(5) - PreviousYaw + ADDED_YAW_DIFFERENCE_NOISE_SIGMA*noise(0);
         dt = PoseTimestamp - PreviousMeasurementTimestamp;
 
         //if (MeasSet.getNumberOfMeasurements() > 0 && dt.toSec() > 0) {
