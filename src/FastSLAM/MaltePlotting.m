@@ -96,3 +96,10 @@ plot(t.meanPath.Ts(1:end-1),t.meanPath.Path(4,1:end-1),'r')
 
 %% sample rate
 Hz = 1/(-1*mean(diff(t.meanPath.Ts)))
+
+%% travelled distance
+
+
+dist = sum(sqrt(diff(t.meanPath.Path(1,:)).^2+...
+diff(t.meanPath.Path(2,:)).^2+...
+diff(t.meanPath.Path(3,:)).^2))
