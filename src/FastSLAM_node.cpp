@@ -47,6 +47,9 @@ using namespace Eigen;
 #define USE_VELOCITY_FILTER     0
 #define ONLY_RUN_FILTER_WHEN_MEASUREMENTS_ARE_AVAILABLE 0   // OBS. Enabling this will likely cause problems with the velocity based motion model, as it is the previous velocity used and not an average
 
+#define VISUALIZE_MEASUREMENT_VECTOR 1
+#define VISUALIZE_WORLD_MEASUREMENT 0
+
 #define USE_IMAGE_SYNCHRONIZER 1
 
 typedef union U_FloatParse {
@@ -677,7 +680,7 @@ void ProcessRGBDimage(MeasurementSet * MeasSet)
 
                 if (color_pixel[0] >= 0 && color_pixel[0] < registered_depth.cols && color_pixel[1] >= 0 && color_pixel[1] < registered_depth.rows) {
                     registered_depth.at<float>(color_pixel[1],color_pixel[0]) = depth_in_meters * 1000;
-                    depthPx = cv::Vec3f(registered_pixel[0], registered_pixel[1], depth_in_meters); // store undistorted X/Y pixel coordinate + depth (in meters)
+                    depthPx = cv::Vec3f(depth_pixel[0], depth_pixel[1], depth_in_meters); // store undistorted X/Y depth pixel coordinate + depth (in meters)
                     registered_depth2.at<cv::Vec3f>(color_pixel[1],color_pixel[0]) = depthPx;
                 }
             }
@@ -763,12 +766,21 @@ void ProcessRGBDimage(MeasurementSet * MeasSet)
                     dispY = point.y;
                     cv::Vec3f World = GetWorldCoordinateFromMeasurement(MarkerMeas);
 
+#if VISUALIZE_MEASUREMENT_VECTOR
+                    sprintf(str, "X=%1.0f", MarkerMeas[0]);
+                    cv::putText(blended, str, cv::Point(dispX+4, dispY-12+4), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255)); // see http://answers.opencv.org/question/6544/how-can-i-display-timer-results-with-a-c-puttext-command/
+                    sprintf(str, "Y=%1.0f", MarkerMeas[1]);
+                    cv::putText(blended, str, cv::Point(dispX+4, dispY+4), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255));
+                    sprintf(str, "d=%1.3f", MarkerMeas[2]);
+                    cv::putText(blended, str, cv::Point(dispX+4, dispY+12+4), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255));
+#elif VISUALIZE_WORLD_MEASUREMENT
                     sprintf(str, "X=%1.3f", World[0]);
                     cv::putText(blended, str, cv::Point(dispX+4, dispY-12+4), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255)); // see http://answers.opencv.org/question/6544/how-can-i-display-timer-results-with-a-c-puttext-command/
                     sprintf(str, "Y=%1.3f", World[1]);
                     cv::putText(blended, str, cv::Point(dispX+4, dispY+4), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255));
                     sprintf(str, "Z=%1.3f", World[2]);
                     cv::putText(blended, str, cv::Point(dispX+4, dispY+12+4), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255));
+#endif
 
                     logAppendTimestamp(CameraLog, RGBD_Timestamp);
                     CameraLog << ID << ", " << MarkerMeas_.format(CSVFmt) << endl;
@@ -915,10 +927,10 @@ int main(int argc, char **argv)
         ros::spinOnce();
     }
 
-    ImgMeasurement::ax = rgb_intrin.fx;
-    ImgMeasurement::ay = rgb_intrin.fy;
-    ImgMeasurement::x0 = rgb_intrin.ppx;
-    ImgMeasurement::y0 = rgb_intrin.ppy;
+    ImgMeasurement::ax = depth_intrin.fx;
+    ImgMeasurement::ay = depth_intrin.fy;
+    ImgMeasurement::x0 = depth_intrin.ppx;
+    ImgMeasurement::y0 = depth_intrin.ppy;
 
     // ===== Configure FastSLAM =====
     GOT_MeasurementID = 49;

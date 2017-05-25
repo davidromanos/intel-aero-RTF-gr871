@@ -68,6 +68,7 @@ ros::Subscriber camerainfo1_sub;
 ros::Subscriber camerainfo2_sub;
 
 cv::Mat RGB_Image;
+cv::Mat blended;
 
 cv::aruco::Dictionary markerDictionary = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_4X4_50);
 
@@ -255,7 +256,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& image) {
 
                     if (color_pixel[0] >= 0 && color_pixel[0] < registered_depth.cols && color_pixel[1] >= 0 && color_pixel[1] < registered_depth.rows) {
                         registered_depth.at<float>(color_pixel[1],color_pixel[0]) = depth_in_meters * 1000;
-                        depthPx = cv::Vec3f(registered_pixel[0], registered_pixel[1], depth_in_meters); // store undistorted X/Y pixel coordinate + depth (in meters)
+                        depthPx = cv::Vec3f(depth_pixel[0], depth_pixel[1], depth_in_meters); // store undistorted X/Y pixel coordinate + depth (in meters)
                         registered_depth2.at<cv::Vec3f>(color_pixel[1],color_pixel[0]) = depthPx;
                     }
                 }
@@ -347,8 +348,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& image) {
             cv::Mat normalized;
             grayBGR.convertTo(normalized, CV_8UC3, 255.0/5000, 0);  // see http://docs.ros.org/diamondback/api/cv_bridge/html/c++/classsensor__msgs_1_1CvBridge.html
 
-            if (RGB_Image.cols == normalized.cols) {
-                cv::Mat blended;
+            if (RGB_Image.cols == normalized.cols) {                
                 cv::addWeighted( normalized, 0.5, RGB_Image, 0.5, 0.0, blended);
 
                 if (displayX != -1 && displayY != -1) {
@@ -389,8 +389,8 @@ void imageCallback(const sensor_msgs::ImageConstPtr& image) {
                     cameraY = depthPx[1];
                     worldZ = depthPx[2];
 
-                    worldX = worldZ * (cameraX - rgb_intrin.ppx) / rgb_intrin.fx;
-                    worldY = worldZ * (cameraY - rgb_intrin.ppy) / rgb_intrin.fy;
+                    worldX = worldZ * (cameraX - depth_intrin.ppx) / depth_intrin.fx;
+                    worldY = worldZ * (cameraY - depth_intrin.ppy) / depth_intrin.fy;
 
                     sprintf(str, "X=%1.3f", worldX);
                     cv::putText(blended, str, cv::Point(displayX+4, displayY-12+4), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255)); // see http://answers.opencv.org/question/6544/how-can-i-display-timer-results-with-a-c-puttext-command/
@@ -409,6 +409,9 @@ void imageCallback(const sensor_msgs::ImageConstPtr& image) {
 
                 cout << markerCorners.size() << endl;
 
+                cv::Size size(4*blended.cols, 4*blended.rows);
+                cv::resize(blended, blended, size);
+
                 int dispX,dispY;
                 vector<cv::Point2f> MarkerPoints;
                 cv::Vec3f MarkerMeas; // cameraX, cameraY, worldZ (depth)
@@ -420,15 +423,15 @@ void imageCallback(const sensor_msgs::ImageConstPtr& image) {
                     ROS_INFO("Marker ID %d at (%f, %f)", markerIds[i], point.x, point.y);
 
                     if (MarkerMeas[2] > 0) {
-                        dispX = point.x;
-                        dispY = point.y;
+                        dispX = 4*point.x;
+                        dispY = 4*point.y;
 
-                        sprintf(str, "X=%1.3f", MarkerMeas[0]);
-                        cv::putText(blended, str, cv::Point(dispX+4, dispY-12+4), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255)); // see http://answers.opencv.org/question/6544/how-can-i-display-timer-results-with-a-c-puttext-command/
-                        sprintf(str, "Y=%1.3f", MarkerMeas[1]);
-                        cv::putText(blended, str, cv::Point(dispX+4, dispY+4), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255));
-                        sprintf(str, "Z=%1.3f", MarkerMeas[2]);
-                        cv::putText(blended, str, cv::Point(dispX+4, dispY+12+4), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255));
+                        sprintf(str, "X=%1.0f", MarkerMeas[0]);
+                        cv::putText(blended, str, cv::Point(dispX-17, dispY-105), cv::FONT_HERSHEY_PLAIN, 4, cv::Scalar(0,0,255,255),3); // see http://answers.opencv.org/question/6544/how-can-i-display-timer-results-with-a-c-puttext-command/
+                        sprintf(str, "Y=%1.0f", MarkerMeas[1]);
+                        cv::putText(blended, str, cv::Point(dispX-17, dispY-60), cv::FONT_HERSHEY_PLAIN, 4, cv::Scalar(0,0,255,255),3);
+                        sprintf(str, "d=%1.3f", MarkerMeas[2]);
+                        cv::putText(blended, str, cv::Point(dispX-17, dispY-15), cv::FONT_HERSHEY_PLAIN, 4, cv::Scalar(0,0,255,255),3);
                     }
                 }
 
@@ -644,6 +647,8 @@ int main(int argc, char **argv)
     cv::startWindowThread();
 
     ros::spin();
+
+    imwrite( "depthgrab.png", blended );
 
     cv::destroyWindow("view");
     return 0;
