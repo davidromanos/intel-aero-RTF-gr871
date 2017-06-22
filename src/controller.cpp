@@ -355,9 +355,9 @@ int main(int argc, char **argv)
 
     std::vector<waypoint> listOfWaypoints;
     // Triangle
-    listOfWaypoints.push_back(waypoint(0,0,1));
+    /*listOfWaypoints.push_back(waypoint(0,0,1));
     listOfWaypoints.push_back(waypoint(2,0,2));
-    listOfWaypoints.push_back(waypoint(0,1,1));
+    listOfWaypoints.push_back(waypoint(0,1,1));*/
 
     /*listOfWaypoints.push_back(waypoint(0,0,1));
     listOfWaypoints.push_back(waypoint(0,0,2));
@@ -365,6 +365,12 @@ int main(int argc, char **argv)
     listOfWaypoints.push_back(waypoint(0,0,3));*/
     //listOfWaypoints.push_back(waypoint(0,0,1));
 
+    
+    listOfWaypoints.push_back(waypoint(0.4,1,1.2));
+    listOfWaypoints.push_back(waypoint(0.4-0.75,1-0.75,1.2));
+    listOfWaypoints.push_back(waypoint(0.4-0.75,1+0.75,1.2));
+    listOfWaypoints.push_back(waypoint(0.4+0.75,1+0.75,1.2));
+    listOfWaypoints.push_back(waypoint(0.4+0.75,1-0.75,1.2));
 
 	/*listOfWaypoints.push_back(waypoint(0,0,1));
     listOfWaypoints.push_back(waypoint(0,0,2));*/
@@ -463,7 +469,7 @@ int main(int argc, char **argv)
     ros::Time last_request = ros::Time::now();
     ros::Time last_request1 = ros::Time::now();
 
-    int simulation = 0; //Flag to select if it is a simulation or not
+    int simulation = 1; //Flag to select if it is a simulation or not
 
     while(ros::ok()){
 
@@ -521,10 +527,10 @@ int main(int argc, char **argv)
 
             if(simulation == 1)
             {
-                yawRef = yawReference(currentWaypoint.x-oldWaypoint.x,currentWaypoint.y-oldWaypoint.y);
-                //yawRef =3*M_PI/4;1
+                //yawRef = yawReference(currentWaypoint.x-oldWaypoint.x,currentWaypoint.y-oldWaypoint.y);
+                yawRef = 0*M_PI/4;
                 k++;
-                if(k%300 == 0)
+                if(k%150 == 0)
                 {
                     i++;
                     if(i>listOfWaypoints.size()-1)
@@ -533,6 +539,7 @@ int main(int argc, char **argv)
                     }
                     oldWaypoint = currentWaypoint;
                     currentWaypoint = listOfWaypoints[i];
+                    std::cout << "current waypoint nr :" << i <<", " << currentWaypoint.x <<"," << currentWaypoint.y <<"," << currentWaypoint.z  <<  "\n";
                 }
 
                 if(abs(yaw-yawRef)< 0.05)
@@ -590,16 +597,16 @@ int main(int argc, char **argv)
                 //listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]-0.25));
 
 				// Report Square
-                /*listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]));
+                listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]));
                 listOfWaypoints.push_back(waypoint(setpoints[0]-0.75,setpoints[1]-0.75,setpoints[2]));
 
                 listOfWaypoints.push_back(waypoint(setpoints[0]-0.75,setpoints[1]+0.75,setpoints[2]));
                 listOfWaypoints.push_back(waypoint(setpoints[0]+0.75,setpoints[1]+0.75,setpoints[2]));
-                listOfWaypoints.push_back(waypoint(setpoints[0]+0.75,setpoints[1]-0.75,setpoints[2]));*/
+                listOfWaypoints.push_back(waypoint(setpoints[0]+0.75,setpoints[1]-0.75,setpoints[2]));
 
 
 				// Cube
-                listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]));
+                /*listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]));
                 listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1]+1,setpoints[2]));
                 listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1]+1,setpoints[2]+1));
 
@@ -607,7 +614,7 @@ int main(int argc, char **argv)
                 listOfWaypoints.push_back(waypoint(setpoints[0]-0.5,setpoints[1]+1,setpoints[2]));
                 listOfWaypoints.push_back(waypoint(setpoints[0]-0.5,setpoints[1],setpoints[2]));
                 listOfWaypoints.push_back(waypoint(setpoints[0]-0.5,setpoints[1],setpoints[2]+1));
-                listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]+1));
+                listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]+1));*/
 
 				//Position hold
                 //listOfWaypoints.push_back(waypoint(setpoints[0],setpoints[1],setpoints[2]));
