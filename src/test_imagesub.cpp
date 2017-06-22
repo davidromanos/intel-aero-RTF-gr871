@@ -2,8 +2,12 @@
 
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
-#include <opencv/cv.h>
-#include <opencv/highgui.h>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/features2d/features2d.hpp>
+#include <opencv2/video/tracking.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv/cv.hpp>
 #include <cv_bridge/cv_bridge.h>
 
 void imageCallback(const sensor_msgs::ImageConstPtr& msg)
@@ -12,9 +16,10 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
     try
       {
         cv_ptr = cv_bridge::toCvCopy(msg, "bgr8");
-        //ROS_INFO("Hi");
+        ROS_INFO("Hi");
         cv::imshow("view", cv_ptr->image);
         //cv::namedWindow("view",CV_WINDOW_AUTOSIZE);
+	cv::waitKey(1); // this is necessary to show the image in the view from OpenCV 3
       }
     catch (cv_bridge::Exception& e)
       {

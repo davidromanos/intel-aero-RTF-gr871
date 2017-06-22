@@ -28,3 +28,7 @@ src/observers/observer_z/html/
 *.autosave
 
 src/observers/ekf/html/
+
+src/FastSLAM/config\.csv~
+
+*.m~

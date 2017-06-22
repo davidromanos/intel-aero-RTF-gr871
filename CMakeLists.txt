@@ -14,14 +14,34 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   geometry_msgs
   gazebo_msgs
-  cv_bridge
+  cv_bridge_new
   image_transport
   tf
   message_generation
+  cmake_modules
 )
+
+find_package(Eigen REQUIRED) 
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
+
+# don't use opencv as found by any prior running of find_package
+unset(OpenCV_CONFIG_PATH CACHE)
+unset(OpenCV_DIR CACHE)
+
+set(TMP_PREFIX_PATH ${CMAKE_PREFIX_PATH})
+set(CMAKE_PREFIX_PATH "/usr/local")
+find_package(OpenCV 3.1.0 REQUIRED)
+
+# restore CMAKE_PREFIX_PATH and other cached variables
+# so nothing other package finds this opencv
+set(CMAKE_PREFIX_PATH ${TMP_PREFIX_PATH})
+
+unset(OpenCV_CONFIG_PATH CACHE)
+unset(OpenCV_DIR CACHE)
+
+
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -109,7 +129,7 @@ generate_messages(
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
-catkin_package(CATKIN_DEPENDS roscpp rospy std_msgs message_runtime)
+catkin_package(CATKIN_DEPENDS roscpp rospy std_msgs message_runtime DEPENDS Eigen)
 
 ###########
 ## Build ##
@@ -121,10 +141,14 @@ catkin_package(CATKIN_DEPENDS roscpp rospy std_msgs message_runtime)
 include_directories(
   ${catkin_INCLUDE_DIRS}    
   src/observers/ekf
+  src/FastSLAM
   include
+  ${OpenCV_INCLUDE_DIRS}
+  ${Eigen_INCLUDE_DIRS}
 )
 
 add_subdirectory(src/observers)
+add_subdirectory(src/FastSLAM)
 set(HEADER_FILES include/utils.h)
 add_library(utils src/utils.cpp ${HEADER_FILES})
 ## Declare a C++ library
@@ -145,17 +169,15 @@ add_library(utils src/utils.cpp ${HEADER_FILES})
 add_executable(offb_node src/offb_node.cpp)
 add_executable(true_position src/true_position.cpp)
 
-
-
+add_executable(depthgrab src/depthgrab.cpp)
+add_executable(markers src/markers.cpp)
+add_executable(test_imagepub src/test_imagepub.cpp)
+add_executable(test_imagesub src/test_imagesub.cpp)
 
 add_executable(controller src/controller.cpp ${HEADER_FILES})
-add_executable(yawEstimation src/yawEstimation.cpp ${HEADER_FILES})
-## observers/kalmanfilter_z.c
-## observers/kalmanfilter_z_terminate.c
-## observers/kalmanfilter_z_initialize.c
-## observers/rt_nonfinite.c
-## observers/rtGetNaN.c
-## observers/rtGetInf.c
+
+add_executable(Mtest src/Mtest.cpp ${FASTSLAM_HEADER_FILES}) 
+add_executable(FastSLAM_node src/FastSLAM_node.cpp ${FASTSLAM_HEADER_FILES} ${HEADER_FILES})
 
 
 
@@ -173,11 +195,15 @@ add_executable(yawEstimation src/yawEstimation.cpp ${HEADER_FILES})
 add_dependencies(offb_node ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
 add_dependencies(true_position ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
 
-
-add_dependencies(yawEstimation ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
+add_dependencies(depthgrab ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
+add_dependencies(markers ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
+add_dependencies(test_imagepub ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
+add_dependencies(test_imagesub ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
 
 add_dependencies(controller ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS} intel_aero_rtf_gr871_generate_messages_cpp)
 
+add_dependencies(Mtest ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS}) 
+add_dependencies(FastSLAM_node ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED_TARGETS})
 
 
 
@@ -185,13 +211,16 @@ add_dependencies(controller ${${PROJECT_NAME}_EXPORTED_TARGETS}${catkin_EXPORTED
 target_link_libraries(offb_node ${catkin_LIBRARIES})
 target_link_libraries(true_position ${catkin_LIBRARIES})
 
-
-target_link_libraries(yawEstimation ${catkin_LIBRARIES} utils)
+target_link_libraries(depthgrab ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+target_link_libraries(markers ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
+target_link_libraries(test_imagepub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
+target_link_libraries(test_imagesub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} )
 
 target_link_libraries(controller ${catkin_LIBRARIES} ekf utils)
 #target_link_libraries(controller ${catkin_LIBRARIES})
 
-
+target_link_libraries(Mtest ${catkin_LIBRARIES} ${Eigen_LIBRARIES} FastSLAM) 
+target_link_libraries(FastSLAM_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${Eigen_LIBRARIES} FastSLAM utils)
 
 
 
