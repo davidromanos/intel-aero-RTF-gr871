@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package>
   <name>intel_aero_rtf_gr871</name>
-  <version>0.0.0</version>
+  <version>1.0.0</version>
   <description>Package for gr871 UAV ROS development on Intel Aero</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag --> 
