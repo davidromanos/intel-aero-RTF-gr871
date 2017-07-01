@@ -77,15 +77,14 @@ unset(OpenCV_DIR CACHE)
 add_message_files(
    FILES
    controllerLog.msg
-#   Message2.msg
+   vicon.msg
  )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+add_service_files(
+   FILES
+   position.srv
+)
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -224,6 +223,10 @@ target_link_libraries(FastSLAM_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${Ei
 
 
 
+## Build vicon_j package
+add_executable(vicon_pix src/vicon_j.cpp src/udp.cpp src/vicon.cpp)
+add_dependencies(vicon_pix vicon_j_generate_messages_cpp)
+target_link_libraries(vicon_pix ${catkin_LIBRARIES})
 
 
 
