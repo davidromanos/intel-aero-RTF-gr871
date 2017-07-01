@@ -14,12 +14,14 @@ Manual flying where the drone is moved around manually with the RC transmitter
 https://www.dropbox.com/s/4krzzsakguiloqd/ManualFlyingSmooth.bag
 
 Controlled flying where the developed position controllers using Vicon inputs move the drone in a 3D cube
-https://www.dropbox.com/s/4iyldxeo6s56wut/VerticalBox_Test2.bag?dl=0
+https://www.dropbox.com/s/4iyldxeo6s56wut/VerticalBox_Test2.bag
 
 
 # Vicon_j ROS node
 For controller test and verification the Vicon_j ROS package has been used for sending Vicon position data to the drone
+
 Package credit goes to risengineering.com
+
 Original package from https://bitbucket.org/uav_research/vicon_j
 
 Package receives data from Vicon and then pushes it to the Pixhawk (running the PX4 stack) using MAVROS.
