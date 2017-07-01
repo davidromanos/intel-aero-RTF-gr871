@@ -3,6 +3,7 @@ ROS nodes for simulating and performing SLAM with the RealSense R200 RGB-D camer
 Visit http://blog.tkjelectronics.dk for more information
 
 License: GPLv2
+
 Developers: Chris Jeppesen, David Romanos, Joan Calvet Molinas, Malte Rørmose Damgaard, Thomas Kølbæk Jespersen
 
 
