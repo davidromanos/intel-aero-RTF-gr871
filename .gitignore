@@ -32,3 +32,5 @@ src/observers/ekf/html/
 src/FastSLAM/config\.csv~
 
 *.m~
+
+*.md~
