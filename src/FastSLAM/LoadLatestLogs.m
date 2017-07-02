@@ -13,7 +13,7 @@ mocap(:,1) = mocap(:,1) - t0;
 mocapVelocity(:,1) = mocapVelocity(:,1) - t0;
 camera(:,1) = camera(:,1) - t0;
 
-mocap = mocap(1:2:end,:); % discard every second measurement
+%mocap = mocap(1:2:end,:); % discard every second measurement
 
 tMoc = mocap(:,1);
 tCam = camera(:,1);

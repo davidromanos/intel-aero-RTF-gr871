@@ -190,6 +190,7 @@ class MapTree
         landmark* extractLandmarkNodePointer(unsigned int Landmark_identifier);
         void printAllLandmarkPositions();
         void saveData(std::string filename,std::vector<unsigned int> LandmarksToSave);
+        void saveDataShort(std::string filename, int k, std::vector<unsigned int> LandmarksToSave);
 
     private:
         mapNode* makeNewPath(landmark* newLandmarkData, mapNode* startNode);

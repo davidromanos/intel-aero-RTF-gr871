@@ -1714,6 +1714,12 @@ void ParticleSet::resample(){
 
         double beta = 0;
 
+        string topDir = "Data";
+        boost::filesystem::create_directories(topDir);
+    	//string filename = topDir + "/l_" + to_string(k) + ".m";
+	string filename = topDir + "/landmarks.m";
+	tmpP->map->saveDataShort(filename, k, KnownMarkers);
+
         for (int z = 1; z <= nParticles; z++){
             // generate random addition to beta
             double rand = distribution2(generator);
@@ -1943,6 +1949,27 @@ void MapTree::saveData(string filename,std::vector<unsigned int> LandmarksToSave
             cout<<"Error: NULL pointer!";
         }
     }
+    Path::dataFileStream.flush();
+    Path::dataFileStream.close();
+}
+
+void MapTree::saveDataShort(string filename, int k, std::vector<unsigned int> LandmarksToSave){
+    Path::dataFileStream.open(filename,ios::out | ios::app);
+    Path::dataFileStream << "map(" << k << ") = struct('nLandmarks',[],'mean',[],'identifier',[]);" << endl;
+    Path::dataFileStream << "map(" << k << ").nLandmarks = " << N_Landmarks << ";" << endl;
+
+    cout << "Size of LandmarksToSave: " << LandmarksToSave.size() << endl;
+    for(unsigned int i = 0;i<LandmarksToSave.size();i++){
+        unsigned int j = LandmarksToSave[i];
+        if (extractLandmarkNodePointer(j) != NULL){
+             Path::dataFileStream << "map(" << k << ").mean(:," << i+1 << ") = " << extractLandmarkNodePointer(j)->lhat.format(Path::OctaveFmt) << ";" << endl;             
+             Path::dataFileStream << "map(" << k << ").identifier(" << i+1 << ") = " << extractLandmarkNodePointer(j)->c << ";" << endl;
+        }
+        else{
+            cout<<"Error: NULL pointer!";
+        }
+    }
+
     Path::dataFileStream.flush();
     Path::dataFileStream.close();
 }

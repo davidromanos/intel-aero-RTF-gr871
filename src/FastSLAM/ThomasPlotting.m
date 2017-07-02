@@ -3,7 +3,7 @@ clear all
 
 name = '';
 if (length(name) == 0)
-    Data = dir('~/catkin_ws/Data/*.m');
+    Data = dir('~/catkin_ws/Data/t_*.m');
     timestamp = 0;
     idx = 0;
     for (i = 1:length(Data))
@@ -23,6 +23,10 @@ s2 = split(s1(2), '.');
 
 t = eval(['t' char(s2(1))]);
 run('LoadLatestLogs.m');
+
+if (exist('~/catkin_ws/Data/landmarks.m') > 0)
+    run('~/catkin_ws/Data/landmarks.m');
+end
 
 %% Extract FastSLAM path
 estX = t.meanPath.Path(1,:);

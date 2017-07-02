@@ -1,0 +1,9 @@
+Manual flying around with both x, y, z and yaw movement, tried to be done smoothly
+Taking off after 12 seconds. 3 landmarks visible in the beginning (before taking off)
+The end of the log should be removed as no landmarks are visible here (being the reason of the path diverging)
+Based on "ManualFlightSmooth.bag"
+
+GOTdisabledAt5s: GOT enabled initially, disabled after 5 seconds and for the rest of the time
+GOTdisabledAt75s: GOT enabled initially, disabled after 75 seconds and for the rest of the time
+GOTenabledAlways: GOT enabled throughout the whole test
+GOTdisabledAndReenabled: GOT disabled at 5 seconds and reenabled at 75 seconds

@@ -2,8 +2,8 @@
 #include "std_msgs/String.h"
 #include "udp.h"
 #include "vicon.h"
-#include <vicon_j/vicon.h>		// package name / message name
-#include "vicon_j/position.h"
+#include <intel_aero_rtf_gr871/vicon.h>		// package name / message name
+#include "intel_aero_rtf_gr871/position.h"               // package name / service name
 #include "geometry_msgs/PoseStamped.h"
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Scalar.h>
@@ -21,8 +21,8 @@ float x=5; float y=5; float z=5;
 //Angles in Eular radian 
 tf2Scalar pitch = 5; tf2Scalar roll = 5; tf2Scalar yaw = 5;
 
-bool updatePosition(vicon_j::position::Request &req,
-		    vicon_j::position::Response &res){
+bool updatePosition(intel_aero_rtf_gr871::position::Request &req,
+            intel_aero_rtf_gr871::position::Response &res){
 
 	if(dz<0)dz=0; if(dz>2)dz=2; if(dx<-3)dx=-3; if(dx>2)dx=2; if(dy<-2)dy=-2; if(dy>2)dy=2;
 	dx = req.x;

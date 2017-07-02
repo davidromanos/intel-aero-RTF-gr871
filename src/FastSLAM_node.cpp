@@ -47,8 +47,12 @@ using namespace Eigen;
 #define USE_VELOCITY_FILTER     1
 #define ONLY_RUN_FILTER_WHEN_MEASUREMENTS_ARE_AVAILABLE 0   // OBS. Enabling this will likely cause problems with the velocity based motion model, as it is the previous velocity used and not an average
 
+#define OVERLAY_DEPTH 1
 #define VISUALIZE_MEASUREMENT_VECTOR 1
 #define VISUALIZE_WORLD_MEASUREMENT 0
+
+#define DEPTH_SCALING   1000.f    // R200 camera on drone
+//#define DEPTH_SCALING   1.f       // Gazebo depth camera
 
 #define ADDED_VELOCITY_X_BIAS               0.02
 #define ADDED_VELOCITY_Y_BIAS               0.02
@@ -684,7 +688,7 @@ void ProcessRGBDimage(MeasurementSet * MeasSet)
             float* pixel = Depth.ptr<float>(y);  // point to first color in row
             for (x = 0; x < Depth.cols; x++) {
                 //depth_in_meters = Depth.at<float>(y,x) / 1000.0;  // see http://stackoverflow.com/questions/8932893/accessing-certain-pixel-rgb-value-in-opencv
-                depth_in_meters = *pixel++ / 1000.0;
+                depth_in_meters = *pixel++ / DEPTH_SCALING;
                 depth_pixel[0] = x;
                 depth_pixel[1] = y;
 
@@ -694,7 +698,7 @@ void ProcessRGBDimage(MeasurementSet * MeasSet)
                 rs_project_point_to_pixel(registered_pixel, &rgb_intrin, color_point, false);
 
                 if (color_pixel[0] >= 0 && color_pixel[0] < registered_depth.cols && color_pixel[1] >= 0 && color_pixel[1] < registered_depth.rows) {
-                    registered_depth.at<float>(color_pixel[1],color_pixel[0]) = depth_in_meters * 1000;
+                    registered_depth.at<float>(color_pixel[1],color_pixel[0]) = depth_in_meters * DEPTH_SCALING;
                     depthPx = cv::Vec3f(depth_pixel[0], depth_pixel[1], depth_in_meters); // store undistorted X/Y depth pixel coordinate + depth (in meters)
                     registered_depth2.at<cv::Vec3f>(color_pixel[1],color_pixel[0]) = depthPx;
                 }
@@ -710,13 +714,21 @@ void ProcessRGBDimage(MeasurementSet * MeasSet)
 
         if (RGB.cols == normalized.cols) {
             cv::Mat blended;
-            cv::addWeighted( normalized, 0.5, RGB, 0.5, 0.0, blended);
+#if OVERLAY_DEPTH
+            cv::addWeighted( normalized, 0.5, RGB_Image, 0.5, 0.0, blended);
+#else
+            RGB_Image.copyTo(blended);
+#endif
 
             // Perform Aruco detection
             vector<int> markerIds;
             vector<vector<cv::Point2f> > markerCorners, rejectedCandidates;
             cv::aruco::detectMarkers(RGB, markerDictionary, markerCorners, markerIds);
             cv::aruco::drawDetectedMarkers(blended, markerCorners, markerIds);
+
+            // Resize image to larger resolution for better text visualization
+            //cv::Size size(4*blended.cols, 4*blended.rows);
+            //cv::resize(blended, blended, size);
 
 //            cout << "Detected markers: " << markerCorners.size() << endl;
 
@@ -783,11 +795,18 @@ void ProcessRGBDimage(MeasurementSet * MeasSet)
 
 #if VISUALIZE_MEASUREMENT_VECTOR
                     sprintf(str, "X=%1.0f", MarkerMeas[0]);
-                    cv::putText(blended, str, cv::Point(dispX+4, dispY-12+4), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255)); // see http://answers.opencv.org/question/6544/how-can-i-display-timer-results-with-a-c-puttext-command/
+                    cv::putText(blended, str, cv::Point(dispX+4-10, dispY-12+4-22), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255)); // see http://answers.opencv.org/question/6544/how-can-i-display-timer-results-with-a-c-puttext-command/
                     sprintf(str, "Y=%1.0f", MarkerMeas[1]);
-                    cv::putText(blended, str, cv::Point(dispX+4, dispY+4), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255));
+                    cv::putText(blended, str, cv::Point(dispX+4-10, dispY+4-22), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255));
                     sprintf(str, "d=%1.3f", MarkerMeas[2]);
-                    cv::putText(blended, str, cv::Point(dispX+4, dispY+12+4), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255));
+                    cv::putText(blended, str, cv::Point(dispX+4-10, dispY+12+4-22), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255));
+
+                        /*sprintf(str, "X=%1.0f", MarkerMeas[0]);
+                        cv::putText(blended, str, cv::Point(dispX-17, dispY-105), cv::FONT_HERSHEY_PLAIN, 4, cv::Scalar(0,0,255,255),3); // see http://answers.opencv.org/question/6544/how-can-i-display-timer-results-with-a-c-puttext-command/
+                        sprintf(str, "Y=%1.0f", MarkerMeas[1]);
+                        cv::putText(blended, str, cv::Point(dispX-17, dispY-60), cv::FONT_HERSHEY_PLAIN, 4, cv::Scalar(0,0,255,255),3);
+                        sprintf(str, "d=%1.3f", MarkerMeas[2]);
+                        cv::putText(blended, str, cv::Point(dispX-17, dispY-15), cv::FONT_HERSHEY_PLAIN, 4, cv::Scalar(0,0,255,255),3);*/
 #elif VISUALIZE_WORLD_MEASUREMENT
                     sprintf(str, "X=%1.3f", World[0]);
                     cv::putText(blended, str, cv::Point(dispX+4, dispY-12+4), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255,255)); // see http://answers.opencv.org/question/6544/how-can-i-display-timer-results-with-a-c-puttext-command/

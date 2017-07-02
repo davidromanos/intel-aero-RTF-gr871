@@ -1,0 +1,8 @@
+Stand still test moving initially and then placed for standing still
+Moving initially with only a few landmarks visible. 8 landmarks visible when standing still.
+Based on "StandStill_InitiallyMoved.bag"
+
+GOTdisabledAt5s: GOT enabled initially, disabled after 5 seconds and for the rest of the time
+GOTdisabledAt30s: GOT enabled initially, disabled after 30 seconds and for the rest of the time
+GOTenabledAlways: GOT enabled throughout the whole test
+GOTdisabledAndReenabled: GOT disabled at 5 seconds and reenabled at 30 seconds

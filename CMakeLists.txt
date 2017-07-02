@@ -225,7 +225,7 @@ target_link_libraries(FastSLAM_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES} ${Ei
 
 ## Build vicon_j package
 add_executable(vicon_pix src/vicon_j.cpp src/udp.cpp src/vicon.cpp)
-add_dependencies(vicon_pix vicon_j_generate_messages_cpp)
+add_dependencies(vicon_pix intel_aero_rtf_gr871_generate_messages_cpp)
 target_link_libraries(vicon_pix ${catkin_LIBRARIES})
 
 
